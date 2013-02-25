@@ -86,7 +86,7 @@ let rec diff_dirs config ~old_file ~new_file =
   (* Get a list of files for this directory only; do not descend farther
      (We recursively call diff_dirs later if we need to descend.) *)
   let options = { Find.Options.default with
-    Find.Options.max_depth = Some 0;
+    Find.Options.max_depth = Some 1;
   } in
   let set_of_file file =
     let files = Find.find_all ~options file in

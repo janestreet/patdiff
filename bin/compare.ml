@@ -267,12 +267,15 @@ let main' args =
     let module FO = Find.Options in
     let filter = fun (filename, _stats) -> filename = file in
     let options = {
-      FO.max_depth = Some 0;
+      FO.
+      min_depth = 1;
+      max_depth = Some 1;
       follow_links = FO.default.FO.follow_links;
       on_open_errors = FO.default.FO.on_open_errors;
       on_stat_errors = FO.default.FO.on_stat_errors;
       filter = Some filter;
       skip_dir = FO.default.FO.skip_dir;
+      relative_paths = false;
     } in
     let matches = Find.find_all ~options dir in
     begin match matches with
@@ -285,7 +288,7 @@ let main' args =
       in
       Compare_core.diff_files ~old_file ~new_file config
     | [] -> failwithf "File not found in %s: %s" dir file ()
-    | _ -> (* This is impossible because max_depth is 0 *)
+    | _ -> (* This is impossible because max_depth is 1 *)
       failwithf "Directory contains clones: %s" dir ()
     end
   | (true, true) ->
