@@ -1,5 +1,5 @@
 # OASIS_START
-# DO NOT EDIT (digest: 4ddee05b9763276e04c4c455d3830c9e)
+# DO NOT EDIT (digest: 39661b9d43ab1010507f10541b6618b1)
 # Ignore VCS directories, you can use the same kind of rule outside 
 # OASIS_START/STOP if you want to exclude directories that contains 
 # useless stuff for the build process
@@ -28,12 +28,12 @@
 <lib/*.ml{,i}>: pkg_core_extended
 <lib/*.ml{,i}>: pkg_pcre
 # Executable patdiff
-"bin/patdiff.byte": use_patdiff_lib
-"bin/patdiff.byte": use_ansi_terminal
-"bin/patdiff.byte": pkg_sexplib.syntax
-"bin/patdiff.byte": pkg_threads
-"bin/patdiff.byte": pkg_core_extended
-"bin/patdiff.byte": pkg_pcre
+<bin/patdiff.{native,byte}>: use_patdiff_lib
+<bin/patdiff.{native,byte}>: use_ansi_terminal
+<bin/patdiff.{native,byte}>: pkg_sexplib.syntax
+<bin/patdiff.{native,byte}>: pkg_threads
+<bin/patdiff.{native,byte}>: pkg_core_extended
+<bin/patdiff.{native,byte}>: pkg_pcre
 <bin/*.ml{,i}>: use_patdiff_lib
 <bin/*.ml{,i}>: use_ansi_terminal
 <bin/*.ml{,i}>: pkg_sexplib.syntax

@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 5f52bc09398196039a6c1abe4bc5a731)
-version = "109.15.00"
+# DO NOT EDIT (digest: 83b5d19d1905753218963ece0208a81b)
+version = "109.15.01"
 description = "File Diff using the Patience Diff algorithm"
 requires = "core_extended sexplib.syntax threads ansi_terminal pcre"
 archive(byte) = "patdiff_lib.cma"
