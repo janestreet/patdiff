@@ -286,6 +286,18 @@ module Html : Output = struct
     ;;
   end
 
+  (* assuming we only insert text in contents and not in attributes, only escaping these
+     three characters should be enough. We may want to print differently non printable
+     ascii characters too? *)
+  let html_escape_char = function
+    | '<' -> "&lt;"
+    | '>' -> "&gt;"
+    | '&' -> "&amp;"
+    | c -> String.of_char c
+
+  let html_escape s =
+    String.concat_map s ~f:html_escape_char
+
   module Rule = struct
 
     let apply text ~rule ~refined =
@@ -294,7 +306,7 @@ module Html : Output = struct
       let apply styles text = Style.apply text ~styles in
       sprintf "%s%s%s"
         (apply rule.R.pre.A.styles rule.R.pre.A.text)
-        (if refined then apply [Format.Style.Reset] text else apply rule.R.styles text)
+        (if refined then apply [Format.Style.Reset] text else apply rule.R.styles (html_escape text))
         (apply rule.R.suf.A.styles rule.R.suf.A.text)
 
   end
