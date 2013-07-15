@@ -5,11 +5,12 @@ module P = Patdiff_lib.Patdiff_core
 module Compare_core = Patdiff_lib.Compare_core
 module Configuration = Patdiff_lib.Configuration
 
-let summary = "Compare two files using the patience diff algorithm\n\
+let summary = "Compare two files (or process a diff read in on stdin) using the\n\
+patience diff algorithm\n\
   \t\tCustomizable text styling with configuration files\n\
   \t\t(Config file search path: ~/.patdiff)"
 
-let usage_arg = "FILE1 FILE2 [OPTIONS]"
+let usage_arg = "[FILE1 FILE2] [OPTIONS]"
 
 
 module Accum = struct
@@ -157,6 +158,8 @@ module Args = struct
 
 end
 
+let remove_at_exit = ref []
+
 (* XXX : These need to work with the new flags *)
 let final t anon =
   match !(t.Accum.make_config_file) with
@@ -165,9 +168,8 @@ let final t anon =
     match !(t.Accum.do_readme) with
     | Some true -> Args.Print_readme
     | _ ->
-      match anon with
-      | [old_file; new_file] ->
-          Args.Compare
+      let args ~old_file ~new_file =
+        Args.Compare
           { Args.
             old_file = old_file;
             new_file = new_file;
@@ -187,8 +189,49 @@ let final t anon =
             old_alt_opt = !(t.Accum.old_alt_opt);
             new_alt_opt = !(t.Accum.new_alt_opt);
           }
+      in
+      match anon with
+      | [old_file; new_file] -> args ~old_file ~new_file
+      | [] ->
+        (* read from stdin *)
+        let temp_txt_file prefix =
+          let file, oc = Filename.open_temp_file prefix ".txt" in
+          remove_at_exit := file :: !remove_at_exit;
+          file, oc
+        in
+        let old_file, old_oc = temp_txt_file "patdiff_old_" in
+        let new_file, new_oc = temp_txt_file "patdiff_new_" in
+        let add_prefixes = ["+";">"] in
+        let remove_prefixes = ["-";"<"] in
+        let begins_with line prefixes = List.exists prefixes ~f:(fun prefix ->
+          String.is_prefix line ~prefix
+        )
+        in
+        let maybe_remove line prefixes =
+          let begins_with = List.find prefixes ~f:(fun prefix ->
+            String.is_prefix line ~prefix
+          )
+          in
+          match begins_with with
+          | None -> line
+          | Some prefix -> " " ^ String.chop_prefix_exn line ~prefix
+        in
+        let process line begins_with_prefixes maybe_remove_prefixes oc =
+          if not (begins_with line begins_with_prefixes)
+          then begin
+            Out_channel.output_string oc (maybe_remove line maybe_remove_prefixes);
+            Out_channel.newline oc
+          end
+        in
+        In_channel.iter_lines In_channel.stdin ~f:(fun line ->
+          process line add_prefixes remove_prefixes old_oc;
+          process line remove_prefixes add_prefixes new_oc
+        );
+        Out_channel.close old_oc;
+        Out_channel.close new_oc;
+        args ~old_file ~new_file
       | _ ->
-          failwithf "Please provide two files to compare Usage: %s" usage_arg ()
+          failwithf "Please provide zero or two files to compare Usage: %s" usage_arg ()
 ;;
 
 (* Override default/config file options with command line arguments *)
@@ -304,7 +347,11 @@ let main arg =
   | Args.Make_config file -> Make_config.main file
   | Args.Print_readme -> Readme.main ()
   | Args.Compare compare_args ->
-    match main' compare_args with
+    let res = main' compare_args in
+    List.iter !remove_at_exit ~f:(fun file ->
+      try Unix.unlink file with _ -> ()
+    );
+    match res with
     | `Same -> exit 0
     | `Different -> exit 1
 ;;

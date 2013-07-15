@@ -3,7 +3,7 @@ open Core_extended.Std
 
 let () =
   let result = Result.try_with (fun () ->
-  Deprecated_command.run Compare.command ~hash_bang_expand:true
+    Deprecated_command.run Compare.command ~hash_bang_expand:true
   )
   in
   match result with
