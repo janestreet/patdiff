@@ -35,6 +35,8 @@ module Accum = struct
     new_alt_opt : string option option ref;
     make_config_file : string option ref;
     do_readme : bool option ref;
+    include_ : string list ref;
+    exclude : string list ref;
   }
 
   let empty = {
@@ -55,6 +57,8 @@ module Accum = struct
     new_alt_opt = ref None;
     make_config_file = ref None;
     do_readme = ref None;
+    include_ = ref [];
+    exclude = ref [];
   }
 
 end
@@ -127,6 +131,13 @@ let flags =
     Cf.noarg_mut "-readme"
       (fun t -> set_once "readme" t.Accum.do_readme true)
       ~doc:Readme.doc;
+    Cf.arg_mut "-include"
+      (fun t s -> t.Accum.include_ := s :: !(t.Accum.include_))
+      ~doc:"REGEXP include files matching this pattern when comparing two directories";
+    Cf.arg_mut "-exclude"
+      (fun t s -> t.Accum.exclude := s :: !(t.Accum.exclude))
+      ~doc:"REGEXP exclude files matching this pattern when comparing two directories \
+            (overrides include patterns)";
   ]
 ;;
 
@@ -149,6 +160,8 @@ module Args = struct
     new_file : string;
     old_alt_opt : string option option;
     new_alt_opt : string option option;
+    include_ : string list;
+    exclude : string list;
   }
 
   type t =
@@ -188,6 +201,8 @@ let final t anon =
             config_opt = !(t.Accum.config_opt);
             old_alt_opt = !(t.Accum.old_alt_opt);
             new_alt_opt = !(t.Accum.new_alt_opt);
+            include_ = !(t.Accum.include_);
+            exclude = !(t.Accum.exclude);
           }
       in
       match anon with
@@ -297,8 +312,13 @@ let main' args =
     failwithf "Both files, %s and %s, do not exist" args.A.old_file args.A.new_file ();
 
   let is_dir = Sys.is_directory_exn in
+  let if_not_diffing_two_dirs () =
+    if args.A.include_ <> [] || args.A.exclude <> []
+    then failwith "Can only specify -include or -exclude when diffing two dirs"
+  in
   match (is_dir old_file, is_dir new_file) with
   | (true, false) | (false, true) ->
+    if_not_diffing_two_dirs ();
     (* One is a directory, the other is a file *)
     let dir, file =
       if is_dir old_file then
@@ -336,9 +356,26 @@ let main' args =
     end
   | (true, true) ->
     (* Both are directories *)
-    Compare_core.diff_dirs ~old_file ~new_file config
+    let file_filter =
+      if args.A.include_ = [] && args.A.exclude = []
+      then None
+      else Some (fun (s,stat) ->
+        match stat.Unix.st_kind with
+        | Unix.S_REG ->
+          List.for_all args.A.exclude
+            ~f:(fun pat -> not (Pcre.pmatch s ~pat))
+          && (
+            args.A.include_ = [] ||
+              List.exists args.A.include_ ~f:(fun pat ->
+                Pcre.pmatch s ~pat
+              ))
+        | _ -> true
+      )
+    in
+    Compare_core.diff_dirs ~old_file ~new_file config ~file_filter
   | (false, false) ->
     (* Both are files *)
+    if_not_diffing_two_dirs ();
     Compare_core.diff_files ~old_file ~new_file config
 ;;
 

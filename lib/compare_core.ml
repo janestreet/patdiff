@@ -81,12 +81,13 @@ let diff_files config ~old_file ~new_file =
 let is_reg path = (Unix.stat path).Unix.st_kind = Unix.S_REG
 let is_dir path = (Unix.stat path).Unix.st_kind = Unix.S_DIR
 
-let rec diff_dirs config ~old_file ~new_file =
+let rec diff_dirs config ~old_file ~new_file ~file_filter =
   let module C = Configuration in
   (* Get a list of files for this directory only; do not descend farther
      (We recursively call diff_dirs later if we need to descend.) *)
   let options = { Find.Options.default with
     Find.Options.max_depth = Some 1;
+    filter = file_filter
   } in
   let set_of_file file =
     let files = Find.find_all ~options file in
@@ -130,7 +131,8 @@ let rec diff_dirs config ~old_file ~new_file =
       end
     end
     else if is_dir old_file && is_dir new_file then begin
-      if not config.C.shallow then match diff_dirs ~old_file ~new_file config with
+      if not config.C.shallow then
+        match diff_dirs ~old_file ~new_file config ~file_filter with
       | `Same -> ()
       | `Different -> exit_code := `Different
       else printf "Common subdirectories: %s and %s\n%!" old_file new_file
