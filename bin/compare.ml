@@ -37,6 +37,7 @@ module Accum = struct
     do_readme : bool option ref;
     include_ : string list ref;
     exclude : string list ref;
+    reverse : bool option ref;
   }
 
   let empty = {
@@ -59,6 +60,7 @@ module Accum = struct
     do_readme = ref None;
     include_ = ref [];
     exclude = ref [];
+    reverse = ref None;
   }
 
 end
@@ -138,6 +140,9 @@ let flags =
       (fun t s -> t.Accum.exclude := s :: !(t.Accum.exclude))
       ~doc:"REGEXP exclude files matching this pattern when comparing two directories \
             (overrides include patterns)";
+    Cf.noarg_mut "-reverse"
+      (fun t -> set_once "reverse" t.Accum.reverse true)
+      ~doc:" produce a diff that undoes the changes";
   ]
 ;;
 
@@ -182,6 +187,11 @@ let final t anon =
     | Some true -> Args.Print_readme
     | _ ->
       let args ~old_file ~new_file =
+        let old_file, new_file =
+          match !(t.Accum.reverse) with
+          | Some true -> new_file, old_file
+          | None | Some false -> old_file, new_file
+        in
         Args.Compare
           { Args.
             old_file = old_file;
