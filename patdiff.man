@@ -3,15 +3,15 @@
 patdiff \- find differences between two files
 
 .SH SYNOPSIS
-\fBpatdiff.exe\fP [options] \fIfrom-file\fP \fIto-file\fP
+\fBpatdiff\fP [options] \fIfrom-file\fP \fIto-file\fP
 
 .SH DESCRIPTION
-Put simply, \fBpatdiff.exe\fP compares the contents of the two files \fIfrom-file\fP and \fIto-file\fP.  If desired, a configuration file defining how to format the output can be used. The comparison is done using the patience diff algorithm
+Put simply, \fBpatdiff\fP compares the contents of the two files \fIfrom-file\fP and \fIto-file\fP.  If desired, a configuration file defining how to format the output can be used. The comparison is done using the patience diff algorithm
 
 By default, compare two files and output the result of the comparison to the terminal, highlighting differences between the files on a word-by-word basis.  All whitespace is considered equal and effectively ignored.  The styling of the output is determined by the configuration file used.  A configuration file is searched for at ~/.patdiff, and if none is found, default styling is applied.  The exit code follows the diff standard, much like GNU diff. (0 = same, 1 = different, 2 = error)
 
 .SS Options
-Below is a summary of all of the options that \fIpatdiff.exe\fP accepts Options can be abbreviated to any unique prefix of their name. Multiple options cannot be combined into a single command line word; they must be separated by spaces.
+Below is a summary of all of the options that \fIpatdiff\fP accepts Options can be abbreviated to any unique prefix of their name. Multiple options cannot be combined into a single command line word; they must be separated by spaces.
 
 \fB-file\fP \fIFILE\fP
 Use FILE as configuration file (overrides ~/.patdiff)
@@ -47,7 +47,7 @@ If files seem the same, double check with 'cmp'.  If they are not actually ident
 When comparing directories, don't diff unique files against /dev/null.  This is useful if you know the contents of the unique files and don't need to see the contents of the entire file. 
 
 \fB-ext-cmp\fP \fIFILE\fP
-By default, this program uses OCaml's String.compare function to compare each line.  With this option, you can provide an external program that takes two anonymous strings as arguments and returns exit codes according the diff standard (0 = same, 1 = different, 2 = error). \fIpatdiff.exe\fP will then use the external program when comparing lines.  Using this option implies -unrefined, because the external calls are expensive and refinement basically loses its meaning with an arbitrary compare	function. 
+By default, this program uses OCaml's String.compare function to compare each line.  With this option, you can provide an external program that takes two anonymous strings as arguments and returns exit codes according the diff standard (0 = same, 1 = different, 2 = error). \fIpatdiff\fP will then use the external program when comparing lines.  Using this option implies -unrefined, because the external calls are expensive and refinement basically loses its meaning with an arbitrary compare	function. 
 
 \fBalt-old\fP \fINAME\fP
 In the header of the output, use NAME instead of the default old filename and time last modified. 
