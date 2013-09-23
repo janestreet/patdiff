@@ -91,7 +91,7 @@ let flags =
       ~doc: " Don't highlight word differences between lines";
     Cf.noarg_mut "-keep-whitespace"
       (fun t -> set_once "keep-whitespace" t.Accum.keep_ws_opt true)
-      ~doc: " Consider whitespace when comparing lines";
+          ~doc: " Consider whitespace when comparing lines";
     Cf.noarg_mut "-split-long-lines"
       (fun t -> set_once "split-long-lines" t.Accum.split_long_lines_opt true)
       ~doc: " Split long lines into multiple displayed lines";
@@ -160,7 +160,7 @@ module Args = struct
     latex_opt : bool option;
     html_opt : bool option;
     context_opt : int option;
-    config_opt : string option;
+    config_opt : string  option;
     old_file : string;
     new_file : string;
     old_alt_opt : string option option;

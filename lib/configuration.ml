@@ -171,40 +171,20 @@ end
 module Old_config = struct
 
   module Line_changed = struct
-
     type t = {
       prefix_old: Annex.t;
       prefix_new: Annex.t;
     } with sexp
-
-    let default = {
-      prefix_old = {
-        Annex.text = Some "-";
-        Annex.style = None;
-      };
-      prefix_new = {
-        Annex.text = Some "+";
-        Annex.style = None;
-      };
-    }
   end
 
   module Word_same = struct
-
     type t = {
       style_old: Style.t list;
       style_new: Style.t list;
     } with sexp
-
-    let default = {
-      style_old = [];
-      style_new = [];
-    }
-
   end
 
   module Word_changed = struct
-
     type t = {
       style_old: Style.t list;
       style_new: Style.t list;
@@ -213,19 +193,9 @@ module Old_config = struct
       prefix_new: Annex.t sexp_option;
       suffix_new: Annex.t sexp_option;
     } with sexp
-
-    let default = {
-      style_old = [Style.Bold];
-      style_new = [Style.Underline];
-      prefix_old = None;
-      suffix_old = None;
-      prefix_new = None;
-      suffix_new = None;
-    }
   end
 
   module Old_header = struct
-
     type t = {
       style_old: Style.t list sexp_option;
       style_new: Style.t list sexp_option;
@@ -234,21 +204,6 @@ module Old_config = struct
       prefix_new: Annex.t sexp_option;
       suffix_new: Annex.t sexp_option;
     } with sexp
-
-    let default = {
-      prefix_old = Some {
-        Annex.text = Some "--- ";
-        Annex.style = None;
-      };
-      suffix_old = None;
-      prefix_new = Some {
-        Annex.text = Some "+++ ";
-        Annex.style = None;
-      };
-      suffix_new = None;
-      style_old = None;
-      style_new = None;
-    }
   end
 
   type t = {
