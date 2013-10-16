@@ -131,6 +131,7 @@ module type Output = sig
     rules: Format.Rules.t ->
     old_file: string ->
     new_file: string ->
+    print:(string -> unit) ->
     unit
 
 end
@@ -187,17 +188,17 @@ module Ansi : Output = struct
 
   end
 
-  let print_header ~rules ~old_file ~new_file =
+  let print_header ~rules ~old_file ~new_file ~print =
     let print_line file rule =
-      printf "%s\n%!" (Rule.apply file ~rule ~refined:false)
+      ksprintf print "%s\n%!" (Rule.apply file ~rule ~refined:false)
     in
     let module Rz = Format.Rules in
     print_line old_file rules.Rz.header_old;
     print_line new_file rules.Rz.header_new
 
 
-  let print hunks ~rules ~old_file ~new_file =
-    print_header ~rules ~old_file ~new_file;
+  let print hunks ~rules ~old_file ~new_file ~print =
+    print_header ~rules ~old_file ~new_file ~print;
     let module R = Patience_diff.Range in
     let module Rz = Format.Rules in
     let module H = Patience_diff.Hunk in
@@ -205,9 +206,9 @@ module Ansi : Output = struct
       let hunk_info = sprintf "-%i,%i +%i,%i"
         hunk.H.mine_start hunk.H.mine_size
         hunk.H.other_start hunk.H.other_size in
-      printf "%s\n" (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
+      ksprintf print "%s\n" (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
       let module R = Patience_diff.Range in
-      let f = printf "%s\n%!" in
+      let f = ksprintf print "%s\n%!" in
       let handle_range = function
         (* Just print the new array elements *)
         | R.Same r ->
@@ -311,13 +312,13 @@ module Html : Output = struct
 
   end
 
-  let print_header ~rules ~old_file ~new_file =
+  let print_header ~rules ~old_file ~new_file ~print =
     let print_line file rule =
       let get_time s =
         try Time.to_string (Time.of_float (Unix.stat s).Unix.st_mtime)
         with _e -> "" in
       let time = get_time file in
-      printf "%s\n%!" (Rule.apply (file ^ " " ^ time) ~rule ~refined:false)
+      ksprintf print "%s\n%!" (Rule.apply (file ^ " " ^ time) ~rule ~refined:false)
     in
     let module Rz = Format.Rules in
     print_line old_file rules.Rz.header_old;
@@ -325,18 +326,18 @@ module Html : Output = struct
   ;;
 
 
-  let print hunks ~rules ~old_file ~new_file =
-    printf "<pre style=\"font-family:consolas,monospace\">%!";
-    print_header ~rules ~old_file ~new_file;
+  let print hunks ~rules ~old_file ~new_file ~print =
+    ksprintf print "<pre style=\"font-family:consolas,monospace\">%!";
+    print_header ~rules ~old_file ~new_file ~print;
     let f hunk =
       let module Rz = Format.Rules in
       let module H = Patience_diff.Hunk in
       let hunk_info = sprintf "-%i,%i +%i,%i"
         hunk.H.mine_start hunk.H.mine_size
         hunk.H.other_start hunk.H.other_size in
-      printf "%s\n" (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
+      ksprintf print "%s\n" (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
       let module R = Patience_diff.Range in
-      let f = printf "%s\n%!" in
+      let f = ksprintf print "%s\n%!" in
       let handle_range = function
         (* Just print the new array elements *)
         | R.Same r ->
@@ -351,7 +352,7 @@ module Html : Output = struct
       List.iter hunk.H.ranges ~f:handle_range
     in
     List.iter hunks ~f;
-    printf "</pre>%!";
+    ksprintf print "</pre>%!";
 
 
 end
@@ -578,14 +579,14 @@ module Latex : Output = struct
     ] in
     List.fold reps ~init:txt ~f:(fun s (rex, itempl) -> Pcre.replace s ~rex ~itempl)
 
-  let print hunks ~rules ~old_file ~new_file =
+  let print hunks ~rules ~old_file ~new_file ~print =
     let module H = Patience_diff.Hunk in
     let old_file = escape old_file in
     let new_file = escape new_file in
-    printf "%s\n%!" (preamble ~old_file ~new_file ~rules);
+    ksprintf print "%s\n%!" (preamble ~old_file ~new_file ~rules);
     let f hunk =
       let transform_and_print txt =
-        printf "%s\n%!" (handle_controls (escape txt)) in
+        ksprintf print "%s\n%!" (handle_controls (escape txt)) in
       let hunk_info = sprintf "-%i,%i +%i,%i"
         hunk.H.mine_start hunk.H.mine_size
         hunk.H.other_start hunk.H.other_size in
@@ -606,7 +607,7 @@ module Latex : Output = struct
       List.iter hunk.H.ranges ~f:handle_range
     in
     List.iter hunks ~f;
-    printf "%s\n" ending
+    ksprintf print "%s\n" ending
 
 end
 
@@ -660,12 +661,12 @@ module Output_ops = struct
 
   end
 
-  let print hunks ~old_file ~new_file ~rules ~output =
+  let print hunks ~old_file ~new_file ~rules ~output ~print =
     let formatted_hunks = Rules.apply hunks ~rules ~output in
     match output with
-    | Output.Ansi -> Ansi.print ~rules ~old_file ~new_file formatted_hunks
-    | Output.Html -> Html.print ~rules ~old_file ~new_file formatted_hunks
-    | Output.Latex -> Latex.print ~rules ~old_file ~new_file formatted_hunks
+    | Output.Ansi -> Ansi.print ~rules ~old_file ~new_file formatted_hunks ~print
+    | Output.Html -> Html.print ~rules ~old_file ~new_file formatted_hunks ~print
+    | Output.Latex -> Latex.print ~rules ~old_file ~new_file formatted_hunks ~print
 
 end
 
@@ -1052,4 +1053,9 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
   let refined_hunks = List.map hunks ~f:aux in
   List.filter refined_hunks ~f:(fun h -> not (H.all_same h))
 
-let print = Output_ops.print
+let print = Output_ops.print ~print:(Printf.printf "%s")
+
+let output_to_string hunks ~old_file ~new_file ~rules ~output =
+  let buf = Queue.create () in
+  Output_ops.print hunks ~old_file ~new_file ~rules ~output ~print:(Queue.enqueue buf);
+  String.concat (Queue.to_list buf) ~sep:""

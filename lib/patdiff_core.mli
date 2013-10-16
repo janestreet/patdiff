@@ -99,3 +99,13 @@ val print :
   output: Output.t ->
   unit
 (** Print a hunk list, usually from [diff] or [refine] *)
+
+
+val output_to_string :
+  string Core_extended.Patience_diff.Hunk.t list ->
+  old_file: string ->
+  new_file: string ->
+  rules: Format.Rules.t ->
+  output: Output.t ->
+  string
+(** Output a hunk list, usually from [diff] or [refine], to a string *)

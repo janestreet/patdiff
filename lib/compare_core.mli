@@ -17,3 +17,10 @@ val diff_dirs :
   new_file: string ->
   file_filter:(Find.file_info -> bool) option ->
   [ `Different | `Same ]
+
+(* diff strings and output to strings, supposed to be used by ocaml code *)
+val diff_strings :
+  Configuration.t ->
+  old_file: string -> old_contents: string ->
+  new_file: string -> new_contents: string ->
+  [ `Different of string | `Same ]

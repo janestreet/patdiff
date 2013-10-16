@@ -18,10 +18,8 @@ let array_of_file file =
     end)
 
 (* Returns a Hunk.t list, ready to be printed *)
-let compare_files config ~old_file ~new_file =
+let compare_lines config ~mine ~other =
   let module C = Configuration in
-  let old_ar = array_of_file old_file in
-  let new_ar = array_of_file new_file in
   (* Create the diff *)
   let context = config.C.context in
   let keep_ws = config.C.keep_ws in
@@ -37,7 +35,7 @@ let compare_files config ~old_file ~new_file =
       | Error _ ->
           failwithf "External compare %S failed!" prog ())
   in
-  let hunks = Patdiff_core.diff ~mine:old_ar ~other:new_ar ~context ~compare ~keep_ws in
+  let hunks = Patdiff_core.diff ~mine ~other ~context ~compare ~keep_ws in
   (* Refine if desired *)
   if config.C.unrefined then
     (* Turn `Replace ranges into `Old and `New ranges.
@@ -49,6 +47,13 @@ let compare_files config ~old_file ~new_file =
     let produce_unified_lines = config.C.produce_unified_lines in
     Patdiff_core.refine ~rules ~output ~keep_ws
       ~produce_unified_lines ~split_long_lines hunks
+
+
+(* Returns a Hunk.t list, ready to be printed *)
+let compare_files config ~old_file ~new_file =
+  let mine = array_of_file old_file in
+  let other = array_of_file new_file in
+  compare_lines config ~mine ~other
 
 (* Print hunks to stdout *)
 let print hunks ~old_file ~new_file ~config =
@@ -76,6 +81,22 @@ let diff_files config ~old_file ~new_file =
   let hunks = compare_files ~old_file ~new_file config in
   print hunks ~old_file ~new_file ~config;
   if Patience_diff.all_same hunks then `Same else `Different
+
+let diff_strings config ~old_file ~old_contents ~new_file ~new_contents =
+  let module C = Configuration in
+  let lines str = String.split_lines str |> Array.of_list in
+  let hunks =
+    compare_lines config ~mine:(lines old_contents) ~other:(lines new_contents)
+  in
+  if Patience_diff.all_same hunks then `Same
+  else begin
+    let output = config.C.output in
+    let rules = config.C.rules in
+    let diff =
+      Patdiff_core.output_to_string hunks ~old_file ~new_file ~output ~rules
+    in
+    `Different diff
+  end
 
 (* True if a file is a regular file *)
 let is_reg path = (Unix.stat path).Unix.st_kind = Unix.S_REG
