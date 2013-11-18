@@ -5,10 +5,15 @@ module P = Patdiff_lib.Patdiff_core
 module Compare_core = Patdiff_lib.Compare_core
 module Configuration = Patdiff_lib.Configuration
 
-let summary = "Compare two files (or process a diff read in on stdin) using the\n\
-patience diff algorithm\n\
-  \t\tCustomizable text styling with configuration files\n\
-  \t\t(Config file search path: ~/.patdiff)"
+let summary = "\
+Compare two files (or process a diff read in on stdin) using the
+patience diff algorithm.
+
+If you don't supply any arguments to patdiff, it will read diff-like
+text from stdin and color it in the normal patdiff way.
+
+The file ~/.patdiff is used as a config file if it exists.  You can
+write a sample config with the -make-config flag."
 
 let usage_arg = "[FILE1 FILE2] [OPTIONS]"
 
