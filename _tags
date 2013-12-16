@@ -1,7 +1,7 @@
 # OASIS_START
-# DO NOT EDIT (digest: 39661b9d43ab1010507f10541b6618b1)
-# Ignore VCS directories, you can use the same kind of rule outside 
-# OASIS_START/STOP if you want to exclude directories that contains 
+# DO NOT EDIT (digest: a8dec5a14c7a655462ee22c111d7db79)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
 # useless stuff for the build process
 <**/.svn>: -traverse
 <**/.svn>: not_hygienic
@@ -16,29 +16,29 @@
 # Library ansi_terminal
 "ansi_terminal/ansi_terminal.cmxs": use_ansi_terminal
 "ansi_terminal/ANSITerminal.cmx": for-pack(Ansi_terminal)
-<ansi_terminal/*.ml{,i}>: pkg_threads
+<ansi_terminal/*.ml{,i}>: package(threads)
 # Library patdiff_lib
 "lib/patdiff_lib.cmxs": use_patdiff_lib
 "lib/compare_core.cmx": for-pack(Patdiff_lib)
 "lib/patdiff_core.cmx": for-pack(Patdiff_lib)
 "lib/configuration.cmx": for-pack(Patdiff_lib)
 <lib/*.ml{,i}>: use_ansi_terminal
-<lib/*.ml{,i}>: pkg_sexplib.syntax
-<lib/*.ml{,i}>: pkg_threads
-<lib/*.ml{,i}>: pkg_core_extended
-<lib/*.ml{,i}>: pkg_pcre
+<lib/*.ml{,i}>: package(sexplib.syntax)
+<lib/*.ml{,i}>: package(threads)
+<lib/*.ml{,i}>: package(core_extended)
+<lib/*.ml{,i}>: package(pcre)
 # Executable patdiff
 <bin/patdiff.{native,byte}>: use_patdiff_lib
 <bin/patdiff.{native,byte}>: use_ansi_terminal
-<bin/patdiff.{native,byte}>: pkg_sexplib.syntax
-<bin/patdiff.{native,byte}>: pkg_threads
-<bin/patdiff.{native,byte}>: pkg_core_extended
-<bin/patdiff.{native,byte}>: pkg_pcre
+<bin/patdiff.{native,byte}>: package(sexplib.syntax)
+<bin/patdiff.{native,byte}>: package(threads)
+<bin/patdiff.{native,byte}>: package(core_extended)
+<bin/patdiff.{native,byte}>: package(pcre)
 <bin/*.ml{,i}>: use_patdiff_lib
 <bin/*.ml{,i}>: use_ansi_terminal
-<bin/*.ml{,i}>: pkg_sexplib.syntax
-<bin/*.ml{,i}>: pkg_threads
-<bin/*.ml{,i}>: pkg_core_extended
-<bin/*.ml{,i}>: pkg_pcre
+<bin/*.ml{,i}>: package(sexplib.syntax)
+<bin/*.ml{,i}>: package(threads)
+<bin/*.ml{,i}>: package(core_extended)
+<bin/*.ml{,i}>: package(pcre)
 # OASIS_STOP
 <{bin,lib,test}/*.ml{,i}>: syntax_camlp4o

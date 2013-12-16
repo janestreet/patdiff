@@ -1,6 +1,6 @@
 # OASIS_START
-# DO NOT EDIT (digest: 7d007d72e9816145ee91f619c4cf0100)
-version = "109.53.00"
+# DO NOT EDIT (digest: 301f0367737a11980f85eb2429086388)
+version = "109.53.01"
 description = "File Diff using the Patience Diff algorithm"
 requires = "threads"
 archive(byte) = "ansi_terminal.cma"

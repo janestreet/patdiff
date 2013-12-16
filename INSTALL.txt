@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: b957bdb64f76d428f34912ab1c1aa4a6) *)
+(* DO NOT EDIT (digest: 8fc9191efa26c03cb71d5e9927d76a73) *)
 This is the INSTALL file for the patdiff distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -27,7 +27,7 @@ Installing
 Uninstalling
 ============
 
-1. Go to the root of the package 
+1. Go to the root of the package
 2. Run 'ocaml setup.ml -uninstall'
 
 OASIS
