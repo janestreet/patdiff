@@ -1,5 +1,5 @@
 (* OASIS_START *)
-(* DO NOT EDIT (digest: 8fc9191efa26c03cb71d5e9927d76a73) *)
+(* DO NOT EDIT (digest: bab3f066d68eeae528539713fb830020) *)
 This is the INSTALL file for the patdiff distribution.
 
 This package uses OASIS to generate its build system. See section OASIS for
@@ -9,12 +9,11 @@ Dependencies
 ============
 
 In order to compile this package, you will need:
-* ocaml (>= 4.00.0) for all, doc patdiff_man
+* ocaml (>= 4.00.0)
 * findlib (>= 1.3.2)
 * core_extended for library patdiff_lib
 * sexplib for library patdiff_lib, executable patdiff
 * pcre for library patdiff_lib
-* gzip for doc patdiff_man
 
 Installing
 ==========
