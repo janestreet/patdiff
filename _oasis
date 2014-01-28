@@ -34,13 +34,3 @@ Executable patdiff
   Path:               bin
   CompiledObject:     best
   BuildDepends:       patdiff_lib,sexplib.syntax,threads
-
-Document patdiff_man
-  Type:               custom (0.3)
-  Title:              Man page for patdiff
-  Install:            true
-  BuildTools:         gzip
-  XCustom:            $gzip -c patdiff.man > patdiff.1.gz
-  XCustomClean:       $rm patdiff.1.gz
-  DataFiles:          patdiff.1.gz
-  InstallDir:         $mandir/man1
