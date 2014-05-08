@@ -1,6 +1,5 @@
 open Core.Std
 open Core_extended.Std
-module Patience_diff = Core_extended.Patience_diff
 
 (* Open file, send lines to an array *)
 let array_of_file file =

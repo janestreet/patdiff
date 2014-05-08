@@ -72,7 +72,7 @@ val diff :
   keep_ws : bool ->
   mine:string array ->
   other:string array ->
-  string Core_extended.Patience_diff.Hunk.t list
+  string Patience_diff.Hunk.t list
 (** [diff ~context ~compare ~keep_ws a b] Use Patience_diff to get a list of
     hunks describing the comparison between [a] and [b]
 *)
@@ -84,15 +84,15 @@ val refine :
   output: Output.t ->
   keep_ws: bool ->
   split_long_lines: bool ->
-  string Core_extended.Patience_diff.Hunk.t list ->
-  string Core_extended.Patience_diff.Hunk.t list
+  string Patience_diff.Hunk.t list ->
+  string Patience_diff.Hunk.t list
 (** [refine diff format] takes the Replace ranges from the hunk list, splits
     them into smaller arrays, diffs those arrays, formats them according to
     the provided format, and recomposes the Replace range of the original
     hunk list. *)
 
 val print :
-  string Core_extended.Patience_diff.Hunk.t list ->
+  string Patience_diff.Hunk.t list ->
   old_file: string ->
   new_file: string ->
   rules: Format.Rules.t ->
@@ -102,7 +102,7 @@ val print :
 
 
 val output_to_string :
-  string Core_extended.Patience_diff.Hunk.t list ->
+  string Patience_diff.Hunk.t list ->
   old_file: string ->
   new_file: string ->
   rules: Format.Rules.t ->

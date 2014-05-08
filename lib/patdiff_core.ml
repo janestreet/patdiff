@@ -1,5 +1,4 @@
 open Core.Std
-module Patience_diff = Core_extended.Patience_diff
 
 (* Format is the home of all the internal representations of the formatting
    that will be applied to the diff. ie. prefixes, suffixes, & valid styles.
