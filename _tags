@@ -1,3 +1,47 @@
 # OASIS_START
+# DO NOT EDIT (digest: ad0b62ac60bb587d9eab78d303d33e9f)
+# Ignore VCS directories, you can use the same kind of rule outside
+# OASIS_START/STOP if you want to exclude directories that contains
+# useless stuff for the build process
+<**/.svn>: -traverse
+<**/.svn>: not_hygienic
+".bzr": -traverse
+".bzr": not_hygienic
+".hg": -traverse
+".hg": not_hygienic
+".git": -traverse
+".git": not_hygienic
+"_darcs": -traverse
+"_darcs": not_hygienic
+# Library ansi_terminal
+"ansi_terminal/ansi_terminal.cmxs": use_ansi_terminal
+"ansi_terminal/ANSITerminal.cmx": for-pack(Ansi_terminal)
+<ansi_terminal/*.ml{,i}>: package(threads)
+# Library patdiff_lib
+"lib/patdiff_lib.cmxs": use_patdiff_lib
+"lib/compare_core.cmx": for-pack(Patdiff_lib)
+"lib/patdiff_core.cmx": for-pack(Patdiff_lib)
+"lib/configuration.cmx": for-pack(Patdiff_lib)
+<lib/*.ml{,i}>: use_ansi_terminal
+<lib/*.ml{,i}>: package(sexplib.syntax)
+<lib/*.ml{,i}>: package(threads)
+<lib/*.ml{,i}>: package(core_extended)
+<lib/*.ml{,i}>: package(patience_diff)
+<lib/*.ml{,i}>: package(pcre)
+# Executable patdiff
+<bin/patdiff.{native,byte}>: use_patdiff_lib
+<bin/patdiff.{native,byte}>: use_ansi_terminal
+<bin/patdiff.{native,byte}>: package(sexplib.syntax)
+<bin/patdiff.{native,byte}>: package(threads)
+<bin/patdiff.{native,byte}>: package(core_extended)
+<bin/patdiff.{native,byte}>: package(patience_diff)
+<bin/patdiff.{native,byte}>: package(pcre)
+<bin/*.ml{,i}>: use_patdiff_lib
+<bin/*.ml{,i}>: use_ansi_terminal
+<bin/*.ml{,i}>: package(sexplib.syntax)
+<bin/*.ml{,i}>: package(threads)
+<bin/*.ml{,i}>: package(core_extended)
+<bin/*.ml{,i}>: package(patience_diff)
+<bin/*.ml{,i}>: package(pcre)
 # OASIS_STOP
 <{bin,lib,test}/*.ml{,i}>: syntax_camlp4o
