@@ -151,7 +151,7 @@ module Config = struct
     shallow: bool sexp_option;
     double_check: bool sexp_option;
     mask_uniques: bool sexp_option;
-    latex: bool sexp_option;
+    html: bool sexp_option;
     alt_old: string sexp_option;
     alt_new: string sexp_option;
     ext_cmp: string sexp_option;
@@ -218,7 +218,6 @@ module Old_config = struct
     double_check : bool sexp_option;
     hide_uniques : bool sexp_option;
     header: Old_header.t sexp_option;
-    output: Output.t sexp_option;
     line_same: Style.t list sexp_option;
     line_same_prefix: Annex.t sexp_option;
     line_changed: Line_changed.t sexp_option;
@@ -239,7 +238,7 @@ module Old_config = struct
      shallow = t.shallow;
      double_check = t.double_check;
      mask_uniques = t.hide_uniques;
-     latex = None;
+     html = None;
      alt_old = None;
      alt_new = None;
      ext_cmp = t.external_compare;
@@ -315,8 +314,8 @@ let parse config =
   let alt_new = c.C.alt_new in
   (**** Output Type ****)
   let output =
-    let latex = Option.value c.C.latex ~default:false in
-    if latex then P.Output.Latex else P.Output.Ansi in
+    let html = Option.value c.C.html ~default:false in
+    if html then P.Output.Html else P.Output.Ansi in
   (**** Styling Rules ****)
   (* Words *)
   let create_word_same line_opt =

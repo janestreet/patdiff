@@ -28,7 +28,6 @@ module Accum = struct
     unrefined_opt : bool option ref;
     keep_ws_opt : bool option ref;
     split_long_lines_opt : bool option ref;
-    latex_opt : bool option ref;
     html_opt : bool option ref;
     produce_unified_lines_opt : bool option ref;
     quiet_opt : bool option ref;
@@ -51,7 +50,6 @@ module Accum = struct
     unrefined_opt = ref None;
     keep_ws_opt = ref None;
     split_long_lines_opt = ref None;
-    latex_opt = ref None;
     html_opt = ref None;
     produce_unified_lines_opt = ref None;
     quiet_opt = ref None;
@@ -100,9 +98,6 @@ let flags =
     Cf.noarg_mut "-split-long-lines"
       (fun t -> set_once "split-long-lines" t.Accum.split_long_lines_opt true)
       ~doc: " Split long lines into multiple displayed lines";
-    Cf.noarg_mut "-latex"
-      (fun t -> set_once "latex" t.Accum.latex_opt true)
-      ~doc: " Output in LaTeX format instead of ANSI terminal";
     Cf.noarg_mut "-html"
       (fun t -> set_once "html" t.Accum.html_opt true)
       ~doc: " Output in HTML format instead of default";
@@ -162,7 +157,6 @@ module Args = struct
     quiet_opt : bool option;
     double_check_opt : bool option;
     mask_uniques_opt : bool option;
-    latex_opt : bool option;
     html_opt : bool option;
     context_opt : int option;
     config_opt : string  option;
@@ -210,7 +204,6 @@ let final t anon =
             quiet_opt = !(t.Accum.quiet_opt);
             double_check_opt = !(t.Accum.double_check_opt);
             mask_uniques_opt = !(t.Accum.mask_uniques_opt);
-            latex_opt = !(t.Accum.latex_opt);
             html_opt = !(t.Accum.html_opt);
             context_opt = !(t.Accum.context_opt);
             config_opt = !(t.Accum.config_opt);
@@ -269,11 +262,10 @@ let override config args =
   let module A = Args in
   let module C = Configuration in
   let output =
-    match args.A.latex_opt, args.A.html_opt with
-    | None, None -> config.C.output
-    | Some true, _ -> P.Output.Latex
-    | _, Some true -> P.Output.Html
-    | Some false, Some false | Some false, None | None, Some false -> P.Output.Ansi
+    match args.A.html_opt with
+    | None -> config.C.output
+    | Some true -> P.Output.Html
+    | Some false-> P.Output.Ansi
   in
   let value default option = Option.value ~default option in
   {

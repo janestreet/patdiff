@@ -63,49 +63,45 @@ module Format : sig
 end
 
 module Output : sig
-  type t = Latex | Ansi | Html with sexp
+  type t = Ansi | Html with sexp
 end
 
-val diff :
-  context : int ->
-  compare : (string -> string -> int) ->
-  keep_ws : bool ->
-  mine:string array ->
-  other:string array ->
-  string Patience_diff.Hunk.t list
 (** [diff ~context ~compare ~keep_ws a b] Use Patience_diff to get a list of
-    hunks describing the comparison between [a] and [b]
-*)
+    hunks describing the comparison between [a] and [b] *)
+val diff :
+     context:int
+  -> compare:(string -> string -> int)
+  -> keep_ws:bool
+  -> mine:string array
+  -> other:string array
+  -> string Patience_diff.Hunk.t list
 
-
-val refine :
-  rules: Format.Rules.t ->
-  produce_unified_lines: bool ->
-  output: Output.t ->
-  keep_ws: bool ->
-  split_long_lines: bool ->
-  string Patience_diff.Hunk.t list ->
-  string Patience_diff.Hunk.t list
 (** [refine diff format] takes the Replace ranges from the hunk list, splits
     them into smaller arrays, diffs those arrays, formats them according to
     the provided format, and recomposes the Replace range of the original
     hunk list. *)
+val refine :
+     rules:Format.Rules.t
+  -> produce_unified_lines:bool
+  -> output:Output.t
+  -> keep_ws:bool
+  -> split_long_lines:bool
+  -> string Patience_diff.Hunk.t list
+  -> string Patience_diff.Hunk.t list
 
-val print :
-  string Patience_diff.Hunk.t list ->
-  old_file: string ->
-  new_file: string ->
-  rules: Format.Rules.t ->
-  output: Output.t ->
-  unit
 (** Print a hunk list, usually from [diff] or [refine] *)
+val print :
+     string Patience_diff.Hunk.t list
+  -> old_file:string
+  -> new_file:string
+  -> rules:Format.Rules.t
+  -> output:Output.t
+  -> unit
 
-
-val output_to_string :
-  string Patience_diff.Hunk.t list ->
-  old_file: string ->
-  new_file: string ->
-  rules: Format.Rules.t ->
-  output: Output.t ->
-  string
 (** Output a hunk list, usually from [diff] or [refine], to a string *)
+val output_to_string :
+  ?file_names:(string * string)
+  -> string Patience_diff.Hunk.t list
+  -> rules:Format.Rules.t
+  -> output:Output.t
+  -> string

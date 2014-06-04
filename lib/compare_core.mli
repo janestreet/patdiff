@@ -21,6 +21,6 @@ val diff_dirs :
 (* diff strings and output to strings, supposed to be used by ocaml code *)
 val diff_strings :
   Configuration.t ->
-  old_file: string -> old_contents: string ->
-  new_file: string -> new_contents: string ->
+  old: string ->
+  new_: string ->
   [ `Different of string | `Same ]

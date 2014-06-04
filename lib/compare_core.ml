@@ -81,19 +81,17 @@ let diff_files config ~old_file ~new_file =
   print hunks ~old_file ~new_file ~config;
   if Patience_diff.all_same hunks then `Same else `Different
 
-let diff_strings config ~old_file ~old_contents ~new_file ~new_contents =
+let diff_strings config ~old ~new_ =
   let module C = Configuration in
   let lines str = String.split_lines str |> Array.of_list in
   let hunks =
-    compare_lines config ~mine:(lines old_contents) ~other:(lines new_contents)
+    compare_lines config ~mine:(lines old) ~other:(lines new_)
   in
   if Patience_diff.all_same hunks then `Same
   else begin
     let output = config.C.output in
     let rules = config.C.rules in
-    let diff =
-      Patdiff_core.output_to_string hunks ~old_file ~new_file ~output ~rules
-    in
+    let diff = Patdiff_core.output_to_string hunks ~output ~rules in
     `Different diff
   end
 

@@ -23,4 +23,9 @@ module Config : sig
   type t with sexp
 end
 
+module Old_config : sig
+  type t with sexp
+  val to_new_config : t -> Config.t
+end
+
 val parse : Config.t -> t

@@ -107,9 +107,9 @@ module Format = struct
 
 end
 
-(* Currently have two types of output: Ansi and LaTeX *)
+(* Currently have two types of output: Ansi and Html *)
 module Output = struct
-  type t = Latex | Ansi | Html with sexp
+  type t = Ansi | Html with sexp
 end
 
 (* An output can apply a style to a string and print a list of hunks *)
@@ -126,10 +126,9 @@ module type Output = sig
   end
 
   val print :
+    ?file_names:(string * string) ->
     string Patience_diff.Hunk.t list ->
     rules: Format.Rules.t ->
-    old_file: string ->
-    new_file: string ->
     print:(string -> unit) ->
     unit
 
@@ -196,15 +195,16 @@ module Ansi : Output = struct
     print_line new_file rules.Rz.header_new
 
 
-  let print hunks ~rules ~old_file ~new_file ~print =
-    print_header ~rules ~old_file ~new_file ~print;
+  let print ?file_names hunks ~rules ~print =
+    Option.iter file_names ~f:(fun (old_file, new_file) ->
+      print_header ~rules ~old_file ~new_file ~print);
     let module R = Patience_diff.Range in
     let module Rz = Format.Rules in
     let module H = Patience_diff.Hunk in
     let f hunk =
       let hunk_info = sprintf "-%i,%i +%i,%i"
-        hunk.H.mine_start hunk.H.mine_size
-        hunk.H.other_start hunk.H.other_size in
+                        hunk.H.mine_start hunk.H.mine_size
+                        hunk.H.other_start hunk.H.other_size in
       ksprintf print "%s\n" (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
       let module R = Patience_diff.Range in
       let f = ksprintf print "%s\n%!" in
@@ -325,15 +325,16 @@ module Html : Output = struct
   ;;
 
 
-  let print hunks ~rules ~old_file ~new_file ~print =
+  let print ?file_names hunks ~rules ~print =
     ksprintf print "<pre style=\"font-family:consolas,monospace\">%!";
-    print_header ~rules ~old_file ~new_file ~print;
+    Option.iter file_names ~f:(fun (old_file, new_file) ->
+      print_header ~rules ~old_file ~new_file ~print);
     let f hunk =
       let module Rz = Format.Rules in
       let module H = Patience_diff.Hunk in
       let hunk_info = sprintf "-%i,%i +%i,%i"
-        hunk.H.mine_start hunk.H.mine_size
-        hunk.H.other_start hunk.H.other_size in
+                        hunk.H.mine_start hunk.H.mine_size
+                        hunk.H.other_start hunk.H.other_size in
       ksprintf print "%s\n" (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
       let module R = Patience_diff.Range in
       let f = ksprintf print "%s\n%!" in
@@ -353,261 +354,6 @@ module Html : Output = struct
     List.iter hunks ~f;
     ksprintf print "</pre>%!";
 
-
-end
-
-module Latex : Output = struct
-
-  (* To avoid inevitable conflicts with curly brackets and whacks in source
-     files, we insert control characters for the latex formatting, and later
-     in the print function, we replace these character with the correct
-     characters.
-
-     This is necessary because refinement modifies the diff by inserting
-     formatting directly into the string elements. *)
-
-  let whack = ""
-  let curly_open = ""
-  let curly_close = ""
-
-  module Color = struct
-
-    type t =
-    | Cmyk of float * float * float * float
-    | Black of float
-    | Green of float
-    | Yellow of float
-    | Blue of float
-    | Magenta of float
-    | Cyan of float
-    | Red of float
-
-    let of_internal color =
-      let module C = Format.Color in
-      match color with
-      | C.Black -> Black 1.
-      | C.Green -> Green 0.3
-      | C.Yellow -> Yellow 0.3
-      | C.Blue -> Blue 0.3
-      | C.Magenta -> Magenta 0.3
-      | C.Cyan -> Cyan 0.3
-      | C.Red -> Red 0.3
-      | C.White -> Black 0.
-      | C.Default -> Black 1.
-      | C.Gray -> Black 0.3
-      | C.Bright_black -> Black 0.3
-      | C.Bright_red -> Red 1.
-      | C.Bright_green -> Green 1.
-      | C.Bright_yellow -> Yellow 1.
-      | C.Bright_blue -> Blue 1.
-      | C.Bright_magenta -> Magenta 1.
-      | C.Bright_cyan -> Cyan 1.
-      | C.Bright_white -> Black 0.
-      | C.Cmyk (c,m,y,k) -> Cmyk (c,m,y,k)
-
-    let to_floats t =
-      match t with
-      | Cmyk (c,m,y,k) -> (c,m,y,k)
-      | Black k -> (0., 0., 0., k)
-      | Green k -> (0.25, 0., 0.75, k)
-      | Yellow k -> (0., 0., 1., k)
-      | Blue k -> (0.5, 0.5, 0., k)
-      | Magenta k -> (0., 1., 0., k)
-      | Cyan k -> (1., 0., 0., k)
-      | Red k -> (0., 0.75, 0.75, k)
-
-    let to_string t =
-      match to_floats t with
-      | c,m,y,k ->
-        sprintf "%.2f,%.2f,%.2f,%.2f" c m y k
-
-    let define_color s ~name =
-      sprintf "\\definecolor{%s}{cmyk}{%s}" name s
-
-    let black ~name =
-      define_color (to_string (Black 1.)) ~name
-
-  end
-
-  module Style = struct
-
-    type t =
-    | Bold
-    | Emph
-    | Underline
-    | Normal
-    | Fg of Color.t
-    | Bg of Color.t
-
-    let of_internal =
-      let module S = Format.Style in
-      function
-      | S.Dim | S.Inverse | S.Hide | S.Blink | S.Reset -> Normal
-      | S.Underline -> Underline
-      | S.Bold -> Bold
-      | S.Emph -> Emph
-      | S.Foreground color | S.Fg color -> Fg (Color.of_internal color)
-      | S.Background color | S.Bg color -> Bg (Color.of_internal color)
-
-    let to_string = function
-      | Bold -> "textbf"
-      | Normal -> "texttt"
-      | Underline -> "underline"
-      | Emph -> "emph"
-      | Fg c | Bg c -> Color.to_string c
-
-    let apply_single text t =
-      sprintf "\\%s{%s}" (to_string t) text
-
-    let apply_latex text ~styles =
-      List.fold ~f:(apply_single) ~init:text styles
-
-    let __UNUSED_VALUE__apply text ~styles =
-      apply_latex text ~styles:(List.map styles ~f:(of_internal))
-
-  end
-
-  module Rule = struct
-
-    let apply text ~rule ~refined =
-      let module R = Format.Rule in
-      let module A = Format.Rule.Annex in
-      let apply name text =
-        if not (text = "") then
-          (sprintf "%s%s%s%s%s" whack name curly_open text curly_close)
-        else "" in
-      let name = rule.R.name in
-      sprintf "%s%s%s"
-        (apply (name ^ "pre") rule.R.pre.A.text)
-        (if refined then text else apply name text)
-        (apply (name ^ "suf") rule.R.suf.A.text)
-
-  end
-
-  let latex_rules rules =
-    let module R = Format.Rule in
-    let module A = Format.Rule.Annex in
-    let module Rz = Format.Rules in
-    let colors = Hashtbl.Poly.create () ~size:12 in
-    let commands = ref [] in
-    let of_internal rule =
-      let name = rule.R.name in
-      let generate_latex_command name styles =
-        Hashtbl.replace colors ~key:name ~data:(Color.black ~name);
-        let style_cmds text styles =
-          let latex_styles styles = List.map styles ~f:Style.of_internal in
-          let f = fun text style -> match style with
-            | Style.Fg c | Style.Bg c ->
-              (* Define color *)
-              let cmyk = Style.to_string (Style.Fg c) in
-              let color = Color.define_color cmyk ~name in
-              Hashtbl.replace colors ~key:name ~data:color;
-              text
-            | style ->
-              Style.apply_single text style in
-          List.fold (latex_styles styles) ~f ~init:text in
-        let colorcommand txt = sprintf "\\textcolor{%s}{%s}" name txt in
-        let newcommand =
-          sprintf "\\newcommand{\\%s}[1]{%s}"
-            name (colorcommand (style_cmds "#1" styles))  in
-        commands := newcommand :: !commands in
-      generate_latex_command (name ^ "suf") rule.R.suf.A.styles;
-      generate_latex_command (name ^ "pre") rule.R.pre.A.styles;
-      generate_latex_command name rule.R.styles in
-    of_internal rules.Rz.line_same;
-    of_internal rules.Rz.line_unified;
-    of_internal rules.Rz.line_old;
-    of_internal rules.Rz.line_new;
-    of_internal rules.Rz.word_same_old;
-    of_internal rules.Rz.word_same_new;
-    of_internal rules.Rz.word_same_unified;
-    of_internal rules.Rz.word_old;
-    of_internal rules.Rz.word_new;
-    of_internal rules.Rz.hunk;
-    of_internal rules.Rz.header_old;
-    of_internal rules.Rz.header_new;
-    let f = fun ~key ~data s -> let _ = key in sprintf "%s%s\n" s data in
-    let init = Hashtbl.fold colors ~f ~init:"" in
-    List.fold !commands ~f:(sprintf "%s%s\n") ~init
-
-
-  let preamble ~old_file ~new_file ~rules = sprintf "\
-\\documentclass[landscape,twocolumn]{report}
-\\usepackage[usenames,dvipsnames]{color}
-\\usepackage[right=.5cm,left=.5cm,top=2cm,bottom=2cm]{geometry}
-\\usepackage{fancyhdr}
-\\usepackage{fancyvrb}
-\\setlength{\\headheight}{24pt}
-\\pagestyle{fancy}
-%s
-\\begin{document}
-\\fancyhf{}
-\\lhead{%s\\\\%s}
-\\rfoot{\\thepage}
-\\fontsize{7}{8}
-\\selectfont
-\\begin{Verbatim}[commandchars=\\\\\\{\\}]
-" (latex_rules rules) old_file new_file
-
-  let ending = "\
-\\end{Verbatim}
-\\end{document}"
-
-  (* Latex Verbatim needs all whacks and curly brackets to be escaped,
-     hence this function *)
-  let escape txt =
-    let whack_sub = sprintf "%stextbackslash%s%s" whack curly_open curly_close in
-    let reps = [
-      (Pcre.regexp "\\\\", Pcre.subst whack_sub);
-      (Pcre.regexp "{", Pcre.subst "\\{");
-      (Pcre.regexp "}", Pcre.subst "\\}");
-      (Pcre.regexp "_", Pcre.subst "\\_");
-      (Pcre.regexp "\\$", Pcre.subst "\\$");
-      (Pcre.regexp "-", Pcre.subst "{-}");
-    ] in
-    List.fold reps ~init:txt ~f:(fun s (rex, itempl) -> Pcre.replace s ~rex ~itempl)
-
-  (* Previously, in Style.apply, we inserted control characters instead of
-     curlies and whacks.  Here, we replace them with the proper characters
-     for LaTeX. *)
-  let handle_controls txt =
-    let reps = [
-      (Pcre.regexp whack, Pcre.subst "\\");
-      (Pcre.regexp curly_open, Pcre.subst "{");
-      (Pcre.regexp curly_close, Pcre.subst "}");
-    ] in
-    List.fold reps ~init:txt ~f:(fun s (rex, itempl) -> Pcre.replace s ~rex ~itempl)
-
-  let print hunks ~rules ~old_file ~new_file ~print =
-    let module H = Patience_diff.Hunk in
-    let old_file = escape old_file in
-    let new_file = escape new_file in
-    ksprintf print "%s\n%!" (preamble ~old_file ~new_file ~rules);
-    let f hunk =
-      let transform_and_print txt =
-        ksprintf print "%s\n%!" (handle_controls (escape txt)) in
-      let hunk_info = sprintf "-%i,%i +%i,%i"
-        hunk.H.mine_start hunk.H.mine_size
-        hunk.H.other_start hunk.H.other_size in
-      transform_and_print (Rule.apply hunk_info ~rule:rules.Format.Rules.hunk ~refined:false);
-      let module R = Patience_diff.Range in
-      let f = transform_and_print in
-      let handle_range = function
-        | R.Same r ->
-          (* Print only elements from the New array (map snd) *)
-          let new_elements = Array.map r ~f:snd in
-          Array.iter new_elements ~f
-        | R.Old r | R.New r | R.Unified r ->
-          Array.iter r ~f
-        | R.Replace (ar1, ar2) ->
-          Array.iter ar1 ~f;
-          Array.iter ar2 ~f
-      in
-      List.iter hunk.H.ranges ~f:handle_range
-    in
-    List.iter hunks ~f;
-    ksprintf print "%s\n" ending
-
 end
 
 module Output_ops = struct
@@ -616,7 +362,6 @@ module Output_ops = struct
 
     let apply text ~rule ~output ~refined = match output with
       | Output.Ansi -> Ansi.Rule.apply text ~rule ~refined
-      | Output.Latex -> Latex.Rule.apply text ~rule ~refined
       | Output.Html -> Html.Rule.apply text ~rule ~refined
 
   end
@@ -660,12 +405,11 @@ module Output_ops = struct
 
   end
 
-  let print hunks ~old_file ~new_file ~rules ~output ~print =
+  let print ?file_names hunks ~rules ~output ~print =
     let formatted_hunks = Rules.apply hunks ~rules ~output in
     match output with
-    | Output.Ansi -> Ansi.print ~rules ~old_file ~new_file formatted_hunks ~print
-    | Output.Html -> Html.print ~rules ~old_file ~new_file formatted_hunks ~print
-    | Output.Latex -> Latex.print ~rules ~old_file ~new_file formatted_hunks ~print
+    | Output.Ansi -> Ansi.print ?file_names ~rules formatted_hunks ~print
+    | Output.Html -> Html.print ?file_names ~rules formatted_hunks ~print
 
 end
 
@@ -1052,9 +796,11 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
   let refined_hunks = List.map hunks ~f:aux in
   List.filter refined_hunks ~f:(fun h -> not (H.all_same h))
 
-let print = Output_ops.print ~print:(Printf.printf "%s")
+let print hunks ~old_file ~new_file ~rules ~output =
+  Output_ops.print
+    hunks ~rules ~output ~file_names:(old_file, new_file) ~print:(Printf.printf "%s")
 
-let output_to_string hunks ~old_file ~new_file ~rules ~output =
+let output_to_string ?file_names hunks ~rules ~output =
   let buf = Queue.create () in
-  Output_ops.print hunks ~old_file ~new_file ~rules ~output ~print:(Queue.enqueue buf);
+  Output_ops.print ?file_names hunks ~rules ~output ~print:(Queue.enqueue buf);
   String.concat (Queue.to_list buf) ~sep:""
