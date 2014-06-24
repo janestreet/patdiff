@@ -1,5 +1,7 @@
 open Core.Std
 
+module Patience_diff = Patience_diff_lib.Std.Patience_diff
+
 (* Format is the home of all the internal representations of the formatting
    that will be applied to the diff. ie. prefixes, suffixes, & valid styles.
 *)
@@ -104,7 +106,6 @@ module Format = struct
     }
 
   end
-
 end
 
 (* Currently have two types of output: Ansi and Html *)
@@ -125,16 +126,25 @@ module type Output = sig
 
   end
 
-  val print :
-    ?file_names:(string * string) ->
-    string Patience_diff.Hunk.t list ->
-    rules: Format.Rules.t ->
-    print:(string -> unit) ->
-    unit
-
+  val print
+    :  ?file_names:(string * string)
+    -> rules: Format.Rules.t
+    -> print:(string -> unit)
+    -> string Patience_diff.Hunk.t list
+    -> unit
 end
 
-module Ansi : Output = struct
+module Ansi : sig
+
+  include Output
+
+  val iter
+    :  f_hunk_break:((int*int) -> (int*int) -> unit)
+    -> f_line:(string -> unit)
+    -> string Patience_diff.Hunk.t list
+    -> unit
+
+end = struct
 
   module A = Ansi_terminal.ANSITerminal
 
@@ -188,42 +198,54 @@ module Ansi : Output = struct
 
   let print_header ~rules ~old_file ~new_file ~print =
     let print_line file rule =
-      ksprintf print "%s\n%!" (Rule.apply file ~rule ~refined:false)
+      print (Rule.apply file ~rule ~refined:false)
     in
     let module Rz = Format.Rules in
     print_line old_file rules.Rz.header_old;
     print_line new_file rules.Rz.header_new
+  ;;
 
-
-  let print ?file_names hunks ~rules ~print =
-    Option.iter file_names ~f:(fun (old_file, new_file) ->
-      print_header ~rules ~old_file ~new_file ~print);
+  let iter ~f_hunk_break ~f_line hunks =
     let module R = Patience_diff.Range in
-    let module Rz = Format.Rules in
     let module H = Patience_diff.Hunk in
-    let f hunk =
-      let hunk_info = sprintf "-%i,%i +%i,%i"
-                        hunk.H.mine_start hunk.H.mine_size
-                        hunk.H.other_start hunk.H.other_size in
-      ksprintf print "%s\n" (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
+    let f_hunk hunk =
+      f_hunk_break
+        (hunk.H.mine_start, hunk.H.mine_size)
+        (hunk.H.other_start, hunk.H.other_size);
       let module R = Patience_diff.Range in
-      let f = ksprintf print "%s\n%!" in
       let handle_range = function
         (* Just print the new array elements *)
         | R.Same r ->
           let mr = Array.map r ~f:snd in
-          Array.iter mr ~f
+          Array.iter mr ~f:f_line
         | R.Old r | R.New r | R.Unified r ->
-          Array.iter r ~f
+          Array.iter r ~f:f_line
         | R.Replace (ar1, ar2) ->
-          Array.iter ar1 ~f;
-          Array.iter ar2 ~f
+          Array.iter ar1 ~f:f_line;
+          Array.iter ar2 ~f:f_line
       in
       List.iter hunk.H.ranges ~f:handle_range
     in
-    List.iter hunks ~f
+    List.iter hunks ~f:f_hunk
+  ;;
 
-
+  let print ?file_names ~rules ~print hunks =
+    let module Rz = Format.Rules in
+    let f_hunk_break (mine_start, mine_size) (other_start, other_size) =
+      let hunk_info =
+        sprintf "-%i,%i +%i,%i"
+          mine_start mine_size
+          other_start other_size
+      in
+      print (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false)
+    in
+    Option.iter file_names ~f:(fun (old_file, new_file) ->
+      print_header ~rules ~old_file ~new_file ~print);
+    iter
+      ~f_hunk_break
+      ~f_line:print
+      hunks
+  ;;
 end
 
 module Html : Output = struct
@@ -317,43 +339,43 @@ module Html : Output = struct
         try Time.to_string (Time.of_float (Unix.stat s).Unix.st_mtime)
         with _e -> "" in
       let time = get_time file in
-      ksprintf print "%s\n%!" (Rule.apply (file ^ " " ^ time) ~rule ~refined:false)
+      print (Rule.apply (file ^ " " ^ time) ~rule ~refined:false)
     in
     let module Rz = Format.Rules in
     print_line old_file rules.Rz.header_old;
     print_line new_file rules.Rz.header_new;
   ;;
 
-
-  let print ?file_names hunks ~rules ~print =
-    ksprintf print "<pre style=\"font-family:consolas,monospace\">%!";
+  let print ?file_names ~rules ~print hunks =
+    print "<pre style=\"font-family:consolas,monospace\">";
     Option.iter file_names ~f:(fun (old_file, new_file) ->
       print_header ~rules ~old_file ~new_file ~print);
     let f hunk =
       let module Rz = Format.Rules in
       let module H = Patience_diff.Hunk in
-      let hunk_info = sprintf "-%i,%i +%i,%i"
-                        hunk.H.mine_start hunk.H.mine_size
-                        hunk.H.other_start hunk.H.other_size in
-      ksprintf print "%s\n" (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
+      let hunk_info =
+        sprintf "-%i,%i +%i,%i"
+          hunk.H.mine_start hunk.H.mine_size
+          hunk.H.other_start hunk.H.other_size
+      in
+      print (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
       let module R = Patience_diff.Range in
-      let f = ksprintf print "%s\n%!" in
       let handle_range = function
         (* Just print the new array elements *)
         | R.Same r ->
           let mr = Array.map r ~f:snd in
-          Array.iter mr ~f
+          Array.iter mr ~f:print
         | R.Old r | R.New r | R.Unified r ->
-          Array.iter r ~f
+          Array.iter r ~f:print
         | R.Replace (ar1, ar2) ->
-          Array.iter ar1 ~f;
-          Array.iter ar2 ~f
+          Array.iter ar1 ~f:print;
+          Array.iter ar2 ~f:print
       in
       List.iter hunk.H.ranges ~f:handle_range
     in
     List.iter hunks ~f;
-    ksprintf print "</pre>%!";
-
+    print "</pre>";
+  ;;
 end
 
 module Output_ops = struct
@@ -405,12 +427,12 @@ module Output_ops = struct
 
   end
 
-  let print ?file_names hunks ~rules ~output ~print =
-    let formatted_hunks = Rules.apply hunks ~rules ~output in
+  let print ?file_names ~rules ~output ~print hunks =
+    let formatted_hunks = Rules.apply ~rules ~output hunks in
     match output with
-    | Output.Ansi -> Ansi.print ?file_names ~rules formatted_hunks ~print
-    | Output.Html -> Html.print ?file_names ~rules formatted_hunks ~print
-
+    | Output.Ansi -> Ansi.print ?file_names ~rules ~print formatted_hunks
+    | Output.Html -> Html.print ?file_names ~rules ~print formatted_hunks
+  ;;
 end
 
 (* Strip whitespace from a string by stripping and replacing with spaces *)
@@ -429,7 +451,7 @@ let diff ~context ~compare ~keep_ws ~mine ~other =
 
 (* This regular expression describes the delimiters on which to split the string *)
 let words_rex = Pcre.regexp
-  "\\\"|\\{|\\}|\\[|\\]|[\\=\\+\\-\\/\\!\\@\\$\\%\\^\\&\\*\\:]+|\\#|,|\\.|;|\\)|\\(|\\s+"
+  "\\\"|\\{|\\}|\\[|\\]|[\\=\\`\\+\\-\\/\\!\\@\\$\\%\\^\\&\\*\\:]+|\\#|,|\\.|;|\\)|\\(|\\s+"
 
 (* Split a string into a list of string options delimited by words_rex
    (delimiters included) *)
@@ -795,12 +817,21 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
   in
   let refined_hunks = List.map hunks ~f:aux in
   List.filter refined_hunks ~f:(fun h -> not (H.all_same h))
+;;
 
-let print hunks ~old_file ~new_file ~rules ~output =
+let print ~old_file ~new_file ~rules ~output hunks =
   Output_ops.print
-    hunks ~rules ~output ~file_names:(old_file, new_file) ~print:(Printf.printf "%s")
+    ~rules ~output ~file_names:(old_file, new_file) ~print:(Printf.printf "%s\n")
+    hunks
+;;
 
-let output_to_string ?file_names hunks ~rules ~output =
+let output_to_string ?file_names ~rules ~output hunks =
   let buf = Queue.create () in
   Output_ops.print ?file_names hunks ~rules ~output ~print:(Queue.enqueue buf);
-  String.concat (Queue.to_list buf) ~sep:""
+  String.concat (Queue.to_list buf) ~sep:"\n"
+;;
+
+let iter_ansi ~rules ~f_hunk_break ~f_line hunks =
+  let hunks = Output_ops.Rules.apply hunks ~rules ~output:Ansi in
+  Ansi.iter ~f_hunk_break ~f_line hunks
+;;

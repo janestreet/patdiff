@@ -315,7 +315,8 @@ let parse config =
   (**** Output Type ****)
   let output =
     let html = Option.value c.C.html ~default:false in
-    if html then P.Output.Html else P.Output.Ansi in
+    if html then P.Output.Html else P.Output.Ansi
+  in
   (**** Styling Rules ****)
   (* Words *)
   let create_word_same line_opt =
@@ -424,7 +425,8 @@ let rec load_exn' ~set config_file =
     else load_exn' ~set:(Set.add set config_path) config_path
   | None -> parse config
 
-let load_exn config_file = load_exn' ~set:String.Set.empty config_file
+let load_exn config_file =
+  load_exn' ~set:String.Set.empty config_file
 
 (* prints errors to stderr *)
 let load ?(quiet_errors=false) config_file =

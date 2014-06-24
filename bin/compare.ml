@@ -1,6 +1,6 @@
 open Core.Std
 open Core_extended.Std
-module D = Patience_diff
+module D = Patience_diff_lib.Std.Patience_diff
 module P = Patdiff_lib.Patdiff_core
 module Compare_core = Patdiff_lib.Compare_core
 module Configuration = Patdiff_lib.Configuration
@@ -264,8 +264,8 @@ let override config args =
   let output =
     match args.A.html_opt with
     | None -> config.C.output
-    | Some true -> P.Output.Html
-    | Some false-> P.Output.Ansi
+    | Some true  -> P.Output.Html
+    | Some false -> P.Output.Ansi
   in
   let value default option = Option.value ~default option in
   {

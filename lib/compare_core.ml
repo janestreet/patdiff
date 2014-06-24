@@ -1,20 +1,31 @@
 open Core.Std
 open Core_extended.Std
 
+module Patience_diff = Patience_diff_lib.Std.Patience_diff
+
+TEST_UNIT =
+  <:test_result< string list >> (String.split ~on:'\n' "") ~expect:[""]
+;;
+
 (* Open file, send lines to an array *)
 let array_of_file file =
   In_channel.with_file file ~f:(fun in_channel ->
     let contents = In_channel.input_all in_channel in
-    let ar = Array.of_list (String.split ~on:'\n' contents) in
-    (* Strip the trailing line resulting from the last \n in every Unix file *)
-    let j = (Array.length ar) - 1 in
-    if ar.(j) = "" then
-      Array.slice ar 0 j
-    else begin
-      (* All unix files should have a trailing \n! *)
-      eprintf "No newline at the end of %s\n%!" file;
-      ar
-    end)
+    (* [String.split ~on:'\n' contents] returns [""] which is incorrect *)
+    if String.is_empty contents
+    then [||]
+    else
+      let ar = Array.of_list (String.split ~on:'\n' contents) in
+      (* Strip the trailing line resulting from the last \n in every Unix file *)
+      let j = (Array.length ar) - 1 in
+      if ar.(j) = "" then
+        Array.slice ar 0 j
+      else begin
+        (* All unix files should have a trailing \n! *)
+        eprintf "No newline at the end of %s\n%!" file;
+        ar
+      end)
+;;
 
 (* Returns a Hunk.t list, ready to be printed *)
 let compare_lines config ~mine ~other =
