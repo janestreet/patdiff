@@ -20,6 +20,7 @@ val diff_dirs :
 
 (* diff strings and output to strings, supposed to be used by ocaml code *)
 val diff_strings :
+  ?file_names:(string * string) ->
   Configuration.t ->
   old: string ->
   new_: string ->
