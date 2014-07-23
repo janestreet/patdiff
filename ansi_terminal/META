@@ -1,0 +1,12 @@
+# OASIS_START
+# DO NOT EDIT (digest: 8d4e2c84b4710cfd881c4a34419f682b)
+version = "111.25.00"
+description = "File Diff using the Patience Diff algorithm"
+requires = "threads"
+archive(byte) = "ansi_terminal.cma"
+archive(byte, plugin) = "ansi_terminal.cma"
+archive(native) = "ansi_terminal.cmxa"
+archive(native, plugin) = "ansi_terminal.cmxs"
+exists_if = "ansi_terminal.cma"
+# OASIS_STOP
+
