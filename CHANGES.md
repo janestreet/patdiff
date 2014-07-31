@@ -1,3 +1,7 @@
+## 111.25.00
+
+- add a `?file_names` argument to `Compare_core.diff_strings`
+
 ## 111.21.00
 
 - Added `Patdiff_core.iter_ansi`.
