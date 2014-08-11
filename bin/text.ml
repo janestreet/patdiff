@@ -3,12 +3,13 @@ open Core.Std let _ = _squelch_unused_module_warning_
 
 module Configuration = struct
 
-  let ansi_config = "\
+  let ansi_config = sprintf
+    "\
 ;; -*- scheme -*-
 ;; patdiff Configuration file
 
 (
- (context 6)
+ (context %d)
 
  (line_same
   ((prefix ((text \" |\") (style ((bg bright_black) (fg black)))))))
@@ -39,6 +40,7 @@ module Configuration = struct
    (suffix ((text \" ============================================================\") (style ())))
    (style (bold))))
 )"
+    Patdiff_lib.Patdiff_core.default_context
 
 end
 
@@ -195,5 +197,4 @@ The following formatting options are available:
 
 See the default configuration file to for a sample configuration.
 "
-
 end

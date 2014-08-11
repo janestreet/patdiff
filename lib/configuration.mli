@@ -19,6 +19,10 @@ type t = {
 
 val load : ?quiet_errors:bool -> string -> t option
 
+val dark_bg : t Lazy.t
+
+val light_bg : t Lazy.t
+
 module Config : sig
   type t with sexp
 end

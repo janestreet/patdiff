@@ -59,6 +59,8 @@ module Format : sig
       header_new: Rule.t;
     }
 
+    val default : t
+
   end
 
 end
@@ -66,6 +68,8 @@ end
 module Output : sig
   type t = Ansi | Html with sexp
 end
+
+val default_context : int
 
 (** [diff ~context ~compare ~keep_ws a b] Use Patience_diff to get a list of
     hunks describing the comparison between [a] and [b] *)
@@ -115,3 +119,16 @@ val iter_ansi
   -> f_line:(string -> unit)
   -> string Patience_diff.Hunk.t list
   -> unit
+
+(** Runs the equivalent of the command line version of patdiff on [from_] and [to_] *)
+val patdiff
+  :  ?context               : int
+  -> ?keep_ws               : bool
+  -> ?rules                 : Format.Rules.t
+  -> ?output                : Output.t
+  -> ?produce_unified_lines : bool
+  -> ?split_long_lines      : bool
+  -> from_                  : string
+  -> to_                    : string
+  -> unit
+  -> string

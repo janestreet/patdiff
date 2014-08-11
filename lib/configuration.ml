@@ -396,6 +396,57 @@ let parse config =
     new_alt = alt_new;
   }
 
+let dark_bg =
+  lazy begin
+    let sexp =
+      Sexp.of_string "
+((context 8)
+ (line_same ())
+ (line_changed
+  ((prefix_old ((text \"-|\") (style (Bold (Fg Red)))))
+   (prefix_new ((text \"+|\") (style (Bold (Fg Green)))))))
+ (word_same ((style_old ())
+             (style_new ())))
+ (word_changed ((style_old (Bold Underline (Fg Red)))
+                (style_new ((Fg Green)))))
+ (chunk
+  ((prefix ((text \"@@@@@@@@@@ \") (style (Bold (Fg blue)))))
+   (suffix ((text \" @@@@@@@@@@\") (style (Bold (Fg blue)))))
+   (style (Bold (Fg blue)))))
+ )"
+    in
+    parse (Old_config.t_of_sexp sexp |> Old_config.to_new_config)
+  end
+;;
+
+let light_bg =
+  lazy begin
+    let sexp =
+      Sexp.of_string "
+((context 8)
+ (line_same (dim))
+ (line_changed ((prefix_old ((text \"-|\") (style (bold (fg red)))))
+                (prefix_new ((text \"+|\") (style (bold (fg green)))))))
+ (word_same ((style_old ((bg white)))
+             (style_new ((bg yellow)))))
+ (word_changed ((style_old ((bg white) bold))
+                (style_new ((bg yellow) bold))))
+ )"
+    in
+    parse (Old_config.t_of_sexp sexp |> Old_config.to_new_config)
+  end
+;;
+
+TEST_MODULE = struct
+  (* Ensure both sexps are parseable *)
+  TEST_UNIT =
+    let dark = Lazy.force dark_bg in
+    let light = Lazy.force light_bg in
+    ignore (dark  : t);
+    ignore (light : t);
+  ;;
+end
+
 let load_sexp_conv f conv = Result.try_with (fun () -> Sexp.load_sexp_conv_exn f conv)
 
 let rec load_exn' ~set config_file =

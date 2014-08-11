@@ -74,8 +74,6 @@ module Format = struct
 
     let blank = create []
 
-    let __UNUSED_VALUE__reset = create [Style.Reset]
-
     let unstyled_prefix text ~name =
       let rule = blank ~name in
       { rule with
@@ -105,6 +103,41 @@ module Format = struct
       header_new: Rule.t;
     }
 
+    let inner_line_change ~name text color =
+      let style = Style.([ Fg color ]) in
+      let pre =
+        Rule.Annex.create ~styles:Style.([ Bold ; Fg color ]) text
+      in
+      Rule.create ~pre style ~name
+    ;;
+
+    let line_unified =
+      let pre =
+        Rule.Annex.create ~styles:Style.([ Bold ; Fg Color.Yellow ]) "!|"
+      in
+      Rule.create ~pre [] ~name:"line_unified"
+    ;;
+
+    let word_change ~name color =
+      Rule.create Style.([ Fg color ]) ~name
+    ;;
+
+    let default =
+      let open Rule in
+      { line_same         = unstyled_prefix   ~name:"line_same"    "  "
+      ; line_old          = inner_line_change ~name:"line_old"     "-|" Color.Red
+      ; line_new          = inner_line_change ~name:"line_new"     "+|" Color.Green
+      ; line_unified
+      ; word_same_old     = blank             ~name:"word_same_old"
+      ; word_same_new     = blank             ~name:"word_same_new"
+      ; word_same_unified = blank             ~name:"word_same_unified"
+      ; word_old          = word_change       ~name:"word_old" Color.Red
+      ; word_new          = word_change       ~name:"word_new" Color.Green
+      ; hunk              = blank             ~name:"hunk"
+      ; header_old        = blank             ~name:"hunk"
+      ; header_new        = blank             ~name:"hunk"
+      }
+    ;;
   end
 end
 
@@ -175,12 +208,22 @@ end = struct
       | S.Reset -> A.Reset
       | S.Foreground color | S.Fg color -> A.Foreground (Color.of_internal color)
       | S.Background color | S.Bg color -> A.Background (Color.of_internal color)
+    ;;
+
+    let drop_reset_prefix = List.drop_while ~f:(function A.Reset -> true | _ -> false)
+    ;;
+
+    let _apply text ~styles =
+      match drop_reset_prefix (List.map styles ~f:of_internal) with
+      | [] -> text
+      | styles -> A.apply_string styles text
+    ;;
 
     let apply text ~styles =
       match List.map styles ~f:(of_internal) with
       | [] -> text
       | styles -> A.apply_string (A.Reset :: styles) text
-
+    ;;
   end
 
   module Rule = struct
@@ -193,7 +236,7 @@ end = struct
         (apply rule.R.pre.A.styles rule.R.pre.A.text)
         (if refined then apply [Format.Style.Reset] text else apply rule.R.styles text)
         (apply rule.R.suf.A.styles rule.R.suf.A.text)
-
+    ;;
   end
 
   let print_header ~rules ~old_file ~new_file ~print =
@@ -434,6 +477,8 @@ module Output_ops = struct
     | Output.Html -> Html.print ?file_names ~rules ~print formatted_hunks
   ;;
 end
+
+let default_context = 6
 
 (* Strip whitespace from a string by stripping and replacing with spaces *)
 let ws_rex = Pcre.regexp "[\\s]+"
@@ -834,4 +879,21 @@ let output_to_string ?file_names ~rules ~output hunks =
 let iter_ansi ~rules ~f_hunk_break ~f_line hunks =
   let hunks = Output_ops.Rules.apply hunks ~rules ~output:Ansi in
   Ansi.iter ~f_hunk_break ~f_line hunks
+;;
+
+let patdiff
+      ?(context = default_context)
+      ?(keep_ws = false)
+      ?(rules = Format.Rules.default)
+      ?(output = Output.Ansi)
+      ?(produce_unified_lines = true)
+      ?(split_long_lines = true)
+      ~from_ ~to_ () =
+  let hunks =
+    diff ~context ~compare:String.compare ~keep_ws
+      ~mine: (List.to_array (String.split_lines from_))
+      ~other:(List.to_array (String.split_lines to_))
+    |> refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines
+  in
+  output_to_string ~rules ~output hunks
 ;;
