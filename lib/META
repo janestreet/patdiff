@@ -1,0 +1,13 @@
+# OASIS_START
+# DO NOT EDIT (digest: 785a10f4c7d99f17e1bd1212c2827d85)
+version = "112.06.00"
+description = "File Diff using the Patience Diff algorithm"
+requires =
+"ansi_terminal core_extended pa_ounit.syntax pa_test.syntax patience_diff pcre sexplib.syntax threads"
+archive(byte) = "patdiff_lib.cma"
+archive(byte, plugin) = "patdiff_lib.cma"
+archive(native) = "patdiff_lib.cmxa"
+archive(native, plugin) = "patdiff_lib.cmxs"
+exists_if = "patdiff_lib.cma"
+# OASIS_STOP
+
