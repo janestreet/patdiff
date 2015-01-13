@@ -1,3 +1,15 @@
+## 112.17.00
+
+- The call to Pcre.full_split in patdiff_core.ml rely on a bug of
+  pcre-ocaml <= 7.1.2.
+
+  To get the same behavior with pcre-ocaml >= 7.1.3 we need to pass
+  ~max:(-1).
+
+  See this bug for more details:
+
+     https://github.com/mmottl/pcre-ocaml/issues/1
+
 ## 111.25.00
 
 - add a `?file_names` argument to `Compare_core.diff_strings`

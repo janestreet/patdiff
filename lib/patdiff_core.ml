@@ -502,7 +502,7 @@ let words_rex = Pcre.regexp
    (delimiters included) *)
 let split s ~keep_ws =
   let s = if keep_ws then s else String.rstrip s in
-  let list = Pcre.full_split ~rex:words_rex s in
+  let list = Pcre.full_split ~max:(-1) ~rex:words_rex s in
   List.filter_map list ~f:
     (fun split_result ->
       match split_result with
@@ -516,36 +516,71 @@ let explode ar ~keep_ws =
   let words = Array.to_list ar in
   let words = List.map words ~f:(split ~keep_ws) in
   let to_words l = List.map l ~f:(fun s -> `Word s) in
-  let words = List.concat_map words
-    ~f:(fun x -> match x with
-    | hd :: tl ->
-      if (Pcre.pmatch ~rex:ws_rex hd) then
-        `Newline (1, (Some hd)) :: (to_words tl)
-      else
-        `Newline (1, None) :: `Word hd :: (to_words tl)
-    | [] -> [`Newline (1, None)]) in
-  let words = List.fold_right words ~init:[]
-    ~f:(fun x acc -> match acc with
-    | `Word s :: tl -> x :: `Word s :: tl
-    | `Newline (i, None) :: tl -> begin match x with
-      | `Word s -> `Word s :: `Newline (i, None) :: tl
-      | `Newline (j, opt) -> `Newline (i+j, opt) :: tl end
-    | `Newline (i, Some s1) :: tl -> begin match x with
-      | `Word s2 -> `Word s2 :: `Newline (i, Some s1) :: tl
-      | `Newline (j, opt) ->
-        let s1 = (Option.value opt ~default:"") ^ s1 in
-        `Newline (i+j, Some s1) :: tl end
-    | [] -> [x]) in
+  (*
+     [`Newline of (int * string option)]
+
+     can be thought of as:
+
+     [`Newline of
+       ([`How_many_consecutive_newlines of int]
+        * [`Some_subsequent_whitespace of string
+          |`Empty_string
+          ])]
+
+     This representation is used to try to collapse consecutive whitespace as tightly as
+     possible, but it's not a great abstraction, so some consecutive whitespace does not
+     get collapsed.
+
+  *)
+  let words =
+    List.concat_map words ~f:(fun x ->
+      match x with
+      | hd :: tl ->
+        if (Pcre.pmatch ~rex:ws_rex hd) then
+          `Newline (1, (Some hd)) :: (to_words tl)
+        else
+          `Newline (1, None) :: `Word hd :: (to_words tl)
+      | [] -> [`Newline (1, None)])
+  in
+  let words =
+    List.fold_right words ~init:[] ~f:(fun x acc ->
+      (* look back at what we've accumulated so far to see if there's any whitespace that
+         can be collapsed. *)
+      match acc with
+      | `Word s :: tl -> x :: `Word s :: tl
+      | `Newline (i, None) :: tl ->
+        begin match x with
+        | `Word s -> `Word s :: `Newline (i, None) :: tl
+        | `Newline (j, opt) ->
+          (* collapse the whitespace from each [`Newline] by summing
+             how_many_consecutive_newlines from each (i+j) *)
+          `Newline (i+j, opt) :: tl
+        end
+      | `Newline (i, Some s1) :: tl ->
+        begin match x with
+        | `Word s2 -> `Word s2 :: `Newline (i, Some s1) :: tl
+        | `Newline (j, opt) ->
+          (* collapse the whitespace from each [`Newline] by concatenating any
+             subsequent_whitespace (opt ^ s1) and summing how_many_consecutive_newlines
+             (i+j) from each. *)
+          let s1 = (Option.value opt ~default:"") ^ s1 in
+          `Newline (i+j, Some s1) :: tl
+        end
+      | [] -> [x])
+  in
   (* Throw away the very first `Newline *)
-  let words = match words with
+  let words =
+    match words with
     | `Newline (_i, opt) :: tl -> `Newline (0, opt) :: tl
     | `Word _ :: _ | [] -> assert false (* hd is always `Newline *)
   in
   (* Append a newline to the end, if this array has any words *)
-  let words = match words with
+  let words =
+    match words with
     | [] -> []
     | [`Newline (0, None)] -> []
-    | list -> List.append list [`Newline (1, None)] in
+    | list -> List.append list [`Newline (1, None)]
+  in
   Array.of_list words
 
 (* Takes hunks of `Words and `Newlines and collapses them back into lines,
