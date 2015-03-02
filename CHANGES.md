@@ -1,3 +1,7 @@
+## 112.24.00
+
+Minor update: doc.
+
 ## 112.17.00
 
 - The call to Pcre.full_split in patdiff_core.ml rely on a bug of

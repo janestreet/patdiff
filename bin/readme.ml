@@ -1,6 +1,10 @@
 open Core.Std
 
-let doc = "Display documentation for the configuration file and other help"
+(* [Command] treats the first space-separated word as part of an argument.
+   Without the space prefix, the readme will have the following form in -help output:
+   [-readme Display]              documentation for the configuration file and
+*)
+let doc = " Display documentation for the configuration file and other help"
 
 let main () =
   protectx
