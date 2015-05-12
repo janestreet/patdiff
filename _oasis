@@ -5,7 +5,7 @@ Name:             patdiff
 Version:          112.24.00
 Synopsis:         File Diff using the Patience Diff algorithm
 Authors:          Jane Street Group, LLC <opensource@janestreet.com>
-Copyrights:       (C) 2005-2013 Jane Street Group, LLC <opensource@janestreet.com>
+Copyrights:       (C) 2005-2013 Jane Street Group LLC <opensource@janestreet.com>
 Maintainers:      Jane Street Group, LLC <opensource@janestreet.com>
 License:          Apache-2.0
 LicenseFile:      LICENSE.txt
