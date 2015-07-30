@@ -324,7 +324,6 @@ module Html : Output = struct
         List.fold styles ~init:([],[]) ~f:(fun (s, e) style ->
           match style with
           | S.Bold -> "<span style=\"font-weight:bold\">"::s, "</span>"::e
-          (* rdouglass: what is a reset?  I can get nice diffs without it, ignorning for now *)
           | S.Reset -> s, e
           | S.Foreground c | S.Fg c ->
             (sprintf "<span style=\"color:%s\">" (string_of_color c))::s, "</span>"::e
@@ -333,13 +332,9 @@ module Html : Output = struct
             "</span>"::e
           | S.Underline | S.Emph -> "<u>"::s, "</u>"::e
           | S.Blink -> "<span style=\"text-decoration:blink\">"::s, "</span>"::e
-          (* rdouglass: ignoring Inverse for now, can't figure out how it's useful *)
           | S.Inverse -> s, e
           | S.Hide -> "<!-- "::s, " -->"::e
-          (* rdouglass: would be nice to use font-weight:lighter here, but doesn't seem to
-           * do anything for me running firefox 3.5 on centos 5 *)
           | S.Dim ->
-            (* rdouglass: doesn't show up differently, going with the gray below instead *)
             (* "<span style=\"font-weight:lighter\">"::s, "</span>"::e *)
 
             (sprintf "<span style=\"color:%s\">" (string_of_color Format.Color.Gray))::s,

@@ -294,6 +294,7 @@ let main' args =
   let config =
     let file =
       match args.A.config_opt with
+      | Some "" -> None
       | Some f -> Some f (* specified file *)
       | None ->
         (* ~/.patdiff exists *)
