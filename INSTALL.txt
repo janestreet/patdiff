@@ -1,0 +1,44 @@
+(* OASIS_START *)
+(* DO NOT EDIT (digest: f9c5ca8d5d99c98323644caa42b9e347) *)
+
+This is the INSTALL file for the patdiff distribution.
+
+This package uses OASIS to generate its build system. See section OASIS for
+full information.
+
+Dependencies
+============
+
+In order to compile this package, you will need:
+
+* ocaml (>= 4.00.0)
+* findlib (>= 1.3.2)
+* core_extended for library patdiff_lib
+* pa_ounit for library patdiff_lib
+* pa_test for library patdiff_lib
+* patience_diff for library patdiff_lib
+* pcre for library patdiff_lib
+* sexplib for library patdiff_lib, executable patdiff
+
+Installing
+==========
+
+1. Uncompress the source archive and go to the root of the package
+2. Run 'ocaml setup.ml -configure'
+3. Run 'ocaml setup.ml -build'
+4. Run 'ocaml setup.ml -install'
+
+Uninstalling
+============
+
+1. Go to the root of the package
+2. Run 'ocaml setup.ml -uninstall'
+
+OASIS
+=====
+
+OASIS is a program that generates a setup.ml file using a simple '_oasis'
+configuration file. The generated setup only depends on the standard OCaml
+installation: no additional library is required.
+
+(* OASIS_STOP *)
