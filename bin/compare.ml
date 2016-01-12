@@ -20,52 +20,57 @@ let usage_arg = "[FILE1 FILE2] [OPTIONS]"
 
 module Accum = struct
 
+
   (* These are all options because they override the config file if specified,
      so we want to know if they were actually given on the command line. *)
-  type t = {
-    config_opt : string option ref;
-    context_opt : int option ref;
-    unrefined_opt : bool option ref;
-    keep_ws_opt : bool option ref;
-    split_long_lines_opt : bool option ref;
-    html_opt : bool option ref;
-    produce_unified_lines_opt : bool option ref;
-    quiet_opt : bool option ref;
-    shallow_opt : bool option ref;
-    double_check_opt : bool option ref;
-    mask_uniques_opt : bool option ref;
-    ext_cmp_opt : string option option ref;
-    old_alt_opt : string option option ref;
-    new_alt_opt : string option option ref;
-    make_config_file : string option ref;
-    do_readme : bool option ref;
-    include_ : string list ref;
-    exclude : string list ref;
-    reverse : bool option ref;
-  }
+  type t =
+    { config_opt                          : string                    option        ref
+    ; context_opt                         : int                       option        ref
+    ; unrefined_opt                       : bool                      option        ref
+    ; keep_ws_opt                         : bool                      option        ref
+    ; split_long_lines_opt                : bool                      option        ref
+    ; output                              : P.Output.t                option        ref
+    ; produce_unified_lines_opt           : bool                      option        ref
+    ; quiet_opt                           : bool                      option        ref
+    ; shallow_opt                         : bool                      option        ref
+    ; double_check_opt                    : bool                      option        ref
+    ; mask_uniques_opt                    : bool                      option        ref
+    ; ext_cmp_opt                         : string                    option option ref
+    ; old_alt_opt                         : string                    option option ref
+    ; new_alt_opt                         : string                    option option ref
+    ; make_config_file                    : string                    option        ref
+    ; do_readme                           : bool                      option        ref
+    ; include_                            : string                    list          ref
+    ; exclude                             : string                    list          ref
+    ; reverse                             : bool                      option        ref
+    ; location_style                      : P.Format.Location_style.t option        ref
+    ; warn_if_no_trailing_newline_in_both : bool                      option        ref
+    }
 
-  let empty = {
-    config_opt = ref None;
-    context_opt = ref None;
-    unrefined_opt = ref None;
-    keep_ws_opt = ref None;
-    split_long_lines_opt = ref None;
-    html_opt = ref None;
-    produce_unified_lines_opt = ref None;
-    quiet_opt = ref None;
-    shallow_opt = ref None;
-    double_check_opt = ref None;
-    mask_uniques_opt = ref None;
-    ext_cmp_opt = ref None;
-    old_alt_opt = ref None;
-    new_alt_opt = ref None;
-    make_config_file = ref None;
-    do_readme = ref None;
-    include_ = ref [];
-    exclude = ref [];
-    reverse = ref None;
-  }
-
+  let empty =
+    { config_opt                          = ref None
+    ; context_opt                         = ref None
+    ; unrefined_opt                       = ref None
+    ; keep_ws_opt                         = ref None
+    ; split_long_lines_opt                = ref None
+    ; output                              = ref None
+    ; produce_unified_lines_opt           = ref None
+    ; quiet_opt                           = ref None
+    ; shallow_opt                         = ref None
+    ; double_check_opt                    = ref None
+    ; mask_uniques_opt                    = ref None
+    ; ext_cmp_opt                         = ref None
+    ; old_alt_opt                         = ref None
+    ; new_alt_opt                         = ref None
+    ; make_config_file                    = ref None
+    ; do_readme                           = ref None
+    ; include_                            = ref []
+    ; exclude                             = ref []
+    ; reverse                             = ref None
+    ; location_style                      = ref None
+    ; warn_if_no_trailing_newline_in_both = ref None
+    }
+  ;;
 end
 
 let init () = Accum.empty
@@ -94,13 +99,16 @@ let flags =
       ~doc: " Don't highlight word differences between lines";
     Cf.noarg_mut "-keep-whitespace"
       (fun t -> set_once "keep-whitespace" t.Accum.keep_ws_opt true)
-          ~doc: " Consider whitespace when comparing lines";
+      ~doc: " Consider whitespace when comparing lines";
     Cf.noarg_mut "-split-long-lines"
       (fun t -> set_once "split-long-lines" t.Accum.split_long_lines_opt true)
       ~doc: " Split long lines into multiple displayed lines";
-    Cf.noarg_mut "-html"
-      (fun t -> set_once "html" t.Accum.html_opt true)
-      ~doc: " Output in HTML format instead of default";
+    Cf.noarg_mut "-ascii"
+      (fun t -> set_once "output (ansi, ascii)" t.Accum.output P.Output.Ascii)
+      ~doc: " Output in ASCII with no ANSI escape codes (implies -unrefined)";
+    Cf.noarg_mut "-ansi"
+      (fun t -> set_once "output (ansi, ascii)" t.Accum.output P.Output.Ansi)
+      ~doc: " Output in ASCII with ANSI escape codes";
     Cf.noarg_mut "-dont-produce-unified-lines"
       (fun t -> set_once "word unify" t.Accum.produce_unified_lines_opt false)
       ~doc: " Don't produce unified lines";
@@ -118,8 +126,8 @@ let flags =
       ~doc: " When comparing directories, don't compare against /dev/null";
     Cf.arg_mut "-ext-cmp"
       (fun t s ->
-        set_once "external compare" t.Accum.ext_cmp_opt (Some s);
-        set_once "unrefined" t.Accum.unrefined_opt true)
+         set_once "external compare" t.Accum.ext_cmp_opt (Some s);
+         set_once "unrefined" t.Accum.unrefined_opt true)
       ~doc: "FILE Use external string comparison program (implies -unrefined)";
     Cf.arg_mut "-alt-old"
       (fun t s -> set_once "alternate old" t.Accum.old_alt_opt (Some s))
@@ -143,30 +151,49 @@ let flags =
     Cf.noarg_mut "-reverse"
       (fun t -> set_once "reverse" t.Accum.reverse true)
       ~doc:" produce a diff that undoes the changes";
+    P.Format.Location_style.(
+      Cf.arg_mut "-location-style"
+        (fun t s -> set_once "location style" t.Accum.location_style (of_string  s))
+        ~doc:(sprintf "<%s> how to format location information in hunk headers"
+                (String.concat ~sep:"|" (List.map all ~f:to_string))));
+    Cf.arg_mut "-warn-if-no-trailing-newline-in-both"
+      (fun t s ->
+         set_once "-warn-if-no-trailing-newline-in-both"
+           t.Accum.warn_if_no_trailing_newline_in_both
+           (match String.lowercase s with
+            | "true" -> true
+            | "false" -> false
+            | other ->
+              failwiths "expected true or false, got" other [%sexp_of: string]))
+      ~doc:(sprintf "BOOL warn when neither file ends in a newline, even though this \
+                     does not constitute a diff (default: read from config, or %s)"
+              (Bool.to_string Configuration.warn_if_no_trailing_newline_in_both_default));
   ]
 ;;
 
 module Args = struct
-  type compare_flags = {
-    unrefined_opt : bool option;
-    produce_unified_lines_opt : bool option;
-    ext_cmp_opt : string option option;
-    keep_ws_opt : bool option;
-    split_long_lines_opt: bool option;
-    shallow_opt : bool option;
-    quiet_opt : bool option;
-    double_check_opt : bool option;
-    mask_uniques_opt : bool option;
-    html_opt : bool option;
-    context_opt : int option;
-    config_opt : string  option;
-    old_file : string;
-    new_file : string;
-    old_alt_opt : string option option;
-    new_alt_opt : string option option;
-    include_ : string list;
-    exclude : string list;
-  }
+  type compare_flags =
+    { unrefined_opt                       : bool option
+    ; produce_unified_lines_opt           : bool option
+    ; ext_cmp_opt                         : string option option
+    ; keep_ws_opt                         : bool option
+    ; split_long_lines_opt                : bool option
+    ; shallow_opt                         : bool option
+    ; quiet_opt                           : bool option
+    ; double_check_opt                    : bool option
+    ; mask_uniques_opt                    : bool option
+    ; output                              : P.Output.t option
+    ; context_opt                         : int option
+    ; config_opt                          : string option
+    ; old_file                            : string
+    ; new_file                            : string
+    ; old_alt_opt                         : string option option
+    ; new_alt_opt                         : string option option
+    ; include_                            : string list
+    ; exclude                             : string list
+    ; location_style                      : P.Format.Location_style.t option
+    ; warn_if_no_trailing_newline_in_both : bool option
+    }
 
   type t =
     | Compare of compare_flags
@@ -193,24 +220,26 @@ let final t anon =
         in
         Args.Compare
           { Args.
-            old_file = old_file;
-            new_file = new_file;
-            unrefined_opt = !(t.Accum.unrefined_opt);
-            produce_unified_lines_opt = !(t.Accum.produce_unified_lines_opt);
-            ext_cmp_opt = !(t.Accum.ext_cmp_opt);
-            keep_ws_opt = !(t.Accum.keep_ws_opt);
-            split_long_lines_opt = !(t.Accum.split_long_lines_opt);
-            shallow_opt = !(t.Accum.shallow_opt);
-            quiet_opt = !(t.Accum.quiet_opt);
-            double_check_opt = !(t.Accum.double_check_opt);
-            mask_uniques_opt = !(t.Accum.mask_uniques_opt);
-            html_opt = !(t.Accum.html_opt);
-            context_opt = !(t.Accum.context_opt);
-            config_opt = !(t.Accum.config_opt);
-            old_alt_opt = !(t.Accum.old_alt_opt);
-            new_alt_opt = !(t.Accum.new_alt_opt);
-            include_ = !(t.Accum.include_);
-            exclude = !(t.Accum.exclude);
+            old_file                            = old_file
+          ; new_file                            = new_file
+          ; unrefined_opt                       = !(t.Accum.unrefined_opt)
+          ; produce_unified_lines_opt           = !(t.Accum.produce_unified_lines_opt)
+          ; ext_cmp_opt                         = !(t.Accum.ext_cmp_opt)
+          ; keep_ws_opt                         = !(t.Accum.keep_ws_opt)
+          ; split_long_lines_opt                = !(t.Accum.split_long_lines_opt)
+          ; shallow_opt                         = !(t.Accum.shallow_opt)
+          ; quiet_opt                           = !(t.Accum.quiet_opt)
+          ; double_check_opt                    = !(t.Accum.double_check_opt)
+          ; mask_uniques_opt                    = !(t.Accum.mask_uniques_opt)
+          ; output                              = !(t.Accum.output)
+          ; context_opt                         = !(t.Accum.context_opt)
+          ; config_opt                          = !(t.Accum.config_opt)
+          ; old_alt_opt                         = !(t.Accum.old_alt_opt)
+          ; new_alt_opt                         = !(t.Accum.new_alt_opt)
+          ; include_                            = !(t.Accum.include_)
+          ; exclude                             = !(t.Accum.exclude)
+          ; location_style                      = !(t.Accum.location_style)
+          ; warn_if_no_trailing_newline_in_both = !(t.Accum.warn_if_no_trailing_newline_in_both)
           }
       in
       match anon with
@@ -258,33 +287,24 @@ let final t anon =
 ;;
 
 (* Override default/config file options with command line arguments *)
-let override config args =
-  let module A = Args in
-  let module C = Configuration in
-  let output =
-    match args.A.html_opt with
-    | None -> config.C.output
-    | Some true  -> P.Output.Html
-    | Some false -> P.Output.Ansi
-  in
-  let value default option = Option.value ~default option in
-  {
-    C.rules = config.C.rules;
-    output = output;
-    unrefined = value config.C.unrefined args.A.unrefined_opt;
-    produce_unified_lines = value config.C.produce_unified_lines
-      args.A.produce_unified_lines_opt;
-    ext_cmp = value config.C.ext_cmp args.A.ext_cmp_opt;
-    keep_ws = value config.C.keep_ws args.A.keep_ws_opt;
-    split_long_lines = value config.C.split_long_lines args.A.split_long_lines_opt;
-    context = value config.C.context args.A.context_opt;
-    shallow = value config.C.shallow args.A.shallow_opt;
-    quiet = value config.C.quiet args.A.quiet_opt;
-    double_check = value config.C.double_check args.A.double_check_opt;
-    mask_uniques = value config.C.mask_uniques args.A.mask_uniques_opt;
-    old_alt = value config.C.old_alt args.A.old_alt_opt;
-    new_alt = value config.C.new_alt args.A.new_alt_opt;
-  }
+let override config (args : Args.compare_flags) =
+  Configuration.override
+    config
+    ?output:args.output
+    ?unrefined:args.unrefined_opt
+    ?produce_unified_lines:args.produce_unified_lines_opt
+    ?ext_cmp:args.ext_cmp_opt
+    ?keep_ws:args.keep_ws_opt
+    ?split_long_lines:args.split_long_lines_opt
+    ?context:args.context_opt
+    ?shallow:args.shallow_opt
+    ?quiet:args.quiet_opt
+    ?double_check:args.double_check_opt
+    ?mask_uniques:args.mask_uniques_opt
+    ?old_alt:args.old_alt_opt
+    ?new_alt:args.new_alt_opt
+    ?location_style:args.location_style
+    ?warn_if_no_trailing_newline_in_both:args.warn_if_no_trailing_newline_in_both
 ;;
 
 let main' args =

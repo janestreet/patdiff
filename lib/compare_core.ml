@@ -3,28 +3,30 @@ open Core_extended.Std
 
 module Patience_diff = Patience_diff_lib.Std.Patience_diff
 
-TEST_UNIT =
-  <:test_result< string list >> (String.split ~on:'\n' "") ~expect:[""]
+let lines_of_contents contents =
+  let lines = Array.of_list (String.split_lines contents) in
+  let has_trailing_newline =
+    let length = String.length contents in
+    if length = 0 || Char.equal contents.[length - 1] '\n'
+    then `With_trailing_newline
+    else `Missing_trailing_newline
+  in
+  lines, has_trailing_newline
 ;;
 
-(* Open file, send lines to an array *)
-let array_of_file file =
-  In_channel.with_file file ~f:(fun in_channel ->
-    let contents = In_channel.input_all in_channel in
-    (* [String.split ~on:'\n' contents] returns [""] which is incorrect *)
-    if String.is_empty contents
-    then [||]
-    else
-      let ar = Array.of_list (String.split ~on:'\n' contents) in
-      (* Strip the trailing line resulting from the last \n in every Unix file *)
-      let j = (Array.length ar) - 1 in
-      if ar.(j) = "" then
-        Array.slice ar 0 j
-      else begin
-        (* All unix files should have a trailing \n! *)
-        eprintf "No newline at the end of %s\n%!" file;
-        ar
-      end)
+let%test_unit _ =
+  let test contents ~expect =
+    [%test_result: string array * [ `With_trailing_newline | `Missing_trailing_newline ]]
+      (lines_of_contents contents) ~expect
+  in
+  test "" ~expect:([||], `With_trailing_newline);
+  test "hello" ~expect:([| "hello" |], `Missing_trailing_newline);
+  test "hello\nworld" ~expect:([| "hello" ; "world" |], `Missing_trailing_newline);
+  test "hello\nworld\n" ~expect:([| "hello" ; "world" |], `With_trailing_newline);
+;;
+
+
+let lines_of_file file = lines_of_contents (In_channel.read_all file)
 ;;
 
 (* Returns a Hunk.t list, ready to be printed *)
@@ -57,13 +59,36 @@ let compare_lines config ~mine ~other =
     let produce_unified_lines = config.C.produce_unified_lines in
     Patdiff_core.refine ~rules ~output ~keep_ws
       ~produce_unified_lines ~split_long_lines hunks
+;;
 
+let warn_if_no_trailing_newline
+      ~warn_if_no_trailing_newline_in_both
+      (old_file_newline, old_file)
+      (new_file_newline, new_file)
+  =
+  let warn = eprintf "No newline at the end of %s\n%!" in
+  match old_file_newline      , new_file_newline with
+  | `With_trailing_newline    , `With_trailing_newline    -> ()
+  | `With_trailing_newline    , `Missing_trailing_newline -> warn new_file
+  | `Missing_trailing_newline , `With_trailing_newline    -> warn old_file
+  | `Missing_trailing_newline , `Missing_trailing_newline ->
+    if warn_if_no_trailing_newline_in_both
+    then begin
+      warn old_file;
+      warn new_file;
+    end;
+;;
 
 (* Returns a Hunk.t list, ready to be printed *)
-let compare_files config ~old_file ~new_file =
-  let mine = array_of_file old_file in
-  let other = array_of_file new_file in
+let compare_files (config : Configuration.t) ~old_file ~new_file =
+  let mine , old_file_newline = lines_of_file old_file in
+  let other, new_file_newline = lines_of_file new_file in
+  warn_if_no_trailing_newline
+    (old_file_newline, old_file)
+    (new_file_newline, new_file)
+    ~warn_if_no_trailing_newline_in_both:config.warn_if_no_trailing_newline_in_both;
   compare_lines config ~mine ~other
+;;
 
 (* Print hunks to stdout *)
 let print hunks ~old_file ~new_file ~config =
@@ -85,6 +110,7 @@ There are no differences except those filtered by your settings\n%!"
       let old_file = Option.value ~default:old_file config.C.old_alt in
       let new_file = Option.value ~default:new_file config.C.new_alt in
       Patdiff_core.print hunks ~old_file ~new_file ~output ~rules
+        ~location_style:config.location_style
   end
 
 let diff_files config ~old_file ~new_file =
@@ -92,19 +118,19 @@ let diff_files config ~old_file ~new_file =
   print hunks ~old_file ~new_file ~config;
   if Patience_diff.all_same hunks then `Same else `Different
 
-let diff_strings ?file_names config ~old ~new_ =
-  let module C = Configuration in
-  let lines str = String.split_lines str |> Array.of_list in
-  let hunks =
-    compare_lines config ~mine:(lines old) ~other:(lines new_)
-  in
-  if Patience_diff.all_same hunks then `Same
-  else begin
-    let output = config.C.output in
-    let rules = config.C.rules in
-    let diff = Patdiff_core.output_to_string ?file_names hunks ~output ~rules in
-    `Different diff
-  end
+let diff_strings ?print_global_header (config : Configuration.t) ~old ~new_ =
+  let lines { Patdiff_core.name = _; text; } = String.split_lines text |> Array.of_list in
+  let hunks = compare_lines config ~mine:(lines old) ~other:(lines new_) in
+  if Patience_diff.all_same hunks
+  then `Same
+  else `Different (Patdiff_core.output_to_string
+                     hunks
+                     ?print_global_header
+                     ~file_names:(old.name, new_.name)
+                     ~output:config.output
+                     ~rules:config.rules
+                     ~location_style:config.location_style)
+;;
 
 (* True if a file is a regular file *)
 let is_reg path = (Unix.stat path).Unix.st_kind = Unix.S_REG

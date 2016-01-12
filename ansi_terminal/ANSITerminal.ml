@@ -33,11 +33,45 @@ let autoreset = ref true
 
 let set_autoreset b = autoreset := b
 
+module RGB6 : sig
+  type t = private { r : int; g : int; b : int }
+  val create_exn  : r:int -> g:int -> b:int -> t
+  val escape_code : t -> int
+end = struct
+  type t = { r : int; g : int; b : int }
+
+  let create_exn ~r ~g ~b =
+    let check x = 0 <= x && x < 6 in
+    if not (check r && check g && check b)
+    then invalid_arg "RGB6 (r, g, b) -- expected (0 <= r, g, b < 6)";
+    { r; g; b }
+  ;;
+
+  let escape_code { r; g; b } = 16 + 36 * r + 6 * g + b
+end
+
+module Gray24 :sig
+  type t = private { level : int }
+  val create_exn  : level:int -> t
+  val escape_code : t -> int
+end = struct
+  type t = { level : int }
+
+  let create_exn ~level =
+    if not (0 <= level && level < 24)
+    then invalid_arg "Gray24 level -- expected (0 <= level < 24)";
+    { level }
+  ;;
+
+  let escape_code { level } = 232 + level
+end
 
 type color =
   | Black | Red | Green | Yellow | Blue | Magenta | Cyan | White | Default
   | Bright_black | Bright_red | Bright_green | Bright_yellow | Bright_blue
   | Bright_magenta | Bright_cyan | Bright_white
+  | RGB6 of RGB6.t
+  | Gray24 of Gray24.t
 
 type style =
   | Reset | Bold | Underlined | Dim | Blink | Inverse | Hidden
@@ -63,6 +97,8 @@ let bright_blue       = Foreground Bright_blue
 let bright_magenta    = Foreground Bright_magenta
 let bright_cyan       = Foreground Bright_cyan
 let bright_white      = Foreground Bright_white
+let rgb6 rgb6         = Foreground (RGB6 rgb6)
+let gray24 gray24     = Foreground (Gray24 gray24)
 
 let on_black          = Background Black
 let on_red            = Background Red
@@ -82,6 +118,12 @@ let on_bright_blue    = Background Bright_blue
 let on_bright_magenta = Background Bright_magenta
 let on_bright_cyan    = Background Bright_cyan
 let on_bright_white   = Background Bright_white
+let on_rgb6 rgb6      = Background (RGB6 rgb6)
+let on_gray24 gray24  = Background (Gray24 gray24)
+
+let format_of_stringf fmt =
+  ksprintf (fun str -> Scanf.format_from_string str "") fmt
+;;
 
 let style_to_format = function
   | Reset                     -> format_of_string "0"
@@ -114,6 +156,8 @@ let style_to_format = function
   | Foreground Bright_magenta -> format_of_string "95"
   | Foreground Bright_cyan    -> format_of_string "96"
   | Foreground Bright_white   -> format_of_string "97"
+  | Foreground (RGB6 x)       -> format_of_stringf "38;5;%d" (RGB6.escape_code x)
+  | Foreground (Gray24 x)     -> format_of_stringf "38;5;%d" (Gray24.escape_code x)
   | Background Black          -> format_of_string "40"
   | Background Red            -> format_of_string "41"
   | Background Green          -> format_of_string "42"
@@ -131,6 +175,9 @@ let style_to_format = function
   | Background Bright_magenta -> format_of_string "105"
   | Background Bright_cyan    -> format_of_string "106"
   | Background Bright_white   -> format_of_string "107"
+  | Background (RGB6 x)       -> format_of_stringf "48;5;%d" (RGB6.escape_code x)
+  | Background (Gray24 x)     -> format_of_stringf "48;5;%d" (Gray24.escape_code x)
+;;
 
 let style_to_string style = string_of_format (style_to_format style)
 

@@ -1,0 +1,68 @@
+* patdiff.exe
+
+: Compare two files (or process a diff read in on stdin) using the
+: patience diff algorithm.
+: 
+: If you don't supply any arguments to patdiff, it will read diff-like
+: text from stdin and color it in the normal patdiff way.
+: 
+: The file ~/.patdiff is used as a config file if it exists.  You can
+: write a sample config with the -make-config flag.
+: 
+:   patdiff.exe [FILE1 FILE2] [OPTIONS]
+: 
+: === flags ===
+: 
+:   [-alt-new NAME]                              Mask new filename with NAME
+:   [-alt-old NAME]                              Mask old filename with NAME
+:   [-ansi]                                      Output in ASCII with ANSI escape
+:                                                codes
+:   [-ascii]                                     Output in ASCII with no ANSI
+:                                                escape codes (implies -unrefined)
+:   [-context NUM]                               Show lines of unchanged context
+:                                                before and after changes
+:   [-default]                                   Use the default configuration
+:                                                instead of ~/.patdiff
+:   [-dont-produce-unified-lines]                Don't produce unified lines
+:   [-double-check]                              If files seem identical, double
+:                                                check with cmp
+:   [-exclude REGEXP]                            exclude files matching this
+:                                                pattern when comparing two
+:                                                directories (overrides include
+:                                                patterns)
+:   [-ext-cmp FILE]                              Use external string comparison
+:                                                program (implies -unrefined)
+:   [-file FILE]                                 Use FILE as configuration file
+:                                                instead of ~/.patdiff
+:   [-include REGEXP]                            include files matching this
+:                                                pattern when comparing two
+:                                                directories
+:   [-keep-whitespace]                           Consider whitespace when
+:                                                comparing lines
+:   [-location-style <diff|omake>]               how to format location
+:                                                information in hunk headers
+:   [-make-config FILE]                          Write default configuration file
+:   [-mask-uniques]                              When comparing directories, don't
+:                                                compare against /dev/null
+:   [-quiet]                                     Report only whether files differ,
+:                                                not the details
+:   [-readme]                                    Display documentation for the
+:                                                configuration file and other help
+:   [-reverse]                                   produce a diff that undoes the
+:                                                changes
+:   [-shallow]                                   When comparing directories, don't
+:                                                recurse into subdirs
+:   [-split-long-lines]                          Split long lines into multiple
+:                                                displayed lines
+:   [-unrefined]                                 Don't highlight word differences
+:                                                between lines
+:   [-warn-if-no-trailing-newline-in-both BOOL]  warn when neither file ends in a
+:                                                newline, even though this does
+:                                                not constitute a diff (default:
+:                                                read from config, or true)
+:   [-build-info]                                print info about this build and
+:                                                exit
+:   [-version]                                   print the version of this build
+:                                                and exit
+:   [-help]                                      print this help text and exit
+:                                                (alias: -?)

@@ -1,73 +1,8 @@
 open Core.Std
-open Patience_diff_lib.Std
+open Import
 
-module Format : sig
-
-  module Color : sig
-
-    type t =
-        | Black | Red | Green | Yellow | Blue | Magenta | Cyan | White | Default
-        | Gray
-        | Bright_black | Bright_red | Bright_green | Bright_yellow | Bright_blue
-        | Bright_magenta | Bright_cyan | Bright_white
-        | Cmyk of float * float * float * float
-    with sexp
-
-  end
-
-  module Style : sig
-
-    type t =
-        | Bold | Underline | Emph
-        | Blink | Dim | Inverse | Hide
-        | Reset
-        | Foreground of Color.t | Fg of Color.t
-        | Background of Color.t | Bg of Color.t
-    with sexp
-
-  end
-
-  module Rule : sig
-
-    module Annex : sig
-      type t
-      val create : ?styles: Style.t list -> string -> t
-      val blank : t
-    end
-
-    type t
-    val create : ?pre: Annex.t -> ?suf: Annex.t -> Style.t list -> name:string -> t
-    val blank : name: string -> t
-    val unstyled_prefix : string -> name:string -> t
-
-  end
-
-  module Rules : sig
-
-    type t = {
-      line_same: Rule.t;
-      line_old: Rule.t;
-      line_new: Rule.t;
-      line_unified: Rule.t;
-      word_same_old: Rule.t;
-      word_same_new: Rule.t;
-      word_same_unified: Rule.t;
-      word_old: Rule.t;
-      word_new: Rule.t;
-      hunk: Rule.t;
-      header_old: Rule.t;
-      header_new: Rule.t;
-    }
-
-    val default : t
-
-  end
-
-end
-
-module Output : sig
-  type t = Ansi | Html with sexp
-end
+module Format : module type of (struct include Patdiff_format end)
+module Output : module type of (struct include Output_mode end)
 
 val default_context : int
 
@@ -100,14 +35,17 @@ val print
   -> new_file:string
   -> rules:Format.Rules.t
   -> output:Output.t
+  -> location_style:Format.Location_style.t
   -> string Patience_diff.Hunk.t list
   -> unit
 
 (** Output a hunk list, usually from [diff] or [refine], to a string *)
 val output_to_string
-  :  ?file_names:(string * string)
+  :  ?print_global_header:bool
+  -> file_names:(string * string)
   -> rules:Format.Rules.t
   -> output:Output.t
+  -> location_style:Format.Location_style.t
   -> string Patience_diff.Hunk.t list
   -> string
 
@@ -120,7 +58,13 @@ val iter_ansi
   -> string Patience_diff.Hunk.t list
   -> unit
 
-(** Runs the equivalent of the command line version of patdiff on [from_] and [to_] *)
+type diff_input =
+  { name : string
+  ; text : string
+  }
+
+(** Runs the equivalent of the command line version of patdiff on two given contents
+    [from_] and [to_]. *)
 val patdiff
   :  ?context               : int
   -> ?keep_ws               : bool
@@ -128,7 +72,9 @@ val patdiff
   -> ?output                : Output.t
   -> ?produce_unified_lines : bool
   -> ?split_long_lines      : bool
-  -> from_                  : string
-  -> to_                    : string
+  -> ?print_global_header   : bool
+  -> ?location_style        : Format.Location_style.t
+  -> from_                  : diff_input
+  -> to_                    : diff_input
   -> unit
   -> string

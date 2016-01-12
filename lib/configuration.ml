@@ -1,22 +1,112 @@
 open Core.Std
 module P = Patdiff_core
 
-type t = {
-  output: P.Output.t;
-  rules: P.Format.Rules.t;
-  ext_cmp: string option;
-  produce_unified_lines : bool;
-  unrefined: bool;
-  keep_ws: bool;
-  split_long_lines: bool;
-  context: int;
-  shallow: bool;
-  quiet: bool;
-  double_check: bool;
-  mask_uniques: bool;
-  old_alt: string option;
-  new_alt: string option;
-}
+let warn_if_no_trailing_newline_in_both_default = true
+
+type t =
+  { output                              : P.Output.t
+  ; rules                               : P.Format.Rules.t
+  ; ext_cmp                             : string option
+  ; produce_unified_lines               : bool
+  ; unrefined                           : bool
+  ; keep_ws                             : bool
+  ; split_long_lines                    : bool
+  ; context                             : int
+  ; shallow                             : bool
+  ; quiet                               : bool
+  ; double_check                        : bool
+  ; mask_uniques                        : bool
+  ; old_alt                             : string option
+  ; new_alt                             : string option
+  ; location_style                      : P.Format.Location_style.t
+  ; warn_if_no_trailing_newline_in_both
+    : bool
+        [@default warn_if_no_trailing_newline_in_both_default]
+        [@sexp_drop_default]
+  }
+[@@deriving fields, sexp_of]
+
+let invariant t =
+  Invariant.invariant [%here] t [%sexp_of: t] (fun () ->
+    let check f field = Invariant.check_field t f field in
+    Fields.iter
+      ~output:(check (fun output ->
+        if P.Output.implies_unrefined output
+        then [%test_eq: bool] t.unrefined true ~message:"output implies unrefined";
+      ))
+      ~rules:ignore
+      ~ext_cmp:(check (fun ext_cmp ->
+        Option.iter ext_cmp ~f:(fun (_ : string) ->
+          [%test_eq: bool] t.unrefined true ~message:"ext_cmp implies unrefined");
+      ))
+      ~produce_unified_lines:ignore
+      ~unrefined:ignore
+      ~keep_ws:ignore
+      ~split_long_lines:ignore
+      ~context:(check (fun context ->
+        [%test_pred: int] (fun i -> Int.(>=) i 0) context
+          ~message:"context cannot be negative";
+      ))
+      ~shallow:ignore
+      ~quiet:ignore
+      ~double_check:ignore
+      ~mask_uniques:ignore
+      ~old_alt:ignore
+      ~new_alt:ignore
+      ~location_style:ignore
+      ~warn_if_no_trailing_newline_in_both:ignore
+  )
+;;
+
+let override
+      ?output
+      ?rules
+      ?ext_cmp
+      ?produce_unified_lines
+      ?unrefined
+      ?keep_ws
+      ?split_long_lines
+      ?context
+      ?shallow
+      ?quiet
+      ?double_check
+      ?mask_uniques
+      ?old_alt
+      ?new_alt
+      ?location_style
+      ?warn_if_no_trailing_newline_in_both
+      t
+  =
+  let output = Option.value ~default:t.output output in
+  let ext_cmp = Option.value ~default:t.ext_cmp ext_cmp in
+  let unrefined =
+    Option.value ~default:t.unrefined unrefined
+    || is_some ext_cmp
+    || P.Output.implies_unrefined output
+  in
+  let t =
+    let value value field = Option.value value ~default:(Field.get field t) in
+    Fields.map
+      ~output:                             (const output)
+      ~rules:                              (value rules)
+      ~ext_cmp:                            (const ext_cmp)
+      ~produce_unified_lines:              (value produce_unified_lines)
+      ~unrefined:                          (const unrefined)
+      ~keep_ws:                            (value keep_ws)
+      ~split_long_lines:                   (value split_long_lines)
+      ~context:                            (value context)
+      ~shallow:                            (value shallow)
+      ~quiet:                              (value quiet)
+      ~double_check:                       (value double_check)
+      ~mask_uniques:                       (value mask_uniques)
+      ~old_alt:                            (value old_alt)
+      ~new_alt:                            (value new_alt)
+      ~location_style:                     (value location_style)
+      ~warn_if_no_trailing_newline_in_both:(value warn_if_no_trailing_newline_in_both)
+  in
+  invariant t;
+  t
+;;
 
 module Color = P.Format.Color
 module Style = P.Format.Style
@@ -25,43 +115,49 @@ module Annex = struct
 
     (* Simply a prefix or a suffix.  Might come with an associated style. *)
 
-  type t = {
-    text: string sexp_option;
-    style: Style.t list sexp_option;
-  } with sexp
+  type t =
+    { text  : string sexp_option
+    ; style : Style.t list sexp_option
+    }
+  [@@deriving sexp]
 
-  let blank = {
-    text = None;
-    style = None;
-  }
+  let blank =
+    { text  = None
+    ; style = None
+    }
+  ;;
 
   let get_text t =
     Option.value t.text ~default:""
+  ;;
 
   let length t_opt =
     let f = fun t -> String.length (get_text t) in
     Option.value_map t_opt ~default:0 ~f
+  ;;
 
   let to_internal t ~min_width =
     let text = sprintf "%*s" min_width (get_text t) in
     let styles = Option.value ~default:[] t.style in
     P.Format.Rule.Annex.create ~styles text
-
+  ;;
 end
 
 module Rule = struct
 
-  type t = {
-    prefix: Annex.t sexp_option;
-    suffix: Annex.t sexp_option;
-    style: Style.t list sexp_option;
-  } with sexp
+  type t =
+    { prefix: Annex.t sexp_option
+    ; suffix: Annex.t sexp_option
+    ; style: Style.t list sexp_option
+    }
+  [@@deriving sexp]
 
-  let blank = {
-    prefix = None;
-    suffix = None;
-    style = None;
-  }
+  let blank =
+    { prefix = None
+    ; suffix = None
+    ; style  = None
+    }
+  ;;
 
   let to_internal t =
     let module R = P.Format.Rule in
@@ -72,12 +168,12 @@ module Rule = struct
     let suf = annex t.suffix in
     let style = Option.value ~default:[] t.style in
     R.create ~pre ~suf style
-
+  ;;
 end
 
 module Hunk = struct
 
-  type t = Rule.t with sexp
+  type t = Rule.t [@@deriving sexp]
 
   let to_internal t =
     let get_annex a = Option.value a ~default:Annex.blank in
@@ -94,12 +190,12 @@ module Hunk = struct
       }
     } in
     Rule.to_internal t
-
+  ;;
 end
 
 module Header = struct
 
-  type t = Rule.t with sexp
+  type t = Rule.t [@@deriving sexp]
 
   let to_internal t ~default =
     let get_annex a = Option.value a ~default:Annex.blank in
@@ -111,17 +207,18 @@ module Header = struct
       };
     } in
     Rule.to_internal t
-
+  ;;
 end
 
 module Line_rule = struct
 
-  type t = {
-    prefix: Annex.t sexp_option;
-    suffix: Annex.t sexp_option;
-    style: Style.t list sexp_option;
-    word_same: Style.t list sexp_option;
-  } with sexp
+  type t =
+    { prefix    : Annex.t sexp_option
+    ; suffix    : Annex.t sexp_option
+    ; style     : Style.t list sexp_option
+    ; word_same : Style.t list sexp_option
+    }
+  [@@deriving sexp]
 
   let default = {
     prefix = None;
@@ -129,139 +226,154 @@ module Line_rule = struct
     style = None;
     word_same = None;
   }
-
+  ;;
 end
 
 module Output = struct
-  type t = P.Output.t with sexp
+  type t = P.Output.t [@@deriving sexp]
 end
 
 module Config = struct
 
-  type t = {
-    dont_produce_unified_lines : bool sexp_option;
-    dont_overwrite_word_old_word_new : bool sexp_option;
-    config_path: string sexp_option;
-    context: int sexp_option;
-    unrefined: bool sexp_option;
-
-    keep_whitespace: bool sexp_option;
-    split_long_lines: bool sexp_option;
-    quiet: bool sexp_option;
-    shallow: bool sexp_option;
-    double_check: bool sexp_option;
-    mask_uniques: bool sexp_option;
-    html: bool sexp_option;
-    alt_old: string sexp_option;
-    alt_new: string sexp_option;
-    ext_cmp: string sexp_option;
-    header_old: Header.t sexp_option;
-    header_new: Header.t sexp_option;
-    hunk: Hunk.t sexp_option;
-    line_same: Line_rule.t sexp_option;
-    line_old: Line_rule.t sexp_option;
-    line_new: Line_rule.t sexp_option;
-    line_unified: Line_rule.t sexp_option;
-    word_old: Rule.t sexp_option;
-    word_new: Rule.t sexp_option;
-  } with sexp
-
+  type t =
+    { dont_produce_unified_lines       : bool sexp_option
+    ; dont_overwrite_word_old_word_new : bool sexp_option
+    ; config_path                      : string sexp_option
+    ; context                          : int sexp_option
+    ; unrefined                        : bool sexp_option
+    ; keep_whitespace                  : bool sexp_option
+    ; split_long_lines                 : bool sexp_option
+    ; quiet                            : bool sexp_option
+    ; shallow                          : bool sexp_option
+    ; double_check                     : bool sexp_option
+    ; mask_uniques                     : bool sexp_option
+    ; alt_old                          : string sexp_option
+    ; alt_new                          : string sexp_option
+    ; ext_cmp                          : string sexp_option
+    ; header_old                       : Header.t sexp_option
+    ; header_new                       : Header.t sexp_option
+    ; hunk                             : Hunk.t sexp_option
+    ; line_same                        : Line_rule.t sexp_option
+    ; line_old                         : Line_rule.t sexp_option
+    ; line_new                         : Line_rule.t sexp_option
+    ; line_unified                     : Line_rule.t sexp_option
+    ; word_old                         : Rule.t sexp_option
+    ; word_new                         : Rule.t sexp_option
+    ; location_style                   : P.Format.Location_style.t
+      [@default P.Format.Location_style.Diff] [@sexp_drop_default]
+    ; warn_if_no_trailing_newline_in_both
+      : bool
+          [@default warn_if_no_trailing_newline_in_both_default]
+          [@sexp_drop_default]
+    } [@@deriving sexp]
 end
 
 module Old_config = struct
 
   module Line_changed = struct
-    type t = {
-      prefix_old: Annex.t;
-      prefix_new: Annex.t;
-    } with sexp
+    type t =
+      { prefix_old : Annex.t
+      ; prefix_new : Annex.t
+      }
+    [@@deriving sexp]
   end
 
   module Word_same = struct
-    type t = {
-      style_old: Style.t list;
-      style_new: Style.t list;
-    } with sexp
+    type t =
+      { style_old : Style.t list
+      ; style_new : Style.t list
+      }
+    [@@deriving sexp]
   end
 
   module Word_changed = struct
-    type t = {
-      style_old: Style.t list;
-      style_new: Style.t list;
-      prefix_old: Annex.t sexp_option;
-      suffix_old: Annex.t sexp_option;
-      prefix_new: Annex.t sexp_option;
-      suffix_new: Annex.t sexp_option;
-    } with sexp
+    type t =
+      { style_old  : Style.t list
+      ; style_new  : Style.t list
+      ; prefix_old : Annex.t sexp_option
+      ; suffix_old : Annex.t sexp_option
+      ; prefix_new : Annex.t sexp_option
+      ; suffix_new : Annex.t sexp_option
+      }
+    [@@deriving sexp]
   end
 
   module Old_header = struct
-    type t = {
-      style_old: Style.t list sexp_option;
-      style_new: Style.t list sexp_option;
-      prefix_old: Annex.t sexp_option;
-      suffix_old: Annex.t sexp_option;
-      prefix_new: Annex.t sexp_option;
-      suffix_new: Annex.t sexp_option;
-    } with sexp
+    type t =
+      { style_old  : Style.t list sexp_option
+      ; style_new  : Style.t list sexp_option
+      ; prefix_old : Annex.t sexp_option
+      ; suffix_old : Annex.t sexp_option
+      ; prefix_new : Annex.t sexp_option
+      ; suffix_new : Annex.t sexp_option
+      }
+    [@@deriving sexp]
   end
 
-  type t = {
-    config_path : string sexp_option;
-    context : int sexp_option;
-    unrefined : bool sexp_option;
-    external_compare : string sexp_option;
-    keep_whitespace : bool sexp_option;
-    split_long_lines : bool sexp_option;
-    shallow : bool sexp_option;
-    quiet : bool sexp_option;
-    double_check : bool sexp_option;
-    hide_uniques : bool sexp_option;
-    header: Old_header.t sexp_option;
-    line_same: Style.t list sexp_option;
-    line_same_prefix: Annex.t sexp_option;
-    line_changed: Line_changed.t sexp_option;
-    word_same: Word_same.t sexp_option;
-    word_changed: Word_changed.t sexp_option;
-    chunk: Hunk.t sexp_option;
-  } with sexp
+  type t =
+    { config_path                 : string                    sexp_option
+    ; context                     : int                       sexp_option
+    ; unrefined                   : bool                      sexp_option
+    ; external_compare            : string                    sexp_option
+    ; keep_whitespace             : bool                      sexp_option
+    ; split_long_lines            : bool                      sexp_option
+    ; shallow                     : bool                      sexp_option
+    ; quiet                       : bool                      sexp_option
+    ; double_check                : bool                      sexp_option
+    ; hide_uniques                : bool                      sexp_option
+    ; header                      : Old_header.t              sexp_option
+    ; line_same                   : Style.t list              sexp_option
+    ; line_same_prefix            : Annex.t                   sexp_option
+    ; line_changed                : Line_changed.t            sexp_option
+    ; word_same                   : Word_same.t               sexp_option
+    ; word_changed                : Word_changed.t            sexp_option
+    ; chunk                       : Hunk.t                    sexp_option
+    ; location_style              : P.Format.Location_style.t
+                                      [@default P.Format.Location_style.Diff]
+                                      [@sexp_drop_default]
+    ; warn_if_no_trailing_newline_in_both
+      : bool
+          [@default warn_if_no_trailing_newline_in_both_default]
+          [@sexp_drop_default]
+    }
+  [@@deriving sexp]
 
   let to_new_config t =
-    {Config.config_path = t.config_path;
-     context = t.context;
-     unrefined = t.unrefined;
-     dont_produce_unified_lines = None;
-     dont_overwrite_word_old_word_new = None;
-     keep_whitespace = t.keep_whitespace;
-     split_long_lines = t.split_long_lines;
-     quiet = t.quiet;
-     shallow = t.shallow;
-     double_check = t.double_check;
-     mask_uniques = t.hide_uniques;
-     html = None;
-     alt_old = None;
-     alt_new = None;
-     ext_cmp = t.external_compare;
-     header_old = Option.map t.header ~f:(fun header ->
-       {Rule.style = header.Old_header.style_old;
-       prefix = header.Old_header.prefix_old;
-       suffix = header.Old_header.suffix_old;});
-     header_new = Option.map t.header ~f:(fun header ->
-       {Rule.style = header.Old_header.style_new;
-       prefix = header.Old_header.prefix_new;
-       suffix = header.Old_header.suffix_new;});
-     hunk = t.chunk;
-     line_same =
+    { Config.
+      config_path = t.config_path
+    ; context = t.context
+    ; unrefined = t.unrefined
+    ; dont_produce_unified_lines = None
+    ; dont_overwrite_word_old_word_new = None
+    ; keep_whitespace = t.keep_whitespace
+    ; split_long_lines = t.split_long_lines
+    ; quiet = t.quiet
+    ; shallow = t.shallow
+    ; double_check = t.double_check
+    ; mask_uniques = t.hide_uniques
+    ; alt_old = None
+    ; alt_new = None
+    ; ext_cmp = t.external_compare
+    ; header_old = Option.map t.header ~f:(fun header ->
+        {Rule.style = header.Old_header.style_old;
+         prefix = header.Old_header.prefix_old;
+         suffix = header.Old_header.suffix_old;})
+    ; header_new = Option.map t.header ~f:(fun header ->
+        {Rule.style = header.Old_header.style_new;
+         prefix = header.Old_header.prefix_new;
+         suffix = header.Old_header.suffix_new;})
+    ; hunk = t.chunk
+    ; line_same =
         Some
           {Line_rule.default with
-            Line_rule.style = t.line_same;
-            prefix = t.line_same_prefix;
-            word_same =
-              Option.map t.word_same ~f:(fun word_same ->
-                word_same.Word_same.style_old);
-          };
-     line_old = Option.map t.line_changed ~f:(fun line_changed ->
-       {Line_rule.default with
+           Line_rule.style = t.line_same;
+           prefix = t.line_same_prefix;
+           word_same =
+             Option.map t.word_same ~f:(fun word_same ->
+               word_same.Word_same.style_old);
+          }
+    ; line_old = Option.map t.line_changed ~f:(fun line_changed ->
+        {Line_rule.default with
          Line_rule.style = Option.map t.word_changed ~f:(
            fun word_changed -> word_changed.Word_changed.style_old
          );
@@ -269,9 +381,9 @@ module Old_config = struct
          word_same =
            Option.map t.word_same ~f:(fun word_same ->
              word_same.Word_same.style_old);
-       });
-     line_new = Option.map t.line_changed ~f:(fun line_changed ->
-       {Line_rule.default with
+        })
+    ; line_new = Option.map t.line_changed ~f:(fun line_changed ->
+        {Line_rule.default with
          Line_rule.style = Option.map t.word_changed ~f:(
            fun word_changed -> word_changed.Word_changed.style_new
          );
@@ -279,11 +391,14 @@ module Old_config = struct
          word_same =
            Option.map t.word_same ~f:(fun word_same ->
              word_same.Word_same.style_new);
-       });
-     line_unified = None;
-     word_old = None;
-     word_new = None;
+        })
+    ; line_unified = None
+    ; word_old = None
+    ; word_new = None
+    ; location_style = t.location_style
+    ; warn_if_no_trailing_newline_in_both = t.warn_if_no_trailing_newline_in_both
     }
+  ;;
 end
 
 
@@ -312,11 +427,9 @@ let parse config =
   let ext_cmp = c.C.ext_cmp in
   let alt_old = c.C.alt_old in
   let alt_new = c.C.alt_new in
+  let location_style = c.C.location_style in
   (**** Output Type ****)
-  let output =
-    let html = Option.value c.C.html ~default:false in
-    if html then P.Output.Html else P.Output.Ansi
-  in
+  let output = P.Output.Ansi in
   (**** Styling Rules ****)
   (* Words *)
   let create_word_same line_opt =
@@ -365,40 +478,45 @@ let parse config =
   (* Chunks *)
   let hunk = Hunk.to_internal (Option.value c.C.hunk ~default:R.blank) in
   (* Final *)
-  let rules = {
-    P.Format.Rules.line_same = line_same ~name:"linesame";
-    line_old = line_old ~name:"lineold";
-    line_new = line_new ~name:"linenew";
-    line_unified = line_unified ~name:"lineunified";
-    word_same_old = word_same_old ~name:"wordsameold";
-    word_same_new = word_same_new ~name:"wordsamenew";
-    word_same_unified = word_same_unified ~name:"wordsameunified";
-    word_old = word_old ~name:"wordold";
-    word_new = word_new ~name:"wordnew";
-    hunk = hunk ~name:"hunk";
-    header_old = header_old ~name:"headerold";
-    header_new = header_new ~name:"headernew";
-  } in
-  {
-    rules;
-    output;
-    context;
-    unrefined;
-    produce_unified_lines;
-    ext_cmp;
-    keep_ws;
-    split_long_lines;
-    shallow;
-    quiet;
-    double_check;
-    mask_uniques;
-    old_alt = alt_old;
-    new_alt = alt_new;
+  let rules =
+    { P.Format.Rules.
+      line_same         = line_same         ~name:"linesame"
+    ; line_old          = line_old          ~name:"lineold"
+    ; line_new          = line_new          ~name:"linenew"
+    ; line_unified      = line_unified      ~name:"lineunified"
+    ; word_same_old     = word_same_old     ~name:"wordsameold"
+    ; word_same_new     = word_same_new     ~name:"wordsamenew"
+    ; word_same_unified = word_same_unified ~name:"wordsameunified"
+    ; word_old          = word_old          ~name:"wordold"
+    ; word_new          = word_new          ~name:"wordnew"
+    ; hunk              = hunk              ~name:"hunk"
+    ; header_old        = header_old        ~name:"headerold"
+    ; header_new        = header_new        ~name:"headernew"
+    }
+  in
+  { rules
+  ; output
+  ; context
+  ; unrefined
+  ; produce_unified_lines
+  ; ext_cmp
+  ; keep_ws
+  ; split_long_lines
+  ; shallow
+  ; quiet
+  ; double_check
+  ; mask_uniques
+  ; old_alt = alt_old
+  ; new_alt = alt_new
+  ; location_style
+  ; warn_if_no_trailing_newline_in_both = c.C.warn_if_no_trailing_newline_in_both
   }
+;;
 
 let dark_bg =
   lazy begin
     let sexp =
+      (* this sexp is copied form /mnt/global/dev/etc/shared/patdiff-dark-bg *)
       Sexp.of_string "
 ((context 8)
  (line_same ())
@@ -422,6 +540,7 @@ let dark_bg =
 let light_bg =
   lazy begin
     let sexp =
+      (* this sexp is copied form /mnt/global/dev/etc/shared/patdiff-light-bg *)
       Sexp.of_string "
 ((context 8)
  (line_same (dim))
@@ -437,15 +556,15 @@ let light_bg =
   end
 ;;
 
-TEST_MODULE = struct
+let%test_module _ = (module struct
   (* Ensure both sexps are parseable *)
-  TEST_UNIT =
+  let%test_unit _ =
     let dark = Lazy.force dark_bg in
     let light = Lazy.force light_bg in
     ignore (dark  : t);
-    ignore (light : t);
+    ignore (light : t)
   ;;
-end
+end)
 
 let load_sexp_conv f conv = Result.try_with (fun () -> Sexp.load_sexp_conv_exn f conv)
 
@@ -475,9 +594,11 @@ let rec load_exn' ~set config_file =
     then failwith "Cycle detected! file redirects to itself"
     else load_exn' ~set:(Set.add set config_path) config_path
   | None -> parse config
+;;
 
 let load_exn config_file =
   load_exn' ~set:String.Set.empty config_file
+;;
 
 (* prints errors to stderr *)
 let load ?(quiet_errors=false) config_file =
@@ -486,3 +607,4 @@ let load ?(quiet_errors=false) config_file =
     if not quiet_errors then
       eprintf "Note: error loading %S: %s\n%!" config_file (Exn.to_string e);
     None
+;;

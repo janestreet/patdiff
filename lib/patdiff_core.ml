@@ -1,428 +1,46 @@
-open Core.Std
+open! Core.Std
+open! Import
 
-module Patience_diff = Patience_diff_lib.Std.Patience_diff
+module Format = Patdiff_format
+module Output = Output_mode
 
-(* Format is the home of all the internal representations of the formatting
-   that will be applied to the diff. ie. prefixes, suffixes, & valid styles.
-*)
-module Format = struct
+(* Strip whitespace from a string by stripping and replacing with spaces *)
+let ws_rex = Pcre.regexp "[\\s]+"
+let ws_sub = Pcre.subst " "
+let remove_ws s = String.strip (Pcre.replace ~rex:ws_rex ~itempl:ws_sub s)
 
-  module Color = struct
+(* This regular expression describes the delimiters on which to split the string *)
+let words_rex = Pcre.regexp
+  "\\\"|\\{|\\}|\\[|\\]|[\\=\\`\\+\\-\\/\\!\\@\\$\\%\\^\\&\\*\\:]+|\\#|,|\\.|;|\\)|\\(|\\s+"
 
-    type t =
-    | Black | Red | Green | Yellow | Blue | Magenta | Cyan | White | Default
-    | Gray
-    | Bright_black | Bright_red | Bright_green | Bright_yellow | Bright_blue
-    | Bright_magenta | Bright_cyan | Bright_white
-    | Cmyk of float * float * float * float
-    with sexp
+(* Split a string into a list of string options delimited by words_rex
+   (delimiters included) *)
+let split s ~keep_ws =
+  let s = if keep_ws then s else String.rstrip s in
+  let list = Pcre.full_split ~max:(-1) ~rex:words_rex s in
+  List.filter_map list ~f:
+    (fun split_result ->
+      match split_result with
+      | Pcre.Text s -> Some s
+      | Pcre.Delim s -> Some s
+      | Pcre.Group _ -> assert false   (* Irrelevant, since rex has no groups *)
+      | Pcre.NoGroup -> assert false ) (* Ditto *)
+;;
 
-  end
+module type Output = Output_intf.S
 
-  module Style = struct
-
-    type t =
-    | Bold | Underline | Emph
-    | Blink | Dim | Inverse | Hide
-    | Reset
-    | Foreground of Color.t | Fg of Color.t
-    | Background of Color.t | Bg of Color.t
-    with sexp
-
-  end
-
-  (* A rule consists of a styled prefix, a styled suffix, and a style. Rules
-     are applied to strings using functions defined in Output_ops.
-  *)
-  module Rule = struct
-
-    (* An annex is either a prefix or a suffix. *)
-    module Annex = struct
-
-      type t = {
-        text: string;
-        styles: Style.t list
-      }
-
-      let create ?(styles = []) text = {
-        text = text;
-        styles = styles;
-      }
-
-      let blank = create ""
-
-    end
-
-    type t = {
-      pre: Annex.t;
-      suf: Annex.t;
-      styles: Style.t list;
-      name: string;
-    }
-
-
-    (* Rule creation: Most rules have a style, and maybe a prefix. For
-       instance, a line_new rule might have a bold "+" prefix and a green
-       style.
-    *)
-    let create ?(pre = Annex.blank) ?(suf = Annex.blank) styles ~name = {
-      pre = pre;
-      suf = suf;
-      styles = styles;
-      name = name;
-    }
-
-    let blank = create []
-
-    let unstyled_prefix text ~name =
-      let rule = blank ~name in
-      { rule with
-        pre = Annex.create text;
-      }
-
-  end
-
-
-  (* Rules are configured in the configuration file.
-     Default values are provided in Configuration.
-  *)
-  module Rules = struct
-
-    type t = {
-      line_same: Rule.t;
-      line_old: Rule.t;
-      line_new: Rule.t;
-      line_unified: Rule.t;
-      word_same_old: Rule.t;
-      word_same_new: Rule.t;
-      word_same_unified: Rule.t;
-      word_old: Rule.t;
-      word_new: Rule.t;
-      hunk: Rule.t;
-      header_old: Rule.t;
-      header_new: Rule.t;
-    }
-
-    let inner_line_change ~name text color =
-      let style = Style.([ Fg color ]) in
-      let pre =
-        Rule.Annex.create ~styles:Style.([ Bold ; Fg color ]) text
-      in
-      Rule.create ~pre style ~name
-    ;;
-
-    let line_unified =
-      let pre =
-        Rule.Annex.create ~styles:Style.([ Bold ; Fg Color.Yellow ]) "!|"
-      in
-      Rule.create ~pre [] ~name:"line_unified"
-    ;;
-
-    let word_change ~name color =
-      Rule.create Style.([ Fg color ]) ~name
-    ;;
-
-    let default =
-      let open Rule in
-      { line_same         = unstyled_prefix   ~name:"line_same"    "  "
-      ; line_old          = inner_line_change ~name:"line_old"     "-|" Color.Red
-      ; line_new          = inner_line_change ~name:"line_new"     "+|" Color.Green
-      ; line_unified
-      ; word_same_old     = blank             ~name:"word_same_old"
-      ; word_same_new     = blank             ~name:"word_same_new"
-      ; word_same_unified = blank             ~name:"word_same_unified"
-      ; word_old          = word_change       ~name:"word_old" Color.Red
-      ; word_new          = word_change       ~name:"word_new" Color.Green
-      ; hunk              = blank             ~name:"hunk"
-      ; header_old        = blank             ~name:"hunk"
-      ; header_new        = blank             ~name:"hunk"
-      }
-    ;;
-  end
-end
-
-(* Currently have two types of output: Ansi and Html *)
-module Output = struct
-  type t = Ansi | Html with sexp
-end
-
-(* An output can apply a style to a string and print a list of hunks *)
-module type Output = sig
-
-  module Rule : sig
-
-    val apply :
-      string ->
-      rule: Format.Rule.t ->
-      refined: bool ->
-      string
-
-  end
-
-  val print
-    :  ?file_names:(string * string)
-    -> rules: Format.Rules.t
-    -> print:(string -> unit)
-    -> string Patience_diff.Hunk.t list
-    -> unit
-end
-
-module Ansi : sig
-
-  include Output
-
-  val iter
-    :  f_hunk_break:((int*int) -> (int*int) -> unit)
-    -> f_line:(string -> unit)
-    -> string Patience_diff.Hunk.t list
-    -> unit
-
-end = struct
-
-  module A = Ansi_terminal.ANSITerminal
-
-  module Color = struct
-
-    let of_internal =
-      let module C = Format.Color in
-      function
-      | C.Black -> A.Black | C.Red -> A.Red | C.Green -> A.Green | C.Yellow -> A.Yellow
-      | C.Blue -> A.Blue | C.Magenta -> A.Magenta | C.Cyan -> A.Cyan | C.White -> A.White
-      | C.Gray -> A.Bright_black
-      | C.Bright_black -> A.Bright_black | C.Bright_red -> A.Bright_red
-      | C.Bright_green -> A.Bright_green | C.Bright_yellow -> A.Bright_yellow
-      | C.Bright_blue -> A.Bright_blue | C.Bright_magenta -> A.Bright_magenta
-      | C.Bright_cyan -> A.Bright_cyan | C.Bright_white -> A.Bright_white
-      | C.Default -> A.Default
-      | C.Cmyk _ -> A.Default
-  end
-
-  module Style = struct
-
-    let of_internal =
-      let module S = Format.Style in
-      function
-      | S.Bold -> A.Bold | S.Underline -> A.Underlined | S.Emph -> A.Underlined
-      | S.Blink -> A.Blink | S.Inverse -> A.Inverse | S.Hide -> A.Hidden
-      | S.Dim -> A.Dim
-      | S.Reset -> A.Reset
-      | S.Foreground color | S.Fg color -> A.Foreground (Color.of_internal color)
-      | S.Background color | S.Bg color -> A.Background (Color.of_internal color)
-    ;;
-
-    let drop_reset_prefix = List.drop_while ~f:(function A.Reset -> true | _ -> false)
-    ;;
-
-    let _apply text ~styles =
-      match drop_reset_prefix (List.map styles ~f:of_internal) with
-      | [] -> text
-      | styles -> A.apply_string styles text
-    ;;
-
-    let apply text ~styles =
-      match List.map styles ~f:(of_internal) with
-      | [] -> text
-      | styles -> A.apply_string (A.Reset :: styles) text
-    ;;
-  end
-
-  module Rule = struct
-
-    let apply text ~rule ~refined =
-      let module R = Format.Rule in
-      let module A = Format.Rule.Annex in
-      let apply styles text = Style.apply text ~styles in
-      sprintf "%s%s%s"
-        (apply rule.R.pre.A.styles rule.R.pre.A.text)
-        (if refined then apply [Format.Style.Reset] text else apply rule.R.styles text)
-        (apply rule.R.suf.A.styles rule.R.suf.A.text)
-    ;;
-  end
-
-  let print_header ~rules ~old_file ~new_file ~print =
-    let print_line file rule =
-      print (Rule.apply file ~rule ~refined:false)
-    in
-    let module Rz = Format.Rules in
-    print_line old_file rules.Rz.header_old;
-    print_line new_file rules.Rz.header_new
-  ;;
-
-  let iter ~f_hunk_break ~f_line hunks =
-    let module R = Patience_diff.Range in
-    let module H = Patience_diff.Hunk in
-    let f_hunk hunk =
-      f_hunk_break
-        (hunk.H.mine_start, hunk.H.mine_size)
-        (hunk.H.other_start, hunk.H.other_size);
-      let module R = Patience_diff.Range in
-      let handle_range = function
-        (* Just print the new array elements *)
-        | R.Same r ->
-          let mr = Array.map r ~f:snd in
-          Array.iter mr ~f:f_line
-        | R.Old r | R.New r | R.Unified r ->
-          Array.iter r ~f:f_line
-        | R.Replace (ar1, ar2) ->
-          Array.iter ar1 ~f:f_line;
-          Array.iter ar2 ~f:f_line
-      in
-      List.iter hunk.H.ranges ~f:handle_range
-    in
-    List.iter hunks ~f:f_hunk
-  ;;
-
-  let print ?file_names ~rules ~print hunks =
-    let module Rz = Format.Rules in
-    let f_hunk_break (mine_start, mine_size) (other_start, other_size) =
-      let hunk_info =
-        sprintf "-%i,%i +%i,%i"
-          mine_start mine_size
-          other_start other_size
-      in
-      print (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false)
-    in
-    Option.iter file_names ~f:(fun (old_file, new_file) ->
-      print_header ~rules ~old_file ~new_file ~print);
-    iter
-      ~f_hunk_break
-      ~f_line:print
-      hunks
-  ;;
-end
-
-module Html : Output = struct
-
-  let string_of_color c =
-    let module C = Format.Color in
-    match c with
-    | C.Black -> "#000000"
-    | C.Red -> "#880000"
-    | C.Green -> "#008800"
-    | C.Yellow -> "#888800"
-    | C.Blue -> "#000088"
-    | C.Magenta -> "#880088"
-    | C.Cyan -> "#008888"
-    | C.White | C.Default -> "#ffffff"
-    | C.Gray -> "#c0c0c0"
-    | C.Bright_black -> "#c0c0c0"
-    | C.Bright_red -> "#FF0000"
-    | C.Bright_green -> "#00FF00"
-    | C.Bright_yellow -> "#FFFF00"
-    | C.Bright_blue -> "#0000FF"
-    | C.Bright_magenta -> "#FF00FF"
-    | C.Bright_cyan -> "#00FFFF"
-    | C.Bright_white -> "#FFFFFF"
-    | C.Cmyk (a, b, c, d) ->
-      sprintf "cmyk(%f,%f,%f,%f)" a b c d
-  ;;
-
-  module Style = struct
-    let apply text ~styles =
-      let module S = Format.Style in
-      let start_tags, end_tags =
-        List.fold styles ~init:([],[]) ~f:(fun (s, e) style ->
-          match style with
-          | S.Bold -> "<span style=\"font-weight:bold\">"::s, "</span>"::e
-          | S.Reset -> s, e
-          | S.Foreground c | S.Fg c ->
-            (sprintf "<span style=\"color:%s\">" (string_of_color c))::s, "</span>"::e
-          | S.Background c | S.Bg c ->
-            (sprintf "<span style=\"background-color:%s\">" (string_of_color c))::s,
-            "</span>"::e
-          | S.Underline | S.Emph -> "<u>"::s, "</u>"::e
-          | S.Blink -> "<span style=\"text-decoration:blink\">"::s, "</span>"::e
-          | S.Inverse -> s, e
-          | S.Hide -> "<!-- "::s, " -->"::e
-          | S.Dim ->
-            (* "<span style=\"font-weight:lighter\">"::s, "</span>"::e *)
-
-            (sprintf "<span style=\"color:%s\">" (string_of_color Format.Color.Gray))::s,
-            "</span>"::e
-        )
-      in
-      let lst = start_tags @ [text] @ end_tags in
-      String.concat ~sep:"" lst
-    ;;
-  end
-
-  (* assuming we only insert text in contents and not in attributes, only escaping these
-     three characters should be enough. We may want to print differently non printable
-     ascii characters too? *)
-  let html_escape_char = function
-    | '<' -> "&lt;"
-    | '>' -> "&gt;"
-    | '&' -> "&amp;"
-    | c -> String.of_char c
-
-  let html_escape s =
-    String.concat_map s ~f:html_escape_char
-
-  module Rule = struct
-
-    let apply text ~rule ~refined =
-      let module R = Format.Rule in
-      let module A = Format.Rule.Annex in
-      let apply styles text = Style.apply text ~styles in
-      sprintf "%s%s%s"
-        (apply rule.R.pre.A.styles rule.R.pre.A.text)
-        (if refined then apply [Format.Style.Reset] text else apply rule.R.styles (html_escape text))
-        (apply rule.R.suf.A.styles rule.R.suf.A.text)
-
-  end
-
-  let print_header ~rules ~old_file ~new_file ~print =
-    let print_line file rule =
-      let get_time s =
-        try Time.to_string (Time.of_float (Unix.stat s).Unix.st_mtime)
-        with _e -> "" in
-      let time = get_time file in
-      print (Rule.apply (file ^ " " ^ time) ~rule ~refined:false)
-    in
-    let module Rz = Format.Rules in
-    print_line old_file rules.Rz.header_old;
-    print_line new_file rules.Rz.header_new;
-  ;;
-
-  let print ?file_names ~rules ~print hunks =
-    print "<pre style=\"font-family:consolas,monospace\">";
-    Option.iter file_names ~f:(fun (old_file, new_file) ->
-      print_header ~rules ~old_file ~new_file ~print);
-    let f hunk =
-      let module Rz = Format.Rules in
-      let module H = Patience_diff.Hunk in
-      let hunk_info =
-        sprintf "-%i,%i +%i,%i"
-          hunk.H.mine_start hunk.H.mine_size
-          hunk.H.other_start hunk.H.other_size
-      in
-      print (Rule.apply hunk_info ~rule:rules.Rz.hunk ~refined:false);
-      let module R = Patience_diff.Range in
-      let handle_range = function
-        (* Just print the new array elements *)
-        | R.Same r ->
-          let mr = Array.map r ~f:snd in
-          Array.iter mr ~f:print
-        | R.Old r | R.New r | R.Unified r ->
-          Array.iter r ~f:print
-        | R.Replace (ar1, ar2) ->
-          Array.iter ar1 ~f:print;
-          Array.iter ar2 ~f:print
-      in
-      List.iter hunk.H.ranges ~f:handle_range
-    in
-    List.iter hunks ~f;
-    print "</pre>";
-  ;;
-end
+module Ansi  = Ansi_output
+module Ascii = Ascii_output
 
 module Output_ops = struct
 
   module Rule = struct
 
-    let apply text ~rule ~output ~refined = match output with
-      | Output.Ansi -> Ansi.Rule.apply text ~rule ~refined
-      | Output.Html -> Html.Rule.apply text ~rule ~refined
+    let apply text ~rule ~output ~refined =
+      match (output : Output.t) with
+      | Ansi  -> Ansi.Rule.apply  text ~rule ~refined
+      | Ascii -> Ascii.Rule.apply text ~rule ~refined
+    ;;
 
   end
 
@@ -465,20 +83,18 @@ module Output_ops = struct
 
   end
 
-  let print ?file_names ~rules ~output ~print hunks =
+  let print ~print_global_header ~file_names ~rules ~output ~print ~location_style hunks =
     let formatted_hunks = Rules.apply ~rules ~output hunks in
-    match output with
-    | Output.Ansi -> Ansi.print ?file_names ~rules ~print formatted_hunks
-    | Output.Html -> Html.print ?file_names ~rules ~print formatted_hunks
+    let f =
+      match (output : Output.t) with
+      | Ansi  -> Ansi.print
+      | Ascii -> Ascii.print
+    in
+    f ~print_global_header ~file_names ~rules ~print ~location_style formatted_hunks
   ;;
 end
 
 let default_context = 6
-
-(* Strip whitespace from a string by stripping and replacing with spaces *)
-let ws_rex = Pcre.regexp "[\\s]+"
-let ws_sub = Pcre.subst " "
-let remove_ws s = String.strip (Pcre.replace ~rex:ws_rex ~itempl:ws_sub s)
 
 let diff ~context ~compare ~keep_ws ~mine ~other =
   if keep_ws then
@@ -488,23 +104,7 @@ let diff ~context ~compare ~keep_ws ~mine ~other =
     let compare = fun x y -> compare (remove_ws x)  (remove_ws y) in
     let transform = remove_ws in
     Patience_diff.get_hunks ~mine ~other ~transform ~context ~compare
-
-(* This regular expression describes the delimiters on which to split the string *)
-let words_rex = Pcre.regexp
-  "\\\"|\\{|\\}|\\[|\\]|[\\=\\`\\+\\-\\/\\!\\@\\$\\%\\^\\&\\*\\:]+|\\#|,|\\.|;|\\)|\\(|\\s+"
-
-(* Split a string into a list of string options delimited by words_rex
-   (delimiters included) *)
-let split s ~keep_ws =
-  let s = if keep_ws then s else String.rstrip s in
-  let list = Pcre.full_split ~max:(-1) ~rex:words_rex s in
-  List.filter_map list ~f:
-    (fun split_result ->
-      match split_result with
-      | Pcre.Text s -> Some s
-      | Pcre.Delim s -> Some s
-      | Pcre.Group _ -> assert false   (* Irrelevant, since rex has no groups *)
-      | Pcre.NoGroup -> assert false ) (* Ditto *)
+;;
 
 (* Splits an array of lines into an array of pieces (`Newlines and R.Words) *)
 let explode ar ~keep_ws =
@@ -577,6 +177,7 @@ let explode ar ~keep_ws =
     | list -> List.append list [`Newline (1, None)]
   in
   Array.of_list words
+;;
 
 (* Takes hunks of `Words and `Newlines and collapses them back into lines,
  * formatting appropriately. *)
@@ -609,7 +210,7 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
    * and pop the finished line onto the return array
    *)
   let newline i =
-    for _i = 1 to i do
+    for _ = 1 to i do
       finish_segment ();
       lines := (String.concat (List.rev !line)) :: !lines;
       line := []
@@ -650,10 +251,12 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
   in
   List.iter ranges ~f;
   Array.of_list (List.rev !lines)
+;;
 
 let piece_transform = function
   | `Word s -> s
   | `Newline _ -> " "
+;;
 
 (* Get the hunks from two arrays of pieces (`Words and `Newlines) *)
 let diff_pieces ~old_pieces ~new_pieces ~keep_ws =
@@ -663,6 +266,7 @@ let diff_pieces ~old_pieces ~new_pieces ~keep_ws =
     else fun x -> remove_ws (piece_transform x) in
   let compare = String.compare in
   Patience_diff.get_hunks ~mine:old_pieces ~other:new_pieces ~transform ~context ~compare
+;;
 
 let ranges_are_just_whitespace ranges =
   let module R = Patience_diff.Range in
@@ -672,6 +276,7 @@ let ranges_are_just_whitespace ranges =
       let s = piece_transform piece in
       remove_ws s = "")
   | _ -> true)
+;;
 
 (* Refines the diff, splitting the lines into smaller arrays and diffing them, then
    collapsing them back into their initial lines after applying a format. *)
@@ -894,22 +499,40 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
   List.filter refined_hunks ~f:(fun h -> not (H.all_same h))
 ;;
 
-let print ~old_file ~new_file ~rules ~output hunks =
+let print ~old_file ~new_file ~rules ~output ~location_style hunks =
   Output_ops.print
-    ~rules ~output ~file_names:(old_file, new_file) ~print:(Printf.printf "%s\n")
     hunks
+    ~rules
+    ~output
+    ~file_names:(old_file, new_file)
+    ~print:(Printf.printf "%s\n")
+    ~location_style
+    ~print_global_header:true
 ;;
 
-let output_to_string ?file_names ~rules ~output hunks =
+let output_to_string
+      ?(print_global_header = false) ~file_names ~rules ~output ~location_style hunks =
   let buf = Queue.create () in
-  Output_ops.print ?file_names hunks ~rules ~output ~print:(Queue.enqueue buf);
+  Output_ops.print
+    hunks
+    ~file_names
+    ~location_style
+    ~output
+    ~print_global_header
+    ~print:(Queue.enqueue buf)
+    ~rules;
   String.concat (Queue.to_list buf) ~sep:"\n"
 ;;
 
 let iter_ansi ~rules ~f_hunk_break ~f_line hunks =
   let hunks = Output_ops.Rules.apply hunks ~rules ~output:Ansi in
-  Ansi.iter ~f_hunk_break ~f_line hunks
+  Patdiff_hunks.iter ~f_hunk_break ~f_line hunks
 ;;
+
+type diff_input =
+  { name : string
+  ; text : string
+  }
 
 let patdiff
       ?(context = default_context)
@@ -918,12 +541,20 @@ let patdiff
       ?(output = Output.Ansi)
       ?(produce_unified_lines = true)
       ?(split_long_lines = true)
+      ?print_global_header
+      ?(location_style = Format.Location_style.Diff)
       ~from_ ~to_ () =
   let hunks =
     diff ~context ~compare:String.compare ~keep_ws
-      ~mine: (List.to_array (String.split_lines from_))
-      ~other:(List.to_array (String.split_lines to_))
+      ~mine: (List.to_array (String.split_lines from_.text))
+      ~other:(List.to_array (String.split_lines to_.text))
     |> refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines
   in
-  output_to_string ~rules ~output hunks
+  output_to_string
+    ?print_global_header
+    ~file_names:(from_.name, to_.name)
+    ~rules
+    ~output
+    ~location_style
+    hunks
 ;;

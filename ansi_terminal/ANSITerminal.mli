@@ -22,11 +22,27 @@
 
 (** {2 Color} *)
 
+module RGB6 : sig
+  (** expected (0 ≤ r, g, b < 6) *)
+  type t = private { r : int; g : int; b : int }
+
+  val create_exn : r:int -> g:int -> b:int -> t
+end
+
+module Gray24 : sig
+  (** expected (0 ≤ level < 24) *)
+  type t = private { level : int }
+
+  val create_exn : level:int -> t
+end
+
 type color =
   | Black | Red | Green | Yellow | Blue | Magenta | Cyan | White
   | Default (** Default color of the terminal *)
   | Bright_black | Bright_red | Bright_green | Bright_yellow
   | Bright_blue | Bright_magenta | Bright_cyan | Bright_white
+  | RGB6 of RGB6.t
+  | Gray24 of Gray24.t
 
 (** Various styles for the text.  [Blink] and [Hidden] may not work on
     every terminal. *)
@@ -56,6 +72,9 @@ val bright_magenta    : style (** Shortcut for [Foreground Bright_magenta] *)
 val bright_cyan       : style (** Shortcut for [Foreground Bright_cyan]    *)
 val bright_white      : style (** Shortcut for [Foreground Bright_white]   *)
 
+val rgb6              : RGB6.t   -> style
+val gray24            : Gray24.t -> style
+
 val on_black          : style (** Shortcut for [Background Black]          *)
 val on_red            : style (** Shortcut for [Background Red]            *)
 val on_green          : style (** Shortcut for [Background Green]          *)
@@ -74,6 +93,9 @@ val on_bright_blue    : style (** Shortcut for [Background Bright_blue]    *)
 val on_bright_magenta : style (** Shortcut for [Background Bright_magenta] *)
 val on_bright_cyan    : style (** Shortcut for [Background Bright_cyan]    *)
 val on_bright_white   : style (** Shortcut for [Background Bright_white]   *)
+
+val on_rgb6           : RGB6.t   -> style
+val on_gray24         : Gray24.t -> style
 
 val set_autoreset : bool -> unit
   (** Turns the autoreset feature on and off.  It defaults to on. *)

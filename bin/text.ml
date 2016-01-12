@@ -1,4 +1,4 @@
-open Core.Std let _ = _squelch_unused_module_warning_
+open! Core.Std
 
 
 module Configuration = struct
@@ -77,9 +77,6 @@ Don't highlight differences between words, only highlight differences between li
 \\fB-keep-whitespace\\fP
 Consider whitespace when comparing files
 
-\\fB-latex\\fP
-Output in LaTeX format instead of ANSI terminal
-
 \\fB-dont_produce_unified_lines\\fP
 When refining and highlighting the differences between the words of the files, don't unify the word difference into a single unified line.
 
@@ -131,7 +128,6 @@ All command line arguments can be passed through the configuration file.  If an 
 (shallow true)
 (double_check true)
 (mask_uniques true)
-(latex true)
 (alt_old \"old\")
 (alt_new \"new\")
 (ext_cmp \"str_cmp.sh\")
@@ -140,23 +136,16 @@ All command line arguments can be passed through the configuration file.  If an 
 The following styles are available:
 
 \\fBBold Underline Emph\\fP
-(Emph is Underline in ANSI, italics in LaTeX)
+(Emph is Underline in ANSI)
 
 \\fBDim Blink Inverse Hide\\fP
-These options mean nothing in LaTeX, and some terminals don't support them well, if at all.
+Some terminals don't support these options well, if at all.
 
 \\fB(Fg color) (Foreground color) (Bg color) (Background color)\\fP
-Background colors mean nothing in LaTeX.  The following colors are available for both LaTeX and ANSI outputs:
+The following colors are available for ANSI outputs:
 
 \\fBYellow Blue Black Red Green Magenta Cyan White Gray Default\\fP
 Bright_yellow  Bright_blue Bright_black Bright_red Bright_magenta Bright_cyan Bright_white Bright_green
-
-The folowing colors have meaning for LaTeX only:
-
-\\fBCMYK (f,f,f,f)\\fP
-Each f is a number in the range [0-1.00], specifying the
-percentage of cyan, magenta, yellow, and black respectively
-in the color.
 
 Most formatting options consist of three fields: prefix, suffix, and
 style.
