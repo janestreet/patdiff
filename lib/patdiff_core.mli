@@ -1,5 +1,5 @@
-open Core.Std
-open Import
+open! Core.Std
+open! Import
 
 module Format : module type of (struct include Patdiff_format end)
 module Output : module type of (struct include Output_mode end)

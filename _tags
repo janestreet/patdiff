@@ -4,7 +4,7 @@
 <**/*.ml{,i}>: predicate(ppx_driver)
 <ansi_terminal/*.ml>: for-pack(Ansi_terminal)
 <lib/*.ml>: for-pack(Patdiff_lib)
-<bin/*.ml{,i}>: pp(ppx-jane -dump-ast)
-<lib/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-lib patdiff_lib)
+<bin/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-drop -bench-drop -inline-test-lib fake_for_drop)
+<lib/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-drop -bench-drop -inline-test-lib fake_for_drop)
 # OASIS_START
 # OASIS_STOP

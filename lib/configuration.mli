@@ -1,4 +1,4 @@
-open Core.Std
+open! Core.Std
 
 val warn_if_no_trailing_newline_in_both_default : bool
 

@@ -1,6 +1,5 @@
 open! Core.Std
 
-
 module Configuration = struct
 
   let ansi_config = sprintf

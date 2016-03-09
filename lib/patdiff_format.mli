@@ -1,5 +1,5 @@
-open Core.Std
-open Import
+open! Core.Std
+open! Import
 
 (** Patdiff_format is the home of all the internal representations of the formatting
     that will be applied to the diff. ie. prefixes, suffixes, & valid styles. *)

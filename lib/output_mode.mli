@@ -1,5 +1,5 @@
-open Core.Std
-open Import
+open! Core.Std
+open! Import
 
 (** Ascii is Ansi with no styles. *)
 type t =

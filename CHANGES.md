@@ -43,7 +43,6 @@
   Some pointers:
 
   http://www.pixelbeat.org/scripts/ansi2html.sh
-  jane: app/ralloc/commander/ansi2html.ml
 
 ## 112.24.00
 
