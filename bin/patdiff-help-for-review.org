@@ -34,6 +34,9 @@
 :                                                program (implies -unrefined)
 :   [-file FILE]                                 Use FILE as configuration file
 :                                                instead of ~/.patdiff
+:   [-html]                                      Output in HTML format instead of
+:                                                default (ASCII with ANSI escape
+:                                                codes)
 :   [-include REGEXP]                            include files matching this
 :                                                pattern when comparing two
 :                                                directories

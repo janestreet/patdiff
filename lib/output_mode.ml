@@ -4,10 +4,11 @@ open! Import
 type t =
   | Ansi
   | Ascii
+  | Html
 [@@deriving sexp]
 
 let implies_unrefined t =
   match t with
-  | Ansi  -> false
+  | Ansi | Html -> false
   | Ascii -> true
 ;;

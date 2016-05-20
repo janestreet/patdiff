@@ -5,6 +5,7 @@ open! Import
 type t =
   | Ansi
   | Ascii
+  | Html
 [@@deriving sexp]
 
 val implies_unrefined : t -> bool

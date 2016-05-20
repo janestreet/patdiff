@@ -141,7 +141,7 @@ The following styles are available:
 Some terminals don't support these options well, if at all.
 
 \\fB(Fg color) (Foreground color) (Bg color) (Background color)\\fP
-The following colors are available for ANSI outputs:
+The following colors are available for ANSI and HTML outputs:
 
 \\fBYellow Blue Black Red Green Magenta Cyan White Gray Default\\fP
 Bright_yellow  Bright_blue Bright_black Bright_red Bright_magenta Bright_cyan Bright_white Bright_green

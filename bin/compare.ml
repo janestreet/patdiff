@@ -103,11 +103,14 @@ let flags =
     Cf.noarg_mut "-split-long-lines"
       (fun t -> set_once "split-long-lines" t.Accum.split_long_lines_opt true)
       ~doc: " Split long lines into multiple displayed lines";
+    Cf.noarg_mut "-html"
+      (fun t -> set_once "output (html, ansi, ascii)" t.Accum.output P.Output.Html)
+      ~doc: " Output in HTML format instead of default (ASCII with ANSI escape codes)";
     Cf.noarg_mut "-ascii"
-      (fun t -> set_once "output (ansi, ascii)" t.Accum.output P.Output.Ascii)
+      (fun t -> set_once "output (html, ansi, ascii)" t.Accum.output P.Output.Ascii)
       ~doc: " Output in ASCII with no ANSI escape codes (implies -unrefined)";
     Cf.noarg_mut "-ansi"
-      (fun t -> set_once "output (ansi, ascii)" t.Accum.output P.Output.Ansi)
+      (fun t -> set_once "output (html, ansi, ascii)" t.Accum.output P.Output.Ansi)
       ~doc: " Output in ASCII with ANSI escape codes";
     Cf.noarg_mut "-dont-produce-unified-lines"
       (fun t -> set_once "word unify" t.Accum.produce_unified_lines_opt false)

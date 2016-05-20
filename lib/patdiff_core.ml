@@ -31,6 +31,7 @@ module type Output = Output_intf.S
 
 module Ansi  = Ansi_output
 module Ascii = Ascii_output
+module Html  = Html_output
 
 module Output_ops = struct
 
@@ -40,6 +41,7 @@ module Output_ops = struct
       match (output : Output.t) with
       | Ansi  -> Ansi.Rule.apply  text ~rule ~refined
       | Ascii -> Ascii.Rule.apply text ~rule ~refined
+      | Html  -> Html.Rule.apply  text ~rule ~refined
     ;;
 
   end
@@ -89,6 +91,7 @@ module Output_ops = struct
       match (output : Output.t) with
       | Ansi  -> Ansi.print
       | Ascii -> Ascii.print
+      | Html  -> Html.print
     in
     f ~print_global_header ~file_names ~rules ~print ~location_style formatted_hunks
   ;;
