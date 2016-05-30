@@ -1,52 +1,111 @@
 open! Core.Std
 open! Import
 
-module A = ANSITerminal
+module A = struct
 
-module Color = struct
+  (* From https://en.wikipedia.org/wiki/ANSI_escape_code last accessed 2016-05-26 *)
 
-  let of_internal =
-    let module C = Patdiff_format.Color in
-    function
-    | C.Black -> A.Black | C.Red -> A.Red | C.Green -> A.Green | C.Yellow -> A.Yellow
-    | C.Blue -> A.Blue | C.Magenta -> A.Magenta | C.Cyan -> A.Cyan | C.White -> A.White
-    | C.Gray -> A.Bright_black
-    | C.Bright_black -> A.Bright_black | C.Bright_red -> A.Bright_red
-    | C.Bright_green -> A.Bright_green | C.Bright_yellow -> A.Bright_yellow
-    | C.Bright_blue -> A.Bright_blue | C.Bright_magenta -> A.Bright_magenta
-    | C.Bright_cyan -> A.Bright_cyan | C.Bright_white -> A.Bright_white
-    | C.Default -> A.Default
-    | C.Gray24 grey24 -> A.Gray24 grey24
-    | C.RGB6 rgb6 -> A.RGB6 rgb6
+  module RGB6   = struct
+    include Patdiff_format.Color.RGB6
+
+    let escape_code { r; g; b; } = 16 + 36 * r + 6 * g + b
+
+  end
+
+  module Gray24 = struct
+    include Patdiff_format.Color.Gray24
+
+    let escape_code { level } = 232 + level
+
+  end
+
+  let codes_of_foreground_color : Patdiff_format.Color.t -> string = function
+    | Black              -> "30"
+    | Red                -> "31"
+    | Green              -> "32"
+    | Yellow             -> "33"
+    | Blue               -> "34"
+    | Magenta            -> "35"
+    | Cyan               -> "36"
+    | White              -> "37"
+    | Default            -> "39"
+    | Gray
+    | Bright_black       -> "90"
+    | Bright_red         -> "91"
+    | Bright_green       -> "92"
+    | Bright_yellow      -> "93"
+    | Bright_blue        -> "94"
+    | Bright_magenta     -> "95"
+    | Bright_cyan        -> "96"
+    | Bright_white       -> "97"
+    | RGB6   x           -> sprintf "38;5;%d" (RGB6.escape_code x)
+    | Gray24 x           -> sprintf "38;5;%d" (Gray24.escape_code x)
+  ;;
+
+  let codes_of_background_color : Patdiff_format.Color.t -> string = function
+    | Black          -> "40"
+    | Red            -> "41"
+    | Green          -> "42"
+    | Yellow         -> "43"
+    | Blue           -> "44"
+    | Magenta        -> "45"
+    | Cyan           -> "46"
+    | White          -> "47"
+    | Default        -> "49"
+    | Gray
+    | Bright_black   -> "100"
+    | Bright_red     -> "101"
+    | Bright_green   -> "102"
+    | Bright_yellow  -> "103"
+    | Bright_blue    -> "104"
+    | Bright_magenta -> "105"
+    | Bright_cyan    -> "106"
+    | Bright_white   -> "107"
+    | RGB6   x       -> sprintf "48;5;%d" (RGB6.escape_code x)
+    | Gray24 x       -> sprintf "48;5;%d" (Gray24.escape_code x)
+  ;;
+
+  let codes_of_style : Patdiff_format.Style.t -> string = function
+    | Reset      -> "0"
+    | Bold       -> "1"
+    | Dim        -> "2"
+    | Underline
+    | Emph       -> "4"
+    | Blink      -> "5"
+    | Inverse    -> "7"
+    | Hide       -> "8"
+    | Fg c
+    | Foreground c -> codes_of_foreground_color c
+    | Bg c
+    | Background c -> codes_of_background_color c
+  ;;
+
+  let apply_string styles str =
+    match styles with
+    | [] -> str
+    | _ ->
+      sprintf "\027[%sm%s\027[0m"
+        (List.map styles ~f:codes_of_style |> String.concat ~sep:";")
+        str
   ;;
 end
 
 module Style = struct
 
-  let of_internal =
-    let module S = Patdiff_format.Style in
-    function
-    | S.Bold -> A.Bold | S.Underline -> A.Underlined | S.Emph -> A.Underlined
-    | S.Blink -> A.Blink | S.Inverse -> A.Inverse | S.Hide -> A.Hidden
-    | S.Dim -> A.Dim
-    | S.Reset -> A.Reset
-    | S.Foreground color | S.Fg color -> A.Foreground (Color.of_internal color)
-    | S.Background color | S.Bg color -> A.Background (Color.of_internal color)
-  ;;
-
-  let drop_reset_prefix = List.drop_while ~f:(function A.Reset -> true | _ -> false)
+  let drop_reset_prefix =
+    List.drop_while ~f:(function Patdiff_format.Style.Reset -> true | _ -> false)
   ;;
 
   let _apply text ~styles =
-    match drop_reset_prefix (List.map styles ~f:of_internal) with
+    match drop_reset_prefix styles with
     | [] -> text
     | styles -> A.apply_string styles text
   ;;
 
   let apply text ~styles =
-    match List.map styles ~f:(of_internal) with
+    match styles with
     | [] -> text
-    | styles -> A.apply_string (A.Reset :: styles) text
+    | styles -> A.apply_string (Reset :: styles) text
   ;;
 end
 

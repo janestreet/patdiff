@@ -2,7 +2,6 @@
 <**/*>: thread
 # This prevents the implicit addition of -ppx options by ocamlfind
 <**/*>: predicate(custom_ppx)
-<ansi_terminal/*.ml>: for-pack(Ansi_terminal)
 <lib/*.ml>: for-pack(Patdiff_lib)
 <bin/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-drop -bench-drop -inline-test-lib fake_for_drop)
 <lib/*.ml{,i}>: pp(ppx-jane -dump-ast -inline-test-drop -bench-drop -inline-test-lib fake_for_drop)

@@ -5,25 +5,34 @@ open! Import
     that will be applied to the diff. ie. prefixes, suffixes, & valid styles. *)
 
 module Color : sig
+  module RGB6 : sig
+    (** expected (0 ≤ r, g, b < 6) *)
+    type t = private { r : int; g : int; b : int }
+    [@@deriving compare, sexp]
+
+    val create_exn : r:int -> g:int -> b:int -> t
+  end
+
+  module Gray24 : sig
+    (** expected (0 ≤ level < 24) *)
+    type t = private { level : int }
+    [@@deriving compare, sexp]
+
+    val create_exn : level:int -> t
+  end
 
   type t =
     | Black | Red | Green | Yellow | Blue | Magenta | Cyan | White | Default
     | Gray
     | Bright_black | Bright_red | Bright_green | Bright_yellow | Bright_blue
     | Bright_magenta | Bright_cyan | Bright_white
-    | RGB6 of ANSITerminal.RGB6.t
-    | Gray24 of ANSITerminal.Gray24.t
+    | RGB6 of RGB6.t
+    | Gray24 of Gray24.t
   [@@deriving compare, sexp]
 
   include Comparable.S with type t := t
 
-  (** From the documentation of Ansi_terminal.ANSITerminal:
-
-      RGB(r,g,b):    expected (0 ≤ r, g, b < 6)
-      GRAY24(level): expected (0 ≤ level < 24)
-
-      [rgb6_exn r g b] and [gray24_exn level] raise if the values are out of bound.
-  *)
+  (** [rgb6_exn r g b] and [gray24_exn level] raise if the values are out of bound. *)
   val rgb6_exn   : int * int * int -> t
   val gray24_exn : int -> t
 end

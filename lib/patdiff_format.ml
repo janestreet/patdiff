@@ -3,45 +3,35 @@ open! Import
 
 module Color = struct
 
-  module RGB6 = struct
+  module RGB6 : sig
+    type t = private { r : int; g : int; b : int }
+    [@@deriving compare, sexp]
+    val create_exn  : r:int -> g:int -> b:int -> t
+  end = struct
+    type t = { r : int; g : int; b : int }
+    [@@deriving compare, sexp]
 
-    module T = struct
-      type t = { r : int; g : int; b : int }
-      [@@deriving compare, sexp]
-
-      let of_ansi_rgb6 { ANSITerminal.RGB6. r; g; b } = { r; g; b }
-      let to_ansi_rgb6 { r; g; b } = ANSITerminal.RGB6.create_exn ~r ~g ~b
-    end
-
-    include ANSITerminal.RGB6
-
-    include Sexpable.Of_sexpable (T) (struct
-        type nonrec t = t
-        let to_sexpable = T.of_ansi_rgb6
-        let of_sexpable = T.to_ansi_rgb6
-      end)
-
-    let compare t1 t2 = T.compare (T.of_ansi_rgb6 t1) (T.of_ansi_rgb6 t2)
+    let create_exn ~r ~g ~b =
+      let check x = 0 <= x && x < 6 in
+      if not (check r && check g && check b)
+      then invalid_arg "RGB6 (r, g, b) -- expected (0 <= r, g, b < 6)";
+      { r; g; b }
+    ;;
   end
 
-  module Gray24 = struct
-    module T = struct
-      type t = { level : int }
-      [@@deriving compare, sexp]
+  module Gray24 :sig
+    type t = private { level : int }
+    [@@deriving compare, sexp]
+    val create_exn  : level:int -> t
+  end = struct
+    type t = { level : int }
+    [@@deriving compare, sexp]
 
-      let of_ansi_gray24 { ANSITerminal.Gray24. level } = { level }
-      let to_ansi_gray24 { level } = ANSITerminal.Gray24.create_exn ~level
-    end
-
-    include ANSITerminal.Gray24
-
-    include Sexpable.Of_sexpable (T) (struct
-        type nonrec t = t
-        let to_sexpable = T.of_ansi_gray24
-        let of_sexpable = T.to_ansi_gray24
-      end)
-
-    let compare t1 t2 = T.compare (T.of_ansi_gray24 t1) (T.of_ansi_gray24 t2)
+    let create_exn ~level =
+      if not (0 <= level && level < 24)
+      then invalid_arg "Gray24 level -- expected (0 <= level < 24)";
+      { level }
+    ;;
   end
 
   module T = struct
