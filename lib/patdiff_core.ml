@@ -290,7 +290,13 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
   let rule_old = rules.Rz.word_old in
   let rule_new = rules.Rz.word_new in
   let collapse = collapse ~rule_old ~rule_new ~output in
-
+  let () =
+    match output with
+    | Ansi | Html -> ()
+    | Ascii ->
+      if produce_unified_lines
+      then failwith "produce_unified_lines is not supported in Ascii mode"
+  in
   let console_width =
     Memo.unit (fun () ->
       assert split_long_lines;
@@ -561,3 +567,51 @@ let patdiff
     ~location_style
     hunks
 ;;
+
+let%test_module _ = (module struct
+  let from_ = { name = "old"; text = "Foo bar buzz" }
+  let to_ = { name = "old"; text = "Foo buzz" }
+
+  let%expect_test "Ansi output generates a single line diff" =
+    printf "%s\n"
+      (patdiff
+         ~split_long_lines:false
+         ~produce_unified_lines:true
+         ~output:Ansi
+         ~from_
+         ~to_
+         ());
+    [%expect {|
+      -1,1 +1,1
+      [0;1;33m!|[0m[0;0mFoo [0;31mbar [0mbuzz[0m |}]
+  ;;
+
+  let%expect_test "Ascii is supported if [produce_unified_lines] is false" =
+    printf "%s\n"
+      (patdiff
+         ~split_long_lines:false
+         ~produce_unified_lines:false
+         ~output:Ascii
+         ~from_
+         ~to_
+         ());
+    [%expect {|
+      -1,1 +1,1
+      -|Foo bar buzz
+      +|Foo buzz |}]
+  ;;
+
+  let%test "Ascii is not supported if [produce_unified_lines] is true" =
+    match
+      patdiff
+        ~split_long_lines:false
+        ~produce_unified_lines:true
+        ~output:Ascii
+        ~from_
+        ~to_
+        ()
+    with
+    | exception _ -> true
+    | (_ : string) -> false
+  ;;
+end)
