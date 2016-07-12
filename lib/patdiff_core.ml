@@ -300,10 +300,12 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
   let console_width =
     Memo.unit (fun () ->
       assert split_long_lines;
-      match Linux_ext.get_terminal_size with
+      match
+        Or_error.bind Linux_ext.get_terminal_size (fun get_size ->
+          Or_error.try_with get_size)
+      with
       | Error _ -> 80
-      | Ok get_size -> snd (get_size ())
-    )
+      | Ok pair -> snd pair)
   in
   let aux hunk =
     let aux = function
