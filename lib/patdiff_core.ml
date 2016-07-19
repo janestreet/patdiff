@@ -205,7 +205,7 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
       | `Same -> rule_same
       | `Old -> rule_old
       | `New -> rule_new in
-    let formatted_segment = List.rev !segment |! String.concat |! apply ~rule in
+    let formatted_segment = List.rev !segment |> String.concat |> apply ~rule in
     line := formatted_segment :: !line ;
     segment := [] in
   (*
