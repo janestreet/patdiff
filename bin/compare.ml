@@ -321,7 +321,7 @@ let main' args =
       | Some f -> Some f (* specified file *)
       | None ->
         (* ~/.patdiff exists *)
-        Option.bind (Sys.getenv "HOME") (fun home ->
+        Option.bind (Sys.getenv "HOME") ~f:(fun home ->
           let f = home ^/ ".patdiff" in
           match Sys.file_exists f with
           | `Yes -> Some f
@@ -330,7 +330,7 @@ let main' args =
     (* C.load prints warnings to stderr. This is desired because [file] is only Some if it
        was manually specified or if ~/.patdiff exists. The user should be notified of
        errors if the file fails in both cases. *)
-    match Option.bind file C.load with
+    match Option.bind file ~f:C.load with
     | Some c -> c
     | None -> C.parse (C.Config.t_of_sexp (Sexp.of_string Text.Configuration.ansi_config))
   in

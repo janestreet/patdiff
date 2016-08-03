@@ -301,7 +301,7 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
     Memo.unit (fun () ->
       assert split_long_lines;
       match
-        Or_error.bind Linux_ext.get_terminal_size (fun get_size ->
+        Or_error.bind Linux_ext.get_terminal_size ~f:(fun get_size ->
           Or_error.try_with get_size)
       with
       | Error _ -> 80
