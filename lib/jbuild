@@ -1,0 +1,10 @@
+(library (
+  (name patdiff_lib)
+  (public_name patdiff.lib)
+  (libraries (
+    core
+    core_extended
+    patience_diff_lib
+    pcre
+    sexplib
+  ))))

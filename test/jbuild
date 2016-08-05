@@ -1,0 +1,4 @@
+(unified_tests
+ ((target runtest)
+  (deps (../bin/patdiff.exe))
+  (setup_script setup.sh)))
