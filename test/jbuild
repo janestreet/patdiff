@@ -2,3 +2,13 @@
  ((target runtest)
   (deps (../bin/patdiff.exe))
   (setup_script setup.sh)))
+
+(library
+ ((name patdiff_test)
+  (inline_tests
+   ((deps (../bin/patdiff.exe))))
+  (libraries (
+    async
+    core
+    expect_test_helpers
+    ))))

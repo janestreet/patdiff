@@ -8,4 +8,5 @@ generate ~package:"patdiff"
   ; file "META" ~section:"lib"
   ; oasis_exe "patdiff" ~dest:"patdiff"
   ; file "patdiff.man" ~dest:"man1/patdiff.1" ~section:"man"
+  ; file "bin/patdiff-git-wrapper" ~section:"bin"
   ]
