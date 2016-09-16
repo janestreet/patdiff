@@ -16,11 +16,11 @@ Test omake-style locations needed for emacs to jump to test failures.
   > EOF
  
   $ patdiff -location-style omake old new | visible_colors
-  [off][red]------ [off][off][bold]old[off]
-  [off][green]++++++ [off][off][bold]new[off]
+  (fg:red)------ (+bold)old
+  (fg:green)++++++ (+bold)new
   File "old", line 3, characters 0-1:
-  [off][high-intensity:bg:black][black] |[off]mary had a little lamb
-  [off][high-intensity:bg:black][black] |[off]its fleece was white as snow
-  [off][bg:yellow][black]!|[off][off]hello [off][red]world[off][off]
-  [off][high-intensity:bg:black][black] |[off]bar
-  [off][bg:red][black]-|[off][off][red]baz[off]
+  (fg:black) |(off)mary had a little lamb
+  (fg:black) |(off)its fleece was white as snow
+  (fg:black bg:yellow)!|(off)hello (fg:red)world
+  (fg:black) |(off)bar
+  (fg:black bg:red)-|(fg:red)baz

@@ -1,12 +1,12 @@
 (unified_tests
  ((target runtest)
-  (deps (../bin/patdiff.exe))
+  (deps (../bin/patdiff.exe ../../ansicodes/bin/ansicodes.exe visible-colors.sh))
   (setup_script setup.sh)))
 
 (library
  ((name patdiff_test)
   (inline_tests
-   ((deps (../bin/patdiff.exe))))
+   ((deps (../bin/patdiff.exe ../../ansicodes/bin/ansicodes.exe visible-colors.sh))))
   (libraries (
     async
     core

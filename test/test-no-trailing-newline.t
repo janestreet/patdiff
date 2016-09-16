@@ -20,8 +20,8 @@ Test handling of text files missing a trailing newline.
 
   $ patdiff.exe -default -alt-old missing_newline -alt-new extra_newline missing_newline extra_newline | visible_colors
   No newline at the end of missing_newline
-  [off][red]------ [off][off][bold]missing_newline[off]
-  [off][green]++++++ [off][off][bold]extra_newline[off]
-  [off][high-intensity:bg:black][black]@|[off][off][bold]-1,1 +1,2[off] ============================================================
-  [off][high-intensity:bg:black][black] |[off]foo
-  [off][bg:green][black]+|[off][off][green][off]
+  (fg:red)------ (+bold)missing_newline
+  (fg:green)++++++ (+bold)extra_newline
+  (fg:black)@|(+bold)-1,1 +1,2(off) ============================================================
+  (fg:black) |(off)foo
+  (fg:black bg:green)+|

@@ -11,20 +11,29 @@ let remove_ws s = String.strip (Pcre.replace ~rex:ws_rex ~itempl:ws_sub s)
 
 (* This regular expression describes the delimiters on which to split the string *)
 let words_rex = Pcre.regexp
-  "\\\"|\\{|\\}|\\[|\\]|[\\=\\`\\+\\-\\/\\!\\@\\$\\%\\^\\&\\*\\:]+|\\#|,|\\.|;|\\)|\\(|\\s+"
+                  "\\\"|\\{|\\}|\\[|\\]|[\\=\\`\\+\\-\\/\\!\\@\\$\\%\\^\\&\\*\\:]+|\\#|,|\\.|;|\\)|\\(|\\s+"
 
 (* Split a string into a list of string options delimited by words_rex
    (delimiters included) *)
 let split s ~keep_ws =
   let s = if keep_ws then s else String.rstrip s in
-  let list = Pcre.full_split ~max:(-1) ~rex:words_rex s in
-  List.filter_map list ~f:
-    (fun split_result ->
-      match split_result with
-      | Pcre.Text s -> Some s
-      | Pcre.Delim s -> Some s
-      | Pcre.Group _ -> assert false   (* Irrelevant, since rex has no groups *)
-      | Pcre.NoGroup -> assert false ) (* Ditto *)
+  if String.is_empty s && keep_ws
+  then [ "" ]
+  else begin
+    let list = Pcre.full_split ~max:(-1) ~rex:words_rex s in
+    List.filter_map list ~f:
+      (fun split_result ->
+         match split_result with
+         | Pcre.Text s -> Some s
+         | Pcre.Delim s -> Some s
+         | Pcre.Group _ -> assert false   (* Irrelevant, since rex has no groups *)
+         | Pcre.NoGroup -> assert false ) (* Ditto *)
+  end
+;;
+
+let%expect_test _ =
+  printf !"%{sexp:string list}" (split ~keep_ws:true "");
+  [%expect {| ("") |}]
 ;;
 
 module type Output = Output_intf.S
@@ -55,9 +64,9 @@ module Output_ops = struct
       function
       | R.Same ar ->
         let formatted_ar = Array.map ar
-          ~f:(fun (x,y) ->
-            let app = apply ~rule:rules.Rz.line_same ~refined:false in
-            (app x, app y))
+                             ~f:(fun (x,y) ->
+                               let app = apply ~rule:rules.Rz.line_same ~refined:false in
+                               (app x, app y))
         in
         R.Same formatted_ar
       | R.New ar ->
@@ -120,10 +129,10 @@ let explode ar ~keep_ws =
      can be thought of as:
 
      [`Newline of
-       ([`How_many_consecutive_newlines of int]
-        * [`Some_subsequent_whitespace of string
-          |`Empty_string
-          ])]
+     ([`How_many_consecutive_newlines of int]
+   * [`Some_subsequent_whitespace of string
+     |`Empty_string
+     ])]
 
      This representation is used to try to collapse consecutive whitespace as tightly as
      possible, but it's not a great abstraction, so some consecutive whitespace does not
@@ -199,7 +208,7 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
   (*
    * Finish the current segment by applying the appropriate format
    * and popping it on to the end of the current line
-   *)
+  *)
   let finish_segment () =
     let rule = match !flag with
       | `Same -> rule_same
@@ -211,7 +220,7 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
   (*
    * Finish the current segment, apply the reset rule to the line,
    * and pop the finished line onto the return array
-   *)
+  *)
   let newline i =
     for _ = 1 to i do
       finish_segment ();
@@ -245,28 +254,30 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
         assert false in
     (* Iterate through the elements of the range, appending each `Word to
      * segment and calling newline on each `Newline
-     *)
+    *)
     Array.iter ar ~f:(function
-    | `Newline (i, None) -> newline i;
-    | `Newline (i, Some s) -> newline i; segment := s :: !segment
-    | `Word s -> segment := s :: !segment);
+      | `Newline (i, None) -> newline i;
+      | `Newline (i, Some s) -> newline i; segment := s :: !segment
+      | `Word s -> segment := s :: !segment);
     finish_segment ()
   in
   List.iter ranges ~f;
   Array.of_list (List.rev !lines)
 ;;
 
-let piece_transform = function
-  | `Word s -> s
-  | `Newline _ -> " "
-;;
-
 (* Get the hunks from two arrays of pieces (`Words and `Newlines) *)
 let diff_pieces ~old_pieces ~new_pieces ~keep_ws =
   let context = -1 in
   let transform =
-    if keep_ws then piece_transform
-    else fun x -> remove_ws (piece_transform x) in
+    if keep_ws
+    then function
+      | `Word s -> s
+      | `Newline (lines, trailing_whitespace) ->
+        Option.fold trailing_whitespace ~init:(String.make lines '\n') ~f:String.(^)
+    else function
+      | `Word s -> remove_ws s
+      | `Newline _ -> ""
+  in
   let compare = String.compare in
   Patience_diff.get_hunks ~mine:old_pieces ~other:new_pieces ~transform ~context ~compare
 ;;
@@ -274,11 +285,11 @@ let diff_pieces ~old_pieces ~new_pieces ~keep_ws =
 let ranges_are_just_whitespace ranges =
   let module R = Patience_diff.Range in
   List.for_all ranges ~f:(function
-  | R.Old piece_array | R.New piece_array ->
-    Array.for_all piece_array ~f:(fun piece ->
-      let s = piece_transform piece in
-      remove_ws s = "")
-  | _ -> true)
+    | R.Old piece_array | R.New piece_array ->
+      Array.for_all piece_array ~f:(function
+        | `Word s -> String.is_empty (remove_ws s)
+        | `Newline _ -> true)
+    | _ -> true)
 ;;
 
 (* Refines the diff, splitting the lines into smaller arrays and diffing them, then
@@ -343,10 +354,10 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
             let rec split_lines len_so_far sub_diff rangeaccum rangelistaccum =
               match sub_diff with
               | [] -> begin
-                match rangeaccum with
-                | [] -> List.rev rangelistaccum
-                | _ -> List.rev (List.rev rangeaccum :: rangelistaccum)
-              end
+                  match rangeaccum with
+                  | [] -> List.rev rangelistaccum
+                  | _ -> List.rev (List.rev rangeaccum :: rangelistaccum)
+                end
               (* More tokens ranges left to process *)
               | range :: rest ->
                 match range with
@@ -417,8 +428,8 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
                   split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
                 | R.Replace (old_arr,new_arr) ->
                   let new_len_so_far = Int.max
-                    (get_new_len_so_far ~len_so_far old_arr)
-                    (get_new_len_so_far ~len_so_far new_arr)
+                                         (get_new_len_so_far ~len_so_far old_arr)
+                                         (get_new_len_so_far ~len_so_far new_arr)
                   in
                   split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
                 | R.Unified _ -> assert false
@@ -434,8 +445,8 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
 
           let produce_unified_lines =
             produce_unified_lines &&
-              ((not (ranges_are_just_whitespace sub_old) && new_all_same) ||
-                  (not (ranges_are_just_whitespace sub_new) && old_all_same))
+            ((not (ranges_are_just_whitespace sub_old) && new_all_same) ||
+             (not (ranges_are_just_whitespace sub_new) && old_all_same))
           in
 
           (* Collapse the pieces back into lines *)
@@ -571,49 +582,49 @@ let patdiff
 ;;
 
 let%test_module _ = (module struct
-  let from_ = { name = "old"; text = "Foo bar buzz" }
-  let to_ = { name = "old"; text = "Foo buzz" }
+                      let from_ = { name = "old"; text = "Foo bar buzz" }
+                      let to_ = { name = "old"; text = "Foo buzz" }
 
-  let%expect_test "Ansi output generates a single line diff" =
-    printf "%s\n"
-      (patdiff
-         ~split_long_lines:false
-         ~produce_unified_lines:true
-         ~output:Ansi
-         ~from_
-         ~to_
-         ());
-    [%expect {|
+                      let%expect_test "Ansi output generates a single line diff" =
+                        printf "%s\n"
+                          (patdiff
+                             ~split_long_lines:false
+                             ~produce_unified_lines:true
+                             ~output:Ansi
+                             ~from_
+                             ~to_
+                             ());
+                        [%expect {|
       -1,1 +1,1
       [0;1;33m!|[0m[0;0mFoo [0;31mbar [0mbuzz[0m |}]
-  ;;
+                      ;;
 
-  let%expect_test "Ascii is supported if [produce_unified_lines] is false" =
-    printf "%s\n"
-      (patdiff
-         ~split_long_lines:false
-         ~produce_unified_lines:false
-         ~output:Ascii
-         ~from_
-         ~to_
-         ());
-    [%expect {|
+                      let%expect_test "Ascii is supported if [produce_unified_lines] is false" =
+                        printf "%s\n"
+                          (patdiff
+                             ~split_long_lines:false
+                             ~produce_unified_lines:false
+                             ~output:Ascii
+                             ~from_
+                             ~to_
+                             ());
+                        [%expect {|
       -1,1 +1,1
       -|Foo bar buzz
       +|Foo buzz |}]
-  ;;
+                      ;;
 
-  let%test "Ascii is not supported if [produce_unified_lines] is true" =
-    match
-      patdiff
-        ~split_long_lines:false
-        ~produce_unified_lines:true
-        ~output:Ascii
-        ~from_
-        ~to_
-        ()
-    with
-    | exception _ -> true
-    | (_ : string) -> false
-  ;;
-end)
+                      let%test "Ascii is not supported if [produce_unified_lines] is true" =
+                        match
+                          patdiff
+                            ~split_long_lines:false
+                            ~produce_unified_lines:true
+                            ~output:Ascii
+                            ~from_
+                            ~to_
+                            ()
+                        with
+                        | exception _ -> true
+                        | (_ : string) -> false
+                      ;;
+                    end)

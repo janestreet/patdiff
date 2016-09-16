@@ -13,18 +13,18 @@ Test recursive diff of directories.
 
   $ patdiff.exe -default prev next | visible_colors
   Only in prev: this-goes-away (glob)
-  [off][red]------ [off][off][bold]prev/this-goes-away[off]
-  [off][green]++++++ [off][off][bold]/dev/null[off]
-  [off][high-intensity:bg:black][black]@|[off][off][bold]-1,1 +1,0[off] ============================================================
-  [off][bg:red][black]-|[off][off][red].[off]
+  (fg:red)------ (+bold)prev/this-goes-away
+  (fg:green)++++++ (+bold)/dev/null
+  (fg:black)@|(+bold)-1,1 +1,0(off) ============================================================
+  (fg:black bg:red)-|(fg:red).
   Only in next: this-appears (glob)
-  [off][red]------ [off][off][bold]/dev/null[off]
-  [off][green]++++++ [off][off][bold]next/this-appears[off]
-  [off][high-intensity:bg:black][black]@|[off][off][bold]-1,0 +1,1[off] ============================================================
-  [off][bg:green][black]+|[off][off][green].[off]
+  (fg:red)------ (+bold)/dev/null
+  (fg:green)++++++ (+bold)next/this-appears
+  (fg:black)@|(+bold)-1,0 +1,1(off) ============================================================
+  (fg:black bg:green)+|(fg:green).
   Files prev/foo and next/foo are not the same type (glob)
-  [off][red]------ [off][off][bold]prev/this-changes[off]
-  [off][green]++++++ [off][off][bold]next/this-changes[off]
-  [off][high-intensity:bg:black][black]@|[off][off][bold]-1,1 +1,1[off] ============================================================
-  [off][bg:red][black]-|[off][off][off][dim][off][off][red]prev[off][off][dim][off][off]
-  [off][bg:green][black]+|[off][off][off][green]next[off][off]
+  (fg:red)------ (+bold)prev/this-changes
+  (fg:green)++++++ (+bold)next/this-changes
+  (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
+  (fg:black bg:red)-|(fg:red)prev
+  (fg:black bg:green)+|(fg:green)next

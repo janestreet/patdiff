@@ -7,11 +7,9 @@ Test that we ignore or consider whitespace as directed.
   $ cat - > next <<EOF
   > 
   >  this is  a file 	with  	  whitespace
-  >  variously  applied	
+  >  variously  applied
   > hg
   > across the
-  >  
-  >    
   > 
   > 
   > 
@@ -20,7 +18,9 @@ Test that we ignore or consider whitespace as directed.
   > 
   > 
   > 
-  > lines in an arbitrary     	
+  > 
+  > 
+  > lines in an arbitrary
   > manner
   > EOF
 
@@ -35,23 +35,24 @@ Expect no spurious diffs.
 Expect whitespace changes should be detected.
 
   $ patdiff.exe -default prev next -keep-whitespace | visible_colors
-  [off][red]------ [off][off][bold]prev[off]
-  [off][green]++++++ [off][off][bold]next[off]
-  [off][high-intensity:bg:black][black]@|[off][off][bold]-1,1 +1,17[off] ============================================================
-  [off][bg:red][black]-|[off][off][off][dim]this is[off][off][red] [off][off][dim]a file[off][off][red] [off][off][dim]with[off][off][red] [off][off][dim]whitespace variously[off][off][red] [off][off][dim]applied[off][off][dim] hg across the lines in an arbitrary[off][off][dim] manner[off][off]
-  [off][bg:green][black]+|[off][off] this is[off][green]  [off]a file[off][green] 	[off]with[off][green]  	  [off]whitespace[off]
-  [off][bg:green][black]+|[off][off] variously[off][green]  [off]applied[off][green]	[off][off]
-  [off][bg:green][black]+|[off][off]hg[off]
-  [off][bg:green][black]+|[off][off]across the[off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off][off]
-  [off][bg:green][black]+|[off][off]    lines in an arbitrary[off][green]     	[off][off]
-  [off][bg:green][black]+|[off][off]manner[off]
+  (fg:red)------ (+bold)prev
+  (fg:green)++++++ (+bold)next
+  (fg:black)@|(+bold)-1,1 +1,17(off) ============================================================
+  (fg:black bg:red)-|(off)this is(fg:red) (off)a file(fg:red) (off)with(fg:red) (off)whitespace(fg:red) (off)variously(fg:red) (off)applied(fg:red) (off)hg(fg:red) (off)across the(fg:red) (off)lines in an arbitrary(fg:red) (off)manner
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|(fg:green) (off)this is(fg:green)  (off)a file(fg:green) 	(off)with(fg:green)  	  (off)whitespace
+  (fg:black bg:green)+|(fg:green) (off)variously(fg:green)  (off)applied
+  (fg:black bg:green)+|(off)hg
+  (fg:black bg:green)+|(off)across the
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|
+  (fg:black bg:green)+|(off)lines in an arbitrary
+  (fg:black bg:green)+|(off)manner
