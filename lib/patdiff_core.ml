@@ -31,10 +31,6 @@ let split s ~keep_ws =
   end
 ;;
 
-let%expect_test _ =
-  printf !"%{sexp:string list}" (split ~keep_ws:true "");
-  [%expect {| ("") |}]
-;;
 
 module type Output = Output_intf.S
 

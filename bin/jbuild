@@ -1,8 +1,12 @@
 (executables
  ((names (patdiff))
-  (public_release ((build_and_install ((patdiff patdiff)))))
   (review_help true)
   (libraries (core_extended
               patdiff_lib
               pcre
               sexplib))))
+
+(install
+ ((section bin)
+  (files ((patdiff.exe as patdiff)
+          patdiff-git-wrapper))))
