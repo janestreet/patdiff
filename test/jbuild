@@ -6,7 +6,8 @@
 (library
  ((name patdiff_test)
   (inline_tests
-   ((deps (../bin/patdiff.exe ../../ansicodes/bin/ansicodes.exe visible-colors.sh))))
+   ((deps (../bin/patdiff.exe ../../ansicodes/bin/ansicodes.exe visible-colors.sh
+           ../bin/patdiff-git-wrapper))))
   (libraries (
     async
     core

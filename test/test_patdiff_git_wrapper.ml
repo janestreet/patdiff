@@ -1,6 +1,6 @@
 open! Core.Std
 open! Async.Std
-open! Expect_test_helpers.Std
+open! Expect_test_helpers
 
 (* The patdiff devs don't review the patdiff-git-wrapper script. This test is to warn them
    of obvious mistakes, like silently changing the calling convention without updating the
