@@ -85,7 +85,7 @@ end
 let print_header ~rules ~file_names:(old_file, new_file) ~print =
   let print_line file rule =
     let get_time s =
-      try Time.to_string (Time.of_float (Unix.stat s).Unix.st_mtime)
+      try Time.to_string (Time.of_span_since_epoch (Time.Span.of_sec (Unix.stat s).Unix.st_mtime))
       with _e -> "" in
     let time = get_time file in
     print (Rule.apply (file ^ " " ^ time) ~rule ~refined:false)
