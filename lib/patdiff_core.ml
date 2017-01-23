@@ -104,14 +104,9 @@ end
 
 let default_context = 6
 
-let diff ~context ~compare ~keep_ws ~mine ~other =
-  if keep_ws then
-    let transform = fun x -> x in
-    Patience_diff.get_hunks ~mine ~other ~transform ~context ~compare
-  else
-    let compare = fun x y -> compare (remove_ws x)  (remove_ws y) in
-    let transform = remove_ws in
-    Patience_diff.get_hunks ~mine ~other ~transform ~context ~compare
+let diff ~context ~keep_ws ~mine ~other =
+  let transform = if keep_ws then Fn.id else remove_ws in
+  Patience_diff.String.get_hunks ~transform ~context ~mine ~other
 ;;
 
 (* Splits an array of lines into an array of pieces (`Newlines and R.Words) *)
@@ -274,8 +269,7 @@ let diff_pieces ~old_pieces ~new_pieces ~keep_ws =
       | `Word s -> remove_ws s
       | `Newline _ -> ""
   in
-  let compare = String.compare in
-  Patience_diff.get_hunks ~mine:old_pieces ~other:new_pieces ~transform ~context ~compare
+  Patience_diff.String.get_hunks ~mine:old_pieces ~other:new_pieces ~transform ~context
 ;;
 
 let ranges_are_just_whitespace ranges =
@@ -324,7 +318,7 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
         let sub_diff = diff_pieces ~old_pieces ~new_pieces ~keep_ws in
 
         (* Smash the hunks' ranges all together *)
-        let sub_diff = Patience_diff.ranges sub_diff in
+        let sub_diff = Patience_diff.Hunks.ranges sub_diff in
 
         (* Break it up where lines are too long *)
         let sub_diff_pieces =
@@ -563,7 +557,7 @@ let patdiff
       ?(location_style = Format.Location_style.Diff)
       ~from_ ~to_ () =
   let hunks =
-    diff ~context ~compare:String.compare ~keep_ws
+    diff ~context ~keep_ws
       ~mine: (List.to_array (String.split_lines from_.text))
       ~other:(List.to_array (String.split_lines to_.text))
     |> refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines
@@ -577,50 +571,52 @@ let patdiff
     hunks
 ;;
 
-let%test_module _ = (module struct
-                      let from_ = { name = "old"; text = "Foo bar buzz" }
-                      let to_ = { name = "old"; text = "Foo buzz" }
+let%test_module _ =
+  (module struct
+    let from_ = { name = "old"; text = "Foo bar buzz" }
+    let to_ = { name = "old"; text = "Foo buzz" }
 
-                      let%expect_test "Ansi output generates a single line diff" =
-                        printf "%s\n"
-                          (patdiff
-                             ~split_long_lines:false
-                             ~produce_unified_lines:true
-                             ~output:Ansi
-                             ~from_
-                             ~to_
-                             ());
-                        [%expect {|
+    let%expect_test "Ansi output generates a single line diff" =
+      printf "%s\n"
+        (patdiff
+           ~split_long_lines:false
+           ~produce_unified_lines:true
+           ~output:Ansi
+           ~from_
+           ~to_
+           ());
+      [%expect {|
       -1,1 +1,1
       [0;1;33m!|[0m[0;0mFoo [0;31mbar [0mbuzz[0m |}]
-                      ;;
+    ;;
 
-                      let%expect_test "Ascii is supported if [produce_unified_lines] is false" =
-                        printf "%s\n"
-                          (patdiff
-                             ~split_long_lines:false
-                             ~produce_unified_lines:false
-                             ~output:Ascii
-                             ~from_
-                             ~to_
-                             ());
-                        [%expect {|
+    let%expect_test "Ascii is supported if [produce_unified_lines] is false" =
+      printf "%s\n"
+        (patdiff
+           ~split_long_lines:false
+           ~produce_unified_lines:false
+           ~output:Ascii
+           ~from_
+           ~to_
+           ());
+      [%expect {|
       -1,1 +1,1
       -|Foo bar buzz
       +|Foo buzz |}]
-                      ;;
+    ;;
 
-                      let%test "Ascii is not supported if [produce_unified_lines] is true" =
-                        match
-                          patdiff
-                            ~split_long_lines:false
-                            ~produce_unified_lines:true
-                            ~output:Ascii
-                            ~from_
-                            ~to_
-                            ()
-                        with
-                        | exception _ -> true
-                        | (_ : string) -> false
-                      ;;
-                    end)
+    let%test "Ascii is not supported if [produce_unified_lines] is true" =
+      match
+        patdiff
+          ~split_long_lines:false
+          ~produce_unified_lines:true
+          ~output:Ascii
+          ~from_
+          ~to_
+          ()
+      with
+      | exception _ -> true
+      | (_ : string) -> false
+    ;;
+  end)
+;;

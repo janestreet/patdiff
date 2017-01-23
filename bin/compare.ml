@@ -1,6 +1,5 @@
 open Core.Std
 open Core_extended.Std
-module D = Patience_diff_lib.Std.Patience_diff
 module P = Patdiff_lib.Patdiff_core
 module Compare_core = Patdiff_lib.Compare_core
 module Configuration = Patdiff_lib.Configuration

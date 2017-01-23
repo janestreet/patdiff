@@ -1,7 +1,6 @@
 open Core.Std
 open Core_extended.Std
-
-module Patience_diff = Patience_diff_lib.Std.Patience_diff
+open Import
 
 let lines_of_contents contents =
   let lines = Array.of_list (String.split_lines contents) in
@@ -36,23 +35,34 @@ let compare_lines config ~mine ~other =
   let context = config.C.context in
   let keep_ws = config.C.keep_ws in
   let split_long_lines = config.C.split_long_lines in
-  (* Use external compare program? *)
-  let compare = Option.value_map config.C.ext_cmp
-    ~default:String.compare
-    ~f:(fun prog -> fun x y ->
-      let cmd = sprintf "%s %S %S" prog x y in
-      match Unix.system cmd with
-      | Ok () -> 0
-      | Error (`Exit_non_zero 1) -> 1
-      | Error _ ->
-          failwithf "External compare %S failed!" prog ())
+  let hunks =
+    let transform = if keep_ws then Fn.id else Patdiff_core.remove_ws in
+    (* Use external compare program? *)
+    match config.C.ext_cmp with
+    | None -> Patience_diff.String.get_hunks ~transform ~context ~mine ~other
+    | Some prog ->
+      let compare x y =
+        let cmd = sprintf "%s %S %S" prog x y in
+        match Unix.system cmd with
+        | Ok () -> 0
+        | Error (`Exit_non_zero 1) -> 1
+        | Error _ ->
+          failwithf "External compare %S failed!" prog ()
+      in
+      let module P =
+        Patience_diff.Make(struct
+          type t = string [@@deriving sexp]
+          let hash = String.hash
+          let compare = compare
+        end)
+      in
+      P.get_hunks ~transform ~context ~mine ~other
   in
-  let hunks = Patdiff_core.diff ~mine ~other ~context ~compare ~keep_ws in
   (* Refine if desired *)
   if config.C.unrefined then
     (* Turn `Replace ranges into `Old and `New ranges.
        `Replace's would otherwise be later interpreted as refined output *)
-    Patience_diff.unified hunks
+    Patience_diff.Hunks.unified hunks
   else
     let rules = config.C.rules in
     let output = config.C.output in
@@ -90,10 +100,14 @@ let compare_files (config : Configuration.t) ~old_file ~new_file =
   compare_lines config ~mine ~other
 ;;
 
+let has_no_diff hunks =
+  List.for_all hunks ~f:Patience_diff.Hunk.all_same
+;;
+
 (* Print hunks to stdout *)
 let print hunks ~old_file ~new_file ~config =
   let module C = Configuration in
-  if Patience_diff.all_same hunks then begin
+  if has_no_diff hunks then begin
     if config.C.double_check then
       match Unix.system (sprintf "cmp -s %s %s" old_file new_file) with
       | Ok () -> ()
@@ -112,16 +126,18 @@ There are no differences except those filtered by your settings\n%!"
       Patdiff_core.print hunks ~old_file ~new_file ~output ~rules
         ~location_style:config.location_style
   end
+;;
 
 let diff_files config ~old_file ~new_file =
   let hunks = compare_files ~old_file ~new_file config in
   print hunks ~old_file ~new_file ~config;
-  if Patience_diff.all_same hunks then `Same else `Different
+  if has_no_diff hunks then `Same else `Different
+;;
 
 let diff_strings ?print_global_header (config : Configuration.t) ~old ~new_ =
   let lines { Patdiff_core.name = _; text; } = String.split_lines text |> Array.of_list in
   let hunks = compare_lines config ~mine:(lines old) ~other:(lines new_) in
-  if Patience_diff.all_same hunks
+  if has_no_diff hunks
   then `Same
   else `Different (Patdiff_core.output_to_string
                      hunks
@@ -141,9 +157,9 @@ let rec diff_dirs config ~old_file ~new_file ~file_filter =
   (* Get a list of files for this directory only; do not descend farther
      (We recursively call diff_dirs later if we need to descend.) *)
   let options = { Find.Options.default with
-    Find.Options.max_depth = Some 1;
-    filter = file_filter
-  } in
+                  Find.Options.max_depth = Some 1;
+                  filter = file_filter
+                } in
   let set_of_file file =
     let files = Find.find_all ~options file in
     let f = fun x -> let (n, _s) = x in Filename.make_relative ~to_:file n in
@@ -176,9 +192,9 @@ let rec diff_dirs config ~old_file ~new_file ~file_filter =
     let new_file = new_file ^/ file in
     if is_reg old_file && is_reg new_file then begin
       let hunks = compare_files ~old_file ~new_file config in
-      if not (Patience_diff.all_same hunks) then  begin
+      if not (has_no_diff hunks) then begin
         exit_code := `Different;
-          (* Print the diff if not -quiet *)
+        (* Print the diff if not -quiet *)
         if config.C.quiet = false then
           print hunks ~old_file ~new_file ~config
         else
@@ -188,8 +204,8 @@ let rec diff_dirs config ~old_file ~new_file ~file_filter =
     else if is_dir old_file && is_dir new_file then begin
       if not config.C.shallow then
         match diff_dirs ~old_file ~new_file config ~file_filter with
-      | `Same -> ()
-      | `Different -> exit_code := `Different
+        | `Same -> ()
+        | `Different -> exit_code := `Different
       else printf "Common subdirectories: %s and %s\n%!" old_file new_file
     end
     else begin
@@ -202,3 +218,4 @@ let rec diff_dirs config ~old_file ~new_file ~file_filter =
     !exit_code
   else
     `Different
+;;

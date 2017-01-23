@@ -6,20 +6,21 @@ module Output : module type of (struct include Output_mode end)
 
 val default_context : int
 
-(** [diff ~context ~compare ~keep_ws a b] Use Patience_diff to get a list of
-    hunks describing the comparison between [a] and [b] *)
+(** [diff ~context ~keep_ws ~mine ~other] uses [Patience_diff] to get a list of hunks
+    describing the comparison between [mine] and [other]. *)
 val diff
   :  context : int
-  -> compare : (string -> string -> int)
   -> keep_ws : bool
   -> mine:string array
   -> other:string array
   -> string Patience_diff.Hunk.t list
 
-(** [refine diff format] takes the Replace ranges from the hunk list, splits
-    them into smaller arrays, diffs those arrays, formats them according to
-    the provided format, and recomposes the Replace range of the original
-    hunk list. *)
+(* [remove_ws] calls String.strip and replaces whitespace with " " *)
+val remove_ws : string -> string
+
+(** [refine ~rules ~producte_unified_lines ~output ~keep_ws ~split_long_lines hunks] takes
+    the Replace ranges from [hunks], splits them into smaller arrays, diffs those arrays,
+    formats them according to [rules], and recomposes the Replace range of [hunks]. *)
 val refine
   :  rules:Format.Rules.t
   -> produce_unified_lines:bool
