@@ -1,4 +1,4 @@
-open! Core.Std
+open! Core
 open! Import
 
 (** Ascii is Ansi with no styles. *)

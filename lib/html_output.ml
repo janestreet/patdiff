@@ -1,4 +1,4 @@
-open! Core.Std
+open! Core
 open! Import
 
 let string_of_color c =

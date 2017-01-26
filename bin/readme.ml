@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 (* [Command] treats the first space-separated word as part of an argument.
    Without the space prefix, the readme will have the following form in -help output:

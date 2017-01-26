@@ -1,4 +1,4 @@
-open! Core.Std
+open! Core
 open Patdiff_lib
 module Shell = Core_extended.Std.Shell
 

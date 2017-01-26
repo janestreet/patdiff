@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 
 let doc = "FILE Write default configuration file"
 

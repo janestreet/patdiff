@@ -1,4 +1,4 @@
-open! Core.Std
+open! Core
 open! Import
 
 type t = string Patience_diff.Hunk.t list

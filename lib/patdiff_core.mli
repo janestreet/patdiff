@@ -1,4 +1,4 @@
-open! Core.Std
+open! Core
 open! Import
 
 module Format : module type of (struct include Patdiff_format end)

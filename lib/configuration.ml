@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 module P = Patdiff_core
 
 let warn_if_no_trailing_newline_in_both_default = true

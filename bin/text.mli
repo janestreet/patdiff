@@ -1,4 +1,4 @@
-open! Core.Std
+open! Core
 
 module Configuration : sig
   val ansi_config : string

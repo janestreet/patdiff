@@ -1,4 +1,4 @@
-open Core.Std
+open Core
 open Core_extended.Std
 module P = Patdiff_lib.Patdiff_core
 module Compare_core = Patdiff_lib.Compare_core
