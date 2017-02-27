@@ -6,7 +6,7 @@ bug-reports: "https://github.com/janestreet/patdiff/issues"
 dev-repo: "https://github.com/janestreet/patdiff.git"
 license: "Apache-2.0"
 build: [
-["jbuilder" "build-package" "patdiff" "-j" jobs]
+  ["jbuilder" "build-package" "patdiff" "-j" jobs]
 ]
 depends: [
   "core"

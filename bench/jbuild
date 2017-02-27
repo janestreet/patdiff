@@ -15,3 +15,5 @@ let new_ = {|$(hg cat -r e2539d6e474b $(hg root)/lib/core_kernel/src/core_list.m
 let old  = {|$(hg cat -r cf191a635efb $(hg root)/lib/core_kernel/src/core_list.ml)|}
 EOF
 ")))
+
+(jbuild_version jane_street)

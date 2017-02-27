@@ -2,3 +2,5 @@
  ((section man)
   (files ((patdiff.man as man1/patdiff.1)))))
 
+
+(jbuild_version jane_street)

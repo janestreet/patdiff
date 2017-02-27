@@ -10,3 +10,5 @@
  ((section bin)
   (files ((patdiff.exe as patdiff)
           patdiff-git-wrapper))))
+
+(jbuild_version jane_street)
