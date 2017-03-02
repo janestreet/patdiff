@@ -7,6 +7,7 @@
     ;; expect_test_helpers
     patience_diff
     pcre
-    sexplib))))
+    sexplib))
+  (preprocess (pps (ppx_jane)))))
 
 (jbuild_version jane_street)

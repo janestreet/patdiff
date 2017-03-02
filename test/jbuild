@@ -1,17 +1,11 @@
-(unified_tests
- ((target runtest)
-  (deps (../bin/patdiff.exe ../../ansicodes/bin/ansicodes.exe visible-colors.sh))
-  (setup_script setup.sh)))
 
 (library
  ((name patdiff_test)
-  (inline_tests
-   ((deps (../bin/patdiff.exe ../../ansicodes/bin/ansicodes.exe visible-colors.sh
-           ../bin/patdiff-git-wrapper))))
   (libraries (
     async
     core
     expect_test_helpers
-    ))))
+    ))
+  (preprocess (pps (ppx_jane)))))
 
 (jbuild_version jane_street)
