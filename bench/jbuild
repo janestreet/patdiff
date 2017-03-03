@@ -6,15 +6,15 @@
 (alias
  ((name save_benchmarks)
   (deps (inline_benchmarks_runner inline_benchmarks_runner.exe))
-  (action "./inline_benchmarks_runner jenga-save-benchmarks")))
+  (action (bash "./inline_benchmarks_runner jenga-save-benchmarks"))))
 
 (rule
  ((targets (benchmark_inputs.ml))
   (deps ())
-  (action "cat - > benchmark_inputs.ml <<EOF
+  (action (bash "cat - > benchmark_inputs.ml <<EOF
 let new_ = {|$(hg cat -r e2539d6e474b $(hg root)/lib/core_kernel/src/core_list.ml)|}
 let old  = {|$(hg cat -r cf191a635efb $(hg root)/lib/core_kernel/src/core_list.ml)|}
 EOF
-")))
+"))))
 
 (jbuild_version jane_street)
