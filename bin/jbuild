@@ -4,7 +4,7 @@
               patdiff_lib
               pcre
               sexplib))
-  (preprocess (pps (ppx_jane)))))
+  (preprocess (pps (ppx_jane ppx_driver.runner)))))
 
 (install
  ((section bin)

@@ -1,7 +1,7 @@
 (library
  ((name patdiff_bench)
   (libraries (core core_extended patdiff_lib))
-  (preprocess (pps (ppx_jane)))))
+  (preprocess (pps (ppx_jane ppx_driver.runner)))))
 
 (alias
  ((name save_benchmarks)
