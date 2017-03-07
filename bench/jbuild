@@ -17,4 +17,4 @@ let old  = {|$(hg cat -r cf191a635efb $(hg root)/lib/core_kernel/src/core_list.m
 EOF
 "))))
 
-(jbuild_version jane_street)
+(jbuild_version 1)

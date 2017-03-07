@@ -11,4 +11,4 @@
   (files ((patdiff.exe as patdiff)
           patdiff-git-wrapper))))
 
-(jbuild_version jane_street)
+(jbuild_version 1)
