@@ -11,12 +11,12 @@ build: [
 depends: [
   "core"
   "core_extended"
-  "jbuilder"                {build}
+  "jbuilder"                {build & >= "1.0+beta2"}
   "patience_diff"
   "ppx_driver"
   "ppx_jane"
   "sexplib"
-  "ocaml-migrate-parsetree"
+  "ocaml-migrate-parsetree" {>= "0.4"}
   "pcre"
 ]
 available: [ ocaml-version >= "4.03.0" ]
