@@ -1,7 +1,0 @@
-This application is deployed as an rpm installed on nearly every box
-in the firm.
-
-To build the rpm, follow the instructions in app/js-coreutils/README
-
-Once you've built it, put it somewhere public and ask
-linux-admin@janestreet.com to install it for you.
