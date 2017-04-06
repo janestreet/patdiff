@@ -7,6 +7,7 @@ type t =
   { output                              : P.Output.t
   ; rules                               : P.Format.Rules.t
   ; ext_cmp                             : string option
+  ; float_tolerance                     : Percent.t option
   ; produce_unified_lines               : bool
   ; unrefined                           : bool
   ; keep_ws                             : bool
@@ -39,6 +40,10 @@ let invariant t =
         Option.iter ext_cmp ~f:(fun (_ : string) ->
           [%test_eq: bool] t.unrefined true ~message:"ext_cmp implies unrefined");
       ))
+      ~float_tolerance:(check (fun float_tolerance ->
+        if Option.is_some float_tolerance
+        then [%test_eq: string option] t.ext_cmp None
+               ~message:"ext_cmp and float_tolerance cannot both be some"))
       ~produce_unified_lines:ignore
       ~unrefined:ignore
       ~keep_ws:ignore
@@ -62,6 +67,7 @@ let override
       ?output
       ?rules
       ?ext_cmp
+      ?float_tolerance
       ?produce_unified_lines
       ?unrefined
       ?keep_ws
@@ -90,6 +96,7 @@ let override
       ~output:                             (const output)
       ~rules:                              (value rules)
       ~ext_cmp:                            (const ext_cmp)
+      ~float_tolerance:                    (value float_tolerance)
       ~produce_unified_lines:              (value produce_unified_lines)
       ~unrefined:                          (const unrefined)
       ~keep_ws:                            (value keep_ws)
@@ -251,6 +258,7 @@ module Config = struct
     ; alt_old                          : string sexp_option
     ; alt_new                          : string sexp_option
     ; ext_cmp                          : string sexp_option
+    ; float_tolerance                  : Percent.t sexp_option
     ; header_old                       : Header.t sexp_option
     ; header_new                       : Header.t sexp_option
     ; hunk                             : Hunk.t sexp_option
@@ -316,6 +324,7 @@ module Old_config = struct
     ; context                     : int                       sexp_option
     ; unrefined                   : bool                      sexp_option
     ; external_compare            : string                    sexp_option
+    ; float_tolerance             : Percent.t                 sexp_option
     ; keep_whitespace             : bool                      sexp_option
     ; split_long_lines            : bool                      sexp_option
     ; shallow                     : bool                      sexp_option
@@ -356,6 +365,7 @@ module Old_config = struct
     ; alt_old = None
     ; alt_new = None
     ; ext_cmp = t.external_compare
+    ; float_tolerance = t.float_tolerance
     ; header_old = Option.map t.header ~f:(fun header ->
         {Rule.style = header.Old_header.style_old;
          prefix = header.Old_header.prefix_old;
@@ -427,6 +437,7 @@ let parse config =
   let double_check = value ~default:false c.C.double_check in
   let mask_uniques = value ~default:false c.C.mask_uniques in
   let ext_cmp = c.C.ext_cmp in
+  let float_tolerance = c.C.float_tolerance in
   let alt_old = c.C.alt_old in
   let alt_new = c.C.alt_new in
   let location_style = c.C.location_style in
@@ -505,6 +516,7 @@ let parse config =
   ; unrefined
   ; produce_unified_lines
   ; ext_cmp
+  ; float_tolerance
   ; keep_ws
   ; split_long_lines
   ; shallow

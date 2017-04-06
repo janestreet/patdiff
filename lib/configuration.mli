@@ -6,6 +6,7 @@ type t = private
   { output                              : Patdiff_core.Output.t
   ; rules                               : Patdiff_core.Format.Rules.t
   ; ext_cmp                             : string option
+  ; float_tolerance                     : Percent.t option
   ; produce_unified_lines               : bool
   ; unrefined                           : bool
   ; keep_ws                             : bool
@@ -28,6 +29,7 @@ val override
   :  ?output                              : Patdiff_core.Output.t
   -> ?rules                               : Patdiff_core.Format.Rules.t
   -> ?ext_cmp                             : string option
+  -> ?float_tolerance                     : Percent.t option
   -> ?produce_unified_lines               : bool
   -> ?unrefined                           : bool
   -> ?keep_ws                             : bool

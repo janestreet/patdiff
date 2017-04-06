@@ -50,13 +50,18 @@ let compare_lines config ~mine ~other =
           failwithf "External compare %S failed!" prog ()
       in
       let module P =
-        Patience_diff.Make(struct
+        Patience_diff.Make (struct
           type t = string [@@deriving sexp]
           let hash = String.hash
           let compare = compare
         end)
       in
       P.get_hunks ~transform ~context ~mine ~other
+  in
+  let hunks =
+    match config.C.float_tolerance with
+    | None -> hunks
+    | Some tolerance -> Float_tolerance.apply hunks tolerance ~context
   in
   (* Refine if desired *)
   if config.C.unrefined then

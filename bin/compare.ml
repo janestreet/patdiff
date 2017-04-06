@@ -35,6 +35,7 @@ module Accum = struct
     ; double_check_opt                    : bool                      option        ref
     ; mask_uniques_opt                    : bool                      option        ref
     ; ext_cmp_opt                         : string                    option option ref
+    ; float_tolerance_opt                 : Percent.t                 option option ref
     ; old_alt_opt                         : string                    option option ref
     ; new_alt_opt                         : string                    option option ref
     ; make_config_file                    : string                    option        ref
@@ -59,6 +60,7 @@ module Accum = struct
     ; double_check_opt                    = ref None
     ; mask_uniques_opt                    = ref None
     ; ext_cmp_opt                         = ref None
+    ; float_tolerance_opt                 = ref None
     ; old_alt_opt                         = ref None
     ; new_alt_opt                         = ref None
     ; make_config_file                    = ref None
@@ -131,6 +133,12 @@ let flags =
          set_once "external compare" t.Accum.ext_cmp_opt (Some s);
          set_once "unrefined" t.Accum.unrefined_opt true)
       ~doc: "FILE Use external string comparison program (implies -unrefined)";
+    Cf.arg_mut "-float-tolerance"
+      (fun t s ->
+         set_once "float tolerance"
+           t.Accum.float_tolerance_opt
+           (Some (Percent.of_string s)))
+      ~doc: "PERCENT Consider strings equal if only difference is floats changing within PERCENT";
     Cf.arg_mut "-alt-old"
       (fun t s -> set_once "alternate old" t.Accum.old_alt_opt (Some s))
       ~doc: "NAME Mask old filename with NAME";
@@ -178,6 +186,7 @@ module Args = struct
     { unrefined_opt                       : bool option
     ; produce_unified_lines_opt           : bool option
     ; ext_cmp_opt                         : string option option
+    ; float_tolerance_opt                 : Percent.t option option
     ; keep_ws_opt                         : bool option
     ; split_long_lines_opt                : bool option
     ; shallow_opt                         : bool option
@@ -227,6 +236,7 @@ let final t anon =
           ; unrefined_opt                       = !(t.Accum.unrefined_opt)
           ; produce_unified_lines_opt           = !(t.Accum.produce_unified_lines_opt)
           ; ext_cmp_opt                         = !(t.Accum.ext_cmp_opt)
+          ; float_tolerance_opt                 = !(t.Accum.float_tolerance_opt)
           ; keep_ws_opt                         = !(t.Accum.keep_ws_opt)
           ; split_long_lines_opt                = !(t.Accum.split_long_lines_opt)
           ; shallow_opt                         = !(t.Accum.shallow_opt)
@@ -296,6 +306,7 @@ let override config (args : Args.compare_flags) =
     ?unrefined:args.unrefined_opt
     ?produce_unified_lines:args.produce_unified_lines_opt
     ?ext_cmp:args.ext_cmp_opt
+    ?float_tolerance:args.float_tolerance_opt
     ?keep_ws:args.keep_ws_opt
     ?split_long_lines:args.split_long_lines_opt
     ?context:args.context_opt

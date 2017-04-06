@@ -6,8 +6,8 @@ module Output : module type of (struct include Output_mode end)
 
 val default_context : int
 
-(** [diff ~context ~keep_ws ~mine ~other] uses [Patience_diff] to get a list of hunks
-    describing the comparison between [mine] and [other]. *)
+(** [diff ~context ~keep_ws ~mine ~other] uses [Patience_diff.String] to get a list of
+    hunks describing the comparison between [mine] and [other]. *)
 val diff
   :  context : int
   -> keep_ws : bool
@@ -18,9 +18,8 @@ val diff
 (* [remove_ws] calls String.strip and replaces whitespace with " " *)
 val remove_ws : string -> string
 
-(** [refine ~rules ~producte_unified_lines ~output ~keep_ws ~split_long_lines hunks] takes
-    the Replace ranges from [hunks], splits them into smaller arrays, diffs those arrays,
-    formats them according to [rules], and recomposes the Replace range of [hunks]. *)
+(** [refine hunks] maps each [Range.Replace (prev, next)] in [hunks] to a diff of [prev]
+    against [next]. *)
 val refine
   :  rules:Format.Rules.t
   -> produce_unified_lines:bool
@@ -59,13 +58,14 @@ val iter_ansi
   -> string Patience_diff.Hunk.t list
   -> unit
 
+
 type diff_input =
   { name : string
   ; text : string
   }
 
 (** Runs the equivalent of the command line version of patdiff on two given contents
-    [from_] and [to_]. *)
+    [from_] and [to_].  Uses [Patience_diff.String]. *)
 val patdiff
   :  ?context               : int
   -> ?keep_ws               : bool

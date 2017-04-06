@@ -1,9 +1,11 @@
 (executables
  ((names (patdiff))
-  (libraries (core_extended
-              patdiff_lib
-              pcre
-              sexplib))
+  (libraries (
+    core
+    core_extended
+    patdiff_lib
+    pcre
+    sexplib))
   (preprocess (pps (ppx_jane ppx_driver.runner)))))
 
 (install

@@ -1,0 +1,13 @@
+#+TITLE: How to roll patdiff tool
+
+The patdiff tool is deployed as an rpm installed on nearly every box in the firm.
+
+#+BEGIN_SRC bash
+cd $(fe wo dir jane/patdiff)
+SOMEWHERE_PUBLIC=/j/office/user/$(whoami)/pub/for/linux-admin
+BUILD_PROFILE=fast-exe jenga --progress -j 12 app/patdiff/patdiff.rpm.tar
+mkdir -p ${SOMEWHERE_PUBLIC}
+tar -x -C ${SOMEWHERE_PUBLIC} --strip-components=1 -f app/patdiff/patdiff.rpm.tar
+#+END_SRC
+
+Then ask linux-admin@janestreet.com to install it for you.

@@ -34,6 +34,9 @@
 :                                                program (implies -unrefined)
 :   [-file FILE]                                 Use FILE as configuration file
 :                                                instead of ~/.patdiff
+:   [-float-tolerance PERCENT]                   Consider strings equal if only
+:                                                difference is floats changing
+:                                                within PERCENT
 :   [-html]                                      Output in HTML format instead of
 :                                                default (ASCII with ANSI escape
 :                                                codes)

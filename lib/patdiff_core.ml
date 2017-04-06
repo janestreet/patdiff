@@ -109,6 +109,12 @@ let diff ~context ~keep_ws ~mine ~other =
   Patience_diff.String.get_hunks ~transform ~context ~mine ~other
 ;;
 
+type word_or_newline =
+  [ `Newline of int * string option  (* (number of newlines, subsequent_whitespace) *)
+  | `Word of string
+  ]
+[@@deriving sexp_of]
+
 (* Splits an array of lines into an array of pieces (`Newlines and R.Words) *)
 let explode ar ~keep_ws =
   let words = Array.to_list ar in
@@ -170,7 +176,10 @@ let explode ar ~keep_ws =
   let words =
     match words with
     | `Newline (_i, opt) :: tl -> `Newline (0, opt) :: tl
-    | `Word _ :: _ | [] -> assert false (* hd is always `Newline *)
+    | `Word _ :: _ | [] ->
+      raise_s [%message
+        "Expected words to start with a `Newline."
+          (words : word_or_newline list)]
   in
   (* Append a newline to the end, if this array has any words *)
   let words =
@@ -269,7 +278,7 @@ let diff_pieces ~old_pieces ~new_pieces ~keep_ws =
       | `Word s -> remove_ws s
       | `Newline _ -> ""
   in
-  Patience_diff.String.get_hunks ~mine:old_pieces ~other:new_pieces ~transform ~context
+  Patience_diff.String.get_hunks ~transform ~context ~mine:old_pieces ~other:new_pieces
 ;;
 
 let ranges_are_just_whitespace ranges =
