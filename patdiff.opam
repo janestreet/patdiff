@@ -12,7 +12,7 @@ depends: [
   "core"
   "core_extended"
   "expect_test_helpers"
-  "jbuilder"                {build & >= "1.0+beta2"}
+  "jbuilder"                {build & >= "1.0+beta8"}
   "patience_diff"
   "ppx_driver"
   "ppx_jane"
