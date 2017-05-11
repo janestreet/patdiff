@@ -1,5 +1,5 @@
-% Patdiff: colored patience diffs with word-level refinement
-# Patdiff: colored patience diffs with word-level refinement
+Patdiff - colored patience diffs with word-level refinement
+===========================================================
 
 Patdiff is an OCaml implementation of Bram Cohen's patience diff algorithm,
 with a few extra conveniences for comparing code and config files:
