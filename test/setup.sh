@@ -1,6 +1,6 @@
 #!/bin/bash
 
-export HERE=$(readlink -f $(dirname $0))
+export HERE=$(readlink -f $(dirname "$BASH_SOURCE"))
 export PATH="$(readlink -f $HERE/../bin/):$PATH"
 
 function visible_colors {
