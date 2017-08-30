@@ -1,29 +1,6 @@
 open! Core
 open! Async
-open Expect_test_helpers
-
-let pipe commands =
-  List.map commands ~f:(fun (prog, args) ->
-    String.concat ~sep:" " (List.map (prog :: args) ~f:Filename.quote))
-  |> String.concat ~sep:" | "
-  |> sprintf "set -o pipefail; %s"
-  |> system
-;;
-
-let patdiff ~mine ~other extra_flags = with_temp_dir (fun dir ->
-  let%bind () = Writer.save (dir ^/ "mine") ~contents:mine
-  and      () = Writer.save (dir ^/ "other") ~contents:other
-  in
-  pipe [ ("../bin/patdiff.exe"
-         , [ "-default"
-           ; "-alt-old"; "mine"
-           ; "-alt-new"; "other"
-           ; dir ^/ "mine"
-           ; dir ^/ "other"
-           ] @ extra_flags)
-       ; ("./visible-colors.sh", [])
-       ])
-;;
+open Import
 
 let ahello = "
   hello
@@ -40,7 +17,7 @@ let bhello = "
 "
 
 let%expect_test "Don't focus too much on unique lines if it gives absurd diffs." =
-  let%bind () = patdiff ~mine:ahello ~other:bhello [] in
+  let%bind () = patdiff ~extra_flags:[] ~mine:ahello ~other:bhello in
   [%expect {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other
@@ -71,7 +48,7 @@ val x_library_inlining             : bool
 "
 
 let%expect_test "Prefer one yellow line and one red line to two yellow lines" =
-  let%bind () = patdiff ~mine:ayellow ~other:byellow [] in
+  let%bind () = patdiff ~extra_flags:[] ~mine:ayellow ~other:byellow in
   [%expect {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other
@@ -89,7 +66,7 @@ let acity = "hello and please remove me; hello with the signs of the city\n"
 let bcity = "hello with the signs of the city\n"
 
 let%expect_test "Prefer one block of equality to two" =
-  let%bind () = patdiff ~mine:acity ~other:bcity [] in
+  let%bind () = patdiff ~extra_flags:[] ~mine:acity ~other:bcity in
   [%expect {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other
@@ -109,7 +86,7 @@ let barb = "
 "
 
 let%expect_test "Try to match up long variable names" =
-  let%bind () = patdiff ~mine:aarb ~other:barb [] in
+  let%bind () = patdiff ~extra_flags:[] ~mine:aarb ~other:barb in
   [%expect {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other
@@ -161,7 +138,7 @@ let save_dot t file =
 let bcode = "  Node.Packed.iter_descendants (directly_observed t) ~f\n"
 
 let%expect_test "Delete spurious matches, part 1" =
-  let%bind () = patdiff ~mine:acode ~other:bcode [] in
+  let%bind () = patdiff ~extra_flags:[] ~mine:acode ~other:bcode in
   [%expect {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other
@@ -241,7 +218,7 @@ let bmodule = "let compile_command =
 
 
 let%expect_test "Delete spurious matches, part 2 - whitespace ought not to match" =
-  let%bind () = patdiff ~mine:amodule ~other:bmodule [] in
+  let%bind () = patdiff ~extra_flags:[] ~mine:amodule ~other:bmodule in
   [%expect {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other
@@ -300,7 +277,7 @@ let bscattered = "  let eval_filter (field, num_sel) oinfo =
 "
 
 let%expect_test "Delete spurious matches, part 3 - shorter example with a lot of chaff" =
-  let%bind () = patdiff ~mine:ascattered ~other:bscattered [] in
+  let%bind () = patdiff ~extra_flags:[] ~mine:ascattered ~other:bscattered in
   [%expect {|
     (fg:red)------ (+bold)mine
     (fg:green)++++++ (+bold)other

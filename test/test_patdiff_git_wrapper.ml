@@ -9,6 +9,7 @@ open! Expect_test_helpers
 let links =
   [ "../bin/patdiff.exe", `In_path_as, "patdiff"
   ; "../bin/patdiff-git-wrapper", `In_path_as, "patdiff-git-wrapper"
+  ; "../../ansicodes/bin/ansicodes.exe", `In_path_as, "ansicodes"
   ]
 ;;
 
@@ -40,13 +41,13 @@ let%expect_test "patdiff-git-wrapper" = within_temp_dir ~links (fun () ->
 
   (* Diff according to instructions in the script. *)
   Unix.putenv ~key:"GIT_EXTERNAL_DIFF" ~data:"patdiff-git-wrapper";
-  let%bind () = run "git" [ "diff" ] in
+  let%bind () = system "git diff | ansicodes visualize -minimize" in
   [%expect {|
-      [1mpatdiff -git a/foo b/foo
-      [1mindex 1aeaedb..0000000 100644
-      [1m[0;31m------ [0m[0;1m a/foo[0m
-      [1m[0;32m++++++ [0m[0;1m b/foo[0m
-      [0;100;30m@|[0m[0;1m-1,1 +1,1[0m ============================================================
-      [0;41;30m-|[0m[0;0m[0;2mfoo [0m[0;31mbar [0m[0;2mbaz[0m[0m
-      [0;42;30m+|[0m[0;0mfoo baz [0;32mquux[0m[0m |}])
+      (+bold)patdiff -git a/foo b/foo
+      (+bold)index 1aeaedb..0000000 100644
+      (fg:red)------ (+bold) a/foo
+      (fg:green)++++++ (+bold) b/foo
+      (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
+      (fg:black bg:red)-|(off)foo (fg:red)bar (off)baz
+      (fg:black bg:green)+|(off)foo baz (fg:green)quux |}])
 ;;

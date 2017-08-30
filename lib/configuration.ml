@@ -120,7 +120,7 @@ module Style = P.Format.Style
 
 module Annex = struct
 
-    (* Simply a prefix or a suffix.  Might come with an associated style. *)
+  (* Simply a prefix or a suffix.  Might come with an associated style. *)
 
   type t =
     { text  : string sexp_option
@@ -189,13 +189,13 @@ module Hunk = struct
     let prefix_text = Option.value prefix.Annex.text ~default:"@@ " in
     let suffix_text = Option.value suffix.Annex.text ~default:" @@" in
     let t = { t with
-      Rule.prefix = Some { prefix with
-        Annex.text = Some prefix_text;
-      };
-      Rule.suffix = Some { suffix with
-        Annex.text = Some suffix_text;
-      }
-    } in
+              Rule.prefix = Some { prefix with
+                                   Annex.text = Some prefix_text;
+                                 };
+              Rule.suffix = Some { suffix with
+                                   Annex.text = Some suffix_text;
+                                 }
+            } in
     Rule.to_internal t
   ;;
 end
@@ -209,10 +209,10 @@ module Header = struct
     let prefix = get_annex t.Rule.prefix in
     let prefix_text = Option.value prefix.Annex.text ~default in
     let t = { t with
-      Rule.prefix = Some { prefix with
-        Annex.text = Some prefix_text;
-      };
-    } in
+              Rule.prefix = Some { prefix with
+                                   Annex.text = Some prefix_text;
+                                 };
+            } in
     Rule.to_internal t
   ;;
 end
@@ -269,7 +269,7 @@ module Config = struct
     ; word_old                         : Rule.t sexp_option
     ; word_new                         : Rule.t sexp_option
     ; location_style                   : P.Format.Location_style.t
-      [@default P.Format.Location_style.Diff] [@sexp_drop_default]
+                                           [@default P.Format.Location_style.Diff] [@sexp_drop_default]
     ; warn_if_no_trailing_newline_in_both
       : bool
           [@default warn_if_no_trailing_newline_in_both_default]
@@ -367,13 +367,13 @@ module Old_config = struct
     ; ext_cmp = t.external_compare
     ; float_tolerance = t.float_tolerance
     ; header_old = Option.map t.header ~f:(fun header ->
-        {Rule.style = header.Old_header.style_old;
-         prefix = header.Old_header.prefix_old;
-         suffix = header.Old_header.suffix_old;})
+      {Rule.style = header.Old_header.style_old;
+       prefix = header.Old_header.prefix_old;
+       suffix = header.Old_header.suffix_old;})
     ; header_new = Option.map t.header ~f:(fun header ->
-        {Rule.style = header.Old_header.style_new;
-         prefix = header.Old_header.prefix_new;
-         suffix = header.Old_header.suffix_new;})
+      {Rule.style = header.Old_header.style_new;
+       prefix = header.Old_header.prefix_new;
+       suffix = header.Old_header.suffix_new;})
     ; hunk = t.chunk
     ; line_same =
         Some
@@ -385,25 +385,25 @@ module Old_config = struct
                word_same.Word_same.style_old);
           }
     ; line_old = Option.map t.line_changed ~f:(fun line_changed ->
-        {Line_rule.default with
-         Line_rule.style = Option.map t.word_changed ~f:(
-           fun word_changed -> word_changed.Word_changed.style_old
-         );
-         Line_rule.prefix = Some line_changed.Line_changed.prefix_old;
-         word_same =
-           Option.map t.word_same ~f:(fun word_same ->
-             word_same.Word_same.style_old);
-        })
+      {Line_rule.default with
+       Line_rule.style = Option.map t.word_changed ~f:(
+         fun word_changed -> word_changed.Word_changed.style_old
+       );
+       Line_rule.prefix = Some line_changed.Line_changed.prefix_old;
+       word_same =
+         Option.map t.word_same ~f:(fun word_same ->
+           word_same.Word_same.style_old);
+      })
     ; line_new = Option.map t.line_changed ~f:(fun line_changed ->
-        {Line_rule.default with
-         Line_rule.style = Option.map t.word_changed ~f:(
-           fun word_changed -> word_changed.Word_changed.style_new
-         );
-         Line_rule.prefix = Some line_changed.Line_changed.prefix_new;
-         word_same =
-           Option.map t.word_same ~f:(fun word_same ->
-             word_same.Word_same.style_new);
-        })
+      {Line_rule.default with
+       Line_rule.style = Option.map t.word_changed ~f:(
+         fun word_changed -> word_changed.Word_changed.style_new
+       );
+       Line_rule.prefix = Some line_changed.Line_changed.prefix_new;
+       word_same =
+         Option.map t.word_same ~f:(fun word_same ->
+           word_same.Word_same.style_new);
+      })
     ; line_unified = None
     ; word_old = None
     ; word_new = None
@@ -574,14 +574,14 @@ let light_bg =
 ;;
 
 let%test_module _ = (module struct
-  (* Ensure both sexps are parseable *)
-  let%test_unit _ =
-    let dark = Lazy.force dark_bg in
-    let light = Lazy.force light_bg in
-    ignore (dark  : t);
-    ignore (light : t)
-  ;;
-end)
+                      (* Ensure both sexps are parseable *)
+                      let%test_unit _ =
+                        let dark = Lazy.force dark_bg in
+                        let light = Lazy.force light_bg in
+                        ignore (dark  : t);
+                        ignore (light : t)
+                      ;;
+                    end)
 
 let load_sexp_conv f conv = Result.try_with (fun () -> Sexp.load_sexp_conv_exn f conv)
 

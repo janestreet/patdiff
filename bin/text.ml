@@ -3,7 +3,7 @@ open! Core
 module Configuration = struct
 
   let ansi_config = sprintf
-    "\
+                      "\
 ;; -*- scheme -*-
 ;; patdiff Configuration file
 
@@ -39,14 +39,14 @@ module Configuration = struct
    (suffix ((text \" ============================================================\") (style ())))
    (style (bold))))
 )"
-    Patdiff_lib.Patdiff_core.default_context
+                      Patdiff_lib.Patdiff_core.default_context
 
 end
 
 module Readme : sig val readme : string end = struct
 
   let readme =
-".TH PATDIFF 1 \"16 March 2011\"
+    ".TH PATDIFF 1 \"16 March 2011\"
 .SH NAME
 patdiff \\- find differences between two files
 

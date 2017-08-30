@@ -1,29 +1,6 @@
 open! Core
 open! Async
-open Expect_test_helpers
-
-let pipe commands =
-  List.map commands ~f:(fun (prog, args) ->
-    String.concat ~sep:" " (List.map (prog :: args) ~f:Filename.quote))
-  |> String.concat ~sep:" | "
-  |> sprintf "set -o pipefail; %s"
-  |> system
-;;
-
-let patdiff ~mine ~other extra_flags = with_temp_dir (fun dir ->
-  let%bind () = Writer.save (dir ^/ "mine") ~contents:mine
-  and      () = Writer.save (dir ^/ "other") ~contents:other
-  in
-  pipe [ ("../bin/patdiff.exe"
-         , [ "-default"
-           ; "-alt-old"; "mine"
-           ; "-alt-new"; "other"
-           ; dir ^/ "mine"
-           ; dir ^/ "other"
-           ] @ extra_flags)
-       ; ("./visible-colors.sh", [])
-       ])
-;;
+open Import
 
 let asexp = "((matrix
    ((Wub (Doj 0.2uf Doj_min)) 0.017678127290832395)
@@ -52,7 +29,7 @@ let bsexp = "((matrix
 "
 
 let%expect_test "Interleave sexp files" =
-  let%bind () = patdiff ~mine:asexp ~other:bsexp [] in
+  let%bind () = patdiff ~extra_flags:[] ~mine:asexp ~other:bsexp in
   [%expect {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other

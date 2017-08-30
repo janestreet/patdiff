@@ -1,14 +1,14 @@
 open! Core
 open! Async
-open Expect_test_helpers
-
-let patdiff = Test_refined_whitespace.patdiff
+open Import
 
 let diff mine other tolerance message =
   printf !"====== %{Sexp} ======\n" message;
-  patdiff ~mine ~other
-    [ "-float-tol"; Percent.to_string tolerance
-    ; "-ascii" ]
+  patdiff
+    ~extra_flags:[ "-float-tol"; Percent.to_string tolerance
+                 ; "-ascii" ]
+    ~mine
+    ~other
 ;;
 
 let test prev next =

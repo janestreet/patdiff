@@ -6,8 +6,10 @@ module Output = Output_mode
 
 (* Strip whitespace from a string by stripping and replacing with spaces *)
 let ws_rex = Pcre.regexp "[\\s]+"
+let ws_rex_anchored = Pcre.regexp "^[\\s]*$"
 let ws_sub = Pcre.subst " "
 let remove_ws s = String.strip (Pcre.replace ~rex:ws_rex ~itempl:ws_sub s)
+let is_ws s = Pcre.pmatch s ~rex:ws_rex_anchored
 
 (* This regular expression describes the delimiters on which to split the string *)
 let words_rex = Pcre.regexp
@@ -140,11 +142,12 @@ let explode ar ~keep_ws =
     List.concat_map words ~f:(fun x ->
       match x with
       | hd :: tl ->
-        if (Pcre.pmatch ~rex:ws_rex hd) then
-          `Newline (1, (Some hd)) :: (to_words tl)
-        else
-          `Newline (1, None) :: `Word hd :: (to_words tl)
-      | [] -> [`Newline (1, None)])
+        if not(String.is_empty hd) && is_ws hd
+        then `Newline (1, Some hd) ::             to_words tl
+        else `Newline (1, None)    :: `Word hd :: to_words tl
+      | [] ->
+        [`Newline (1, None)]
+    )
   in
   let words =
     List.fold_right words ~init:[] ~f:(fun x acc ->
@@ -509,7 +512,12 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
             range
           )
         )
-      | range -> [ range ]
+      | R.New a when not keep_ws && Array.for_all a ~f:is_ws ->
+        [R.Same (Array.zip_exn a a)]
+      | R.Old a when not keep_ws && Array.for_all a ~f:is_ws ->
+        []
+      | R.New _ | R.Old _ | R.Same _ | R.Unified _  as range ->
+        [range]
     in
     let refined_ranges = List.concat_map hunk.H.ranges ~f:aux in
     { hunk with

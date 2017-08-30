@@ -295,7 +295,7 @@ let final t anon =
         Out_channel.close new_oc;
         args ~old_file ~new_file
       | _ ->
-          failwithf "Please provide zero or two files to compare Usage: %s" usage_arg ()
+        failwithf "Please provide zero or two files to compare Usage: %s" usage_arg ()
 ;;
 
 (* Override default/config file options with command line arguments *)
@@ -407,9 +407,9 @@ let main' args =
             ~f:(fun pat -> not (Pcre.pmatch s ~pat))
           && (
             args.A.include_ = [] ||
-              List.exists args.A.include_ ~f:(fun pat ->
-                Pcre.pmatch s ~pat
-              ))
+            List.exists args.A.include_ ~f:(fun pat ->
+              Pcre.pmatch s ~pat
+            ))
         | _ -> true
       )
     in

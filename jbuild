@@ -12,4 +12,5 @@
     ))
   (action (bash "${<} patdiff"))))
 
+
 (jbuild_version 1)
