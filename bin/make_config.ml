@@ -3,7 +3,7 @@ open Core
 let doc = "FILE Write default configuration file"
 
 let main file =
-  let sample = Text.Configuration.ansi_config in
+  let sample = Patdiff_lib.Configuration.default in
   let delete =
     if Sys.file_exists_exn file then (
       printf "%s already exists. Overwrite? (y/n) %!" file;

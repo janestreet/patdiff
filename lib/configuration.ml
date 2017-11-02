@@ -12,7 +12,11 @@ type t =
   ; unrefined                           : bool
   ; keep_ws                             : bool
   ; split_long_lines                    : bool
+  ; interleave                          : bool
+  ; assume_text                         : bool
   ; context                             : int
+  ; line_big_enough                     : int
+  ; word_big_enough                     : int
   ; shallow                             : bool
   ; quiet                               : bool
   ; double_check                        : bool
@@ -47,10 +51,20 @@ let invariant t =
       ~produce_unified_lines:ignore
       ~unrefined:ignore
       ~keep_ws:ignore
+      ~interleave:ignore
+      ~assume_text:ignore
       ~split_long_lines:ignore
       ~context:(check (fun context ->
         [%test_pred: int] (fun i -> Int.(>=) i 0) context
           ~message:"context cannot be negative";
+      ))
+      ~line_big_enough:(check (fun context ->
+        [%test_pred: int] (fun i -> Int.(>) i 0) context
+          ~message:"line_big_enough must be positive";
+      ))
+      ~word_big_enough:(check (fun context ->
+        [%test_pred: int] (fun i -> Int.(>) i 0) context
+          ~message:"word_big_enough must be positive";
       ))
       ~shallow:ignore
       ~quiet:ignore
@@ -72,7 +86,11 @@ let override
       ?unrefined
       ?keep_ws
       ?split_long_lines
+      ?interleave
+      ?assume_text
       ?context
+      ?line_big_enough
+      ?word_big_enough
       ?shallow
       ?quiet
       ?double_check
@@ -100,8 +118,12 @@ let override
       ~produce_unified_lines:              (value produce_unified_lines)
       ~unrefined:                          (const unrefined)
       ~keep_ws:                            (value keep_ws)
+      ~interleave:                         (value interleave)
+      ~assume_text:                        (value assume_text)
       ~split_long_lines:                   (value split_long_lines)
       ~context:                            (value context)
+      ~line_big_enough:                    (value line_big_enough)
+      ~word_big_enough:                    (value word_big_enough)
       ~shallow:                            (value shallow)
       ~quiet:                              (value quiet)
       ~double_check:                       (value double_check)
@@ -247,9 +269,13 @@ module Config = struct
     ; dont_overwrite_word_old_word_new : bool sexp_option
     ; config_path                      : string sexp_option
     ; context                          : int sexp_option
+    ; line_big_enough                  : int sexp_option
+    ; word_big_enough                  : int sexp_option
     ; unrefined                        : bool sexp_option
     ; keep_whitespace                  : bool sexp_option
     ; split_long_lines                 : bool sexp_option
+    ; interleave                       : bool sexp_option
+    ; assume_text                      : bool sexp_option
     ; quiet                            : bool sexp_option
     ; shallow                          : bool sexp_option
     ; double_check                     : bool sexp_option
@@ -322,11 +348,15 @@ module Old_config = struct
   type t =
     { config_path                 : string                    sexp_option
     ; context                     : int                       sexp_option
+    ; line_big_enough             : int                       sexp_option
+    ; word_big_enough             : int                       sexp_option
     ; unrefined                   : bool                      sexp_option
     ; external_compare            : string                    sexp_option
     ; float_tolerance             : Percent.t                 sexp_option
     ; keep_whitespace             : bool                      sexp_option
     ; split_long_lines            : bool                      sexp_option
+    ; interleave                  : bool                      sexp_option
+    ; assume_text                 : bool                      sexp_option
     ; shallow                     : bool                      sexp_option
     ; quiet                       : bool                      sexp_option
     ; double_check                : bool                      sexp_option
@@ -352,10 +382,14 @@ module Old_config = struct
     { Config.
       config_path = t.config_path
     ; context = t.context
+    ; line_big_enough = t.line_big_enough
+    ; word_big_enough = t.word_big_enough
     ; unrefined = t.unrefined
     ; dont_produce_unified_lines = None
     ; dont_overwrite_word_old_word_new = None
     ; keep_whitespace = t.keep_whitespace
+    ; interleave = t.interleave
+    ; assume_text = t.assume_text
     ; split_long_lines = t.split_long_lines
     ; quiet = t.quiet
     ; shallow = t.shallow
@@ -423,6 +457,8 @@ let parse config =
   let value = Option.value in
   (**** Command Line Arguments ****)
   let context = value ~default:(-1) c.C.context in
+  let line_big_enough = value ~default:3 c.C.line_big_enough in
+  let word_big_enough = value ~default:7 c.C.word_big_enough in
   let unrefined = value ~default:false c.C.unrefined in
   let produce_unified_lines =
     not (value ~default:false c.C.dont_produce_unified_lines)
@@ -431,6 +467,8 @@ let parse config =
     not (value ~default:false c.C.dont_overwrite_word_old_word_new)
   in
   let keep_ws = value ~default:false c.C.keep_whitespace in
+  let interleave = value ~default:true c.C.interleave in
+  let assume_text = value ~default:false c.C.assume_text in
   let split_long_lines = value ~default:false c.C.split_long_lines in
   let shallow = value ~default:false c.C.shallow in
   let quiet = value ~default:false c.C.quiet in
@@ -513,12 +551,16 @@ let parse config =
   { rules
   ; output
   ; context
+  ; word_big_enough
+  ; line_big_enough
   ; unrefined
   ; produce_unified_lines
   ; ext_cmp
   ; float_tolerance
   ; keep_ws
   ; split_long_lines
+  ; interleave
+  ; assume_text
   ; shallow
   ; quiet
   ; double_check
@@ -625,3 +667,73 @@ let load ?(quiet_errors=false) config_file =
       eprintf "Note: error loading %S: %s\n%!" config_file (Exn.to_string e);
     None
 ;;
+
+let default =
+  sprintf
+    "\
+;; -*- scheme -*-
+;; patdiff Configuration file
+
+(
+ (context %d)
+
+ (line_same
+  ((prefix ((text \" |\") (style ((bg bright_black) (fg black)))))))
+
+ (line_old
+  ((prefix ((text \"-|\") (style ((bg red)(fg black)))))
+   (style ((fg red)))
+   (word_same (dim))))
+
+ (line_new
+  ((prefix ((text \"+|\") (style ((bg green)(fg black)))))
+   (style ((fg green)))))
+
+ (line_unified
+  ((prefix ((text \"!|\") (style ((bg yellow)(fg black)))))))
+
+ (header_old
+  ((prefix ((text \"------ \") (style ((fg red)))))
+   (style (bold))))
+
+ (header_new
+  ((prefix ((text \"++++++ \") (style ((fg green)))))
+   (style (bold))))
+
+
+ (hunk
+  ((prefix ((text \"@|\") (style ((bg bright_black) (fg black)))))
+   (suffix ((text \" ============================================================\") (style ())))
+   (style (bold))))
+)"
+    Patdiff_core.default_context
+
+let get_config ?filename () =
+  (* Load config file if it exists, use default if not *)
+  let file =
+    match filename with
+    | Some "" -> None
+    | Some f -> Some f (* specified file *)
+    | None ->
+      (* ~/.patdiff exists *)
+      Option.bind (Sys.getenv "HOME") ~f:(fun home ->
+        let f = home ^/ ".patdiff" in
+        match Sys.file_exists f with
+        | `Yes -> Some f
+        | `No | `Unknown -> None)
+  in
+  (* load prints warnings to stderr. This is desired because [file] is only Some if it
+     was manually specified or if ~/.patdiff exists. The user should be notified of
+     errors if the file fails in both cases. *)
+  match Option.bind file ~f:load with
+  | Some c -> c
+  | None -> parse (Config.t_of_sexp (Sexp.of_string default))
+
+include struct
+  open Expect_test_helpers
+
+  let%expect_test "default config parses" =
+    show_raise (get_config ~filename:"");
+    [%expect {| "did not raise" |}]
+  ;;
+end

@@ -11,7 +11,11 @@ type t = private
   ; unrefined                           : bool
   ; keep_ws                             : bool
   ; split_long_lines                    : bool
+  ; interleave                          : bool
+  ; assume_text                         : bool
   ; context                             : int
+  ; line_big_enough                     : int
+  ; word_big_enough                     : int
   ; shallow                             : bool
   ; quiet                               : bool
   ; double_check                        : bool
@@ -34,7 +38,11 @@ val override
   -> ?unrefined                           : bool
   -> ?keep_ws                             : bool
   -> ?split_long_lines                    : bool
+  -> ?interleave                          : bool
+  -> ?assume_text                         : bool
   -> ?context                             : int
+  -> ?line_big_enough                     : int
+  -> ?word_big_enough                     : int
   -> ?shallow                             : bool
   -> ?quiet                               : bool
   -> ?double_check                        : bool
@@ -62,3 +70,14 @@ module Old_config : sig
 end
 
 val parse : Config.t -> t
+
+(** A default config, suitable for writing to [~/.patdiff] or passing to {[
+
+      fun default -> parse ([%of_sexp: Config.t] (Sexp.of_string default))
+
+    ]}. *)
+val default : string
+
+(** Reads a config from [filename], which by default is [~/.patdiff]. If [~filename:""] is
+    passed or [filename] cannot be read, returns [default]. *)
+val get_config : ?filename:string -> unit -> t

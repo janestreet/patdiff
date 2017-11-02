@@ -25,9 +25,13 @@ module Accum = struct
   type t =
     { config_opt                          : string                    option        ref
     ; context_opt                         : int                       option        ref
+    ; word_big_enough_opt                 : int                       option        ref
+    ; line_big_enough_opt                 : int                       option        ref
     ; unrefined_opt                       : bool                      option        ref
     ; keep_ws_opt                         : bool                      option        ref
     ; split_long_lines_opt                : bool                      option        ref
+    ; interleave_opt                      : bool                      option        ref
+    ; assume_text_opt                     : bool                      option        ref
     ; output                              : P.Output.t                option        ref
     ; produce_unified_lines_opt           : bool                      option        ref
     ; quiet_opt                           : bool                      option        ref
@@ -50,9 +54,13 @@ module Accum = struct
   let empty =
     { config_opt                          = ref None
     ; context_opt                         = ref None
+    ; line_big_enough_opt                 = ref None
+    ; word_big_enough_opt                 = ref None
     ; unrefined_opt                       = ref None
     ; keep_ws_opt                         = ref None
     ; split_long_lines_opt                = ref None
+    ; interleave_opt                      = ref None
+    ; assume_text_opt                     = ref None
     ; output                              = ref None
     ; produce_unified_lines_opt           = ref None
     ; quiet_opt                           = ref None
@@ -95,6 +103,12 @@ let flags =
     Cf.arg_mut "-context"
       (fun t i -> set_once "context" t.Accum.context_opt (int_of_string i))
       ~doc: "NUM Show lines of unchanged context before and after changes";
+    Cf.arg_mut "-line-big-enough"
+      (fun t i -> set_once "line-big-enough" t.Accum.line_big_enough_opt (int_of_string i))
+      ~doc: "NUM Limit line-level semantic cleanup to the matches of length less than NUM lines";
+    Cf.arg_mut "-word-big-enough"
+      (fun t i -> set_once "word-big-enough" t.Accum.word_big_enough_opt (int_of_string i))
+      ~doc: "NUM Limit word-level semantic cleanup to the matches of length less than NUM words";
     Cf.noarg_mut "-unrefined"
       (fun t -> set_once "unrefined" t.Accum.unrefined_opt true)
       ~doc: " Don't highlight word differences between lines";
@@ -104,6 +118,17 @@ let flags =
     Cf.noarg_mut "-split-long-lines"
       (fun t -> set_once "split-long-lines" t.Accum.split_long_lines_opt true)
       ~doc: " Split long lines into multiple displayed lines";
+    Cf.noarg_mut "-no-interleave"
+      (fun t -> set_once "no-interleave" t.Accum.interleave_opt false)
+      ~doc: " Don't attempt to split up large hunks near equalities";
+    Cf.noarg_mut "-no-semantic-cleanup"
+      (fun t ->
+         set_once "line-big-enough" t.Accum.line_big_enough_opt 1;
+         set_once "word-big-enough" t.Accum.word_big_enough_opt 1)
+      ~doc: " Don't do any semantic cleanup; let small, spurious matches survive";
+    Cf.noarg_mut "-text"
+      (fun t -> set_once "-text" t.Accum.assume_text_opt true)
+      ~doc: " Treat all files as text (i.e. display diffs of binary file contents)";
     Cf.noarg_mut "-html"
       (fun t -> set_once "output (html, ansi, ascii)" t.Accum.output P.Output.Html)
       ~doc: " Output in HTML format instead of default (ASCII with ANSI escape codes)";
@@ -188,6 +213,8 @@ module Args = struct
     ; ext_cmp_opt                         : string option option
     ; float_tolerance_opt                 : Percent.t option option
     ; keep_ws_opt                         : bool option
+    ; interleave_opt                      : bool option
+    ; assume_text_opt                     : bool option
     ; split_long_lines_opt                : bool option
     ; shallow_opt                         : bool option
     ; quiet_opt                           : bool option
@@ -195,6 +222,8 @@ module Args = struct
     ; mask_uniques_opt                    : bool option
     ; output                              : P.Output.t option
     ; context_opt                         : int option
+    ; line_big_enough_opt                 : int option
+    ; word_big_enough_opt                 : int option
     ; config_opt                          : string option
     ; old_file                            : string
     ; new_file                            : string
@@ -239,12 +268,16 @@ let final t anon =
           ; float_tolerance_opt                 = !(t.Accum.float_tolerance_opt)
           ; keep_ws_opt                         = !(t.Accum.keep_ws_opt)
           ; split_long_lines_opt                = !(t.Accum.split_long_lines_opt)
+          ; interleave_opt                      = !(t.Accum.interleave_opt)
+          ; assume_text_opt                     = !(t.Accum.assume_text_opt)
           ; shallow_opt                         = !(t.Accum.shallow_opt)
           ; quiet_opt                           = !(t.Accum.quiet_opt)
           ; double_check_opt                    = !(t.Accum.double_check_opt)
           ; mask_uniques_opt                    = !(t.Accum.mask_uniques_opt)
           ; output                              = !(t.Accum.output)
           ; context_opt                         = !(t.Accum.context_opt)
+          ; line_big_enough_opt                 = !(t.Accum.line_big_enough_opt)
+          ; word_big_enough_opt                 = !(t.Accum.word_big_enough_opt)
           ; config_opt                          = !(t.Accum.config_opt)
           ; old_alt_opt                         = !(t.Accum.old_alt_opt)
           ; new_alt_opt                         = !(t.Accum.new_alt_opt)
@@ -309,7 +342,11 @@ let override config (args : Args.compare_flags) =
     ?float_tolerance:args.float_tolerance_opt
     ?keep_ws:args.keep_ws_opt
     ?split_long_lines:args.split_long_lines_opt
+    ?interleave:args.interleave_opt
+    ?assume_text:args.assume_text_opt
     ?context:args.context_opt
+    ?line_big_enough:args.line_big_enough_opt
+    ?word_big_enough:args.word_big_enough_opt
     ?shallow:args.shallow_opt
     ?quiet:args.quiet_opt
     ?double_check:args.double_check_opt
@@ -322,28 +359,8 @@ let override config (args : Args.compare_flags) =
 
 let main' args =
   let module A = Args in
-  let module C = Configuration in
   (* Load config file if it exists, use default if not *)
-  let config =
-    let file =
-      match args.A.config_opt with
-      | Some "" -> None
-      | Some f -> Some f (* specified file *)
-      | None ->
-        (* ~/.patdiff exists *)
-        Option.bind (Sys.getenv "HOME") ~f:(fun home ->
-          let f = home ^/ ".patdiff" in
-          match Sys.file_exists f with
-          | `Yes -> Some f
-          | `No | `Unknown -> None)
-    in
-    (* C.load prints warnings to stderr. This is desired because [file] is only Some if it
-       was manually specified or if ~/.patdiff exists. The user should be notified of
-       errors if the file fails in both cases. *)
-    match Option.bind file ~f:C.load with
-    | Some c -> c
-    | None -> C.parse (C.Config.t_of_sexp (Sexp.of_string Text.Configuration.ansi_config))
-  in
+  let config = Configuration.get_config ?filename:args.A.config_opt () in
   let config = override config args in
   (* 2012-06-28 mbac: /dev/null is used as a placeholder for deleted files. *)
   let file_or_dev_null f = if Sys.file_exists_exn f then f else "/dev/null" in

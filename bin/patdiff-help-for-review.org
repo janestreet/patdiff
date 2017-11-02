@@ -45,11 +45,19 @@
 :                                                directories
 :   [-keep-whitespace]                           Consider whitespace when
 :                                                comparing lines
+:   [-line-big-enough NUM]                       Limit line-level semantic cleanup
+:                                                to the matches of length less
+:                                                than NUM lines
 :   [-location-style <diff|omake>]               how to format location
 :                                                information in hunk headers
 :   [-make-config FILE]                          Write default configuration file
 :   [-mask-uniques]                              When comparing directories, don't
 :                                                compare against /dev/null
+:   [-no-interleave]                             Don't attempt to split up large
+:                                                hunks near equalities
+:   [-no-semantic-cleanup]                       Don't do any semantic cleanup;
+:                                                let small, spurious matches
+:                                                survive
 :   [-quiet]                                     Report only whether files differ,
 :                                                not the details
 :   [-readme]                                    Display documentation for the
@@ -60,12 +68,18 @@
 :                                                recurse into subdirs
 :   [-split-long-lines]                          Split long lines into multiple
 :                                                displayed lines
+:   [-text]                                      Treat all files as text (i.e.
+:                                                display diffs of binary file
+:                                                contents)
 :   [-unrefined]                                 Don't highlight word differences
 :                                                between lines
 :   [-warn-if-no-trailing-newline-in-both BOOL]  warn when neither file ends in a
 :                                                newline, even though this does
 :                                                not constitute a diff (default:
 :                                                read from config, or true)
+:   [-word-big-enough NUM]                       Limit word-level semantic cleanup
+:                                                to the matches of length less
+:                                                than NUM words
 :   [-build-info]                                print info about this build and
 :                                                exit
 :   [-version]                                   print the version of this build

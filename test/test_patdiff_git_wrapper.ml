@@ -48,6 +48,6 @@ let%expect_test "patdiff-git-wrapper" = within_temp_dir ~links (fun () ->
       (fg:red)------ (+bold) a/foo
       (fg:green)++++++ (+bold) b/foo
       (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
-      (fg:black bg:red)-|(off)foo (fg:red)bar (off)baz
-      (fg:black bg:green)+|(off)foo baz (fg:green)quux |}])
+      (fg:black bg:red)-|(off)foo(fg:red) bar(off) baz
+      (fg:black bg:green)+|(off)foo baz(fg:green) quux |}])
 ;;

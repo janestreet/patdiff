@@ -24,7 +24,7 @@ Test that we ignore or consider whitespace as directed.
   > manner
   > EOF
 
-Expect whitespace changes should be ignored.
+Expect that we ignore whitespace changes.
 
   $ patdiff.exe -default prev next
 
@@ -56,3 +56,17 @@ Expect whitespace changes should be detected.
   (fg:black bg:green)+|
   (fg:black bg:green)+|(off)lines in an arbitrary
   (fg:black bg:green)+|(off)manner
+
+Note that some whitespace changes are still ignored, just not those involving substituting a newline for a space.
+
+  $ cat - > prev <<EOF
+  > this is a file with whitespace but no newlines
+  > EOF
+
+  $ cat - > next <<EOF
+  >  this is  a file 	with  	  whitespace    but           no newlines  
+  > EOF
+
+
+  $ patdiff.exe -default prev next
+

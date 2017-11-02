@@ -6,10 +6,15 @@ module Output : module type of (struct include Output_mode end)
 
 val default_context : int
 
+val default_line_big_enough : int
+
+val default_word_big_enough : int
+
 (** [diff ~context ~keep_ws ~mine ~other] uses [Patience_diff.String] to get a list of
     hunks describing the comparison between [mine] and [other]. *)
 val diff
   :  context : int
+  -> line_big_enough: int
   -> keep_ws : bool
   -> mine:string array
   -> other:string array
@@ -26,8 +31,15 @@ val refine
   -> output:Output.t
   -> keep_ws:bool
   -> split_long_lines:bool
+  -> interleave:bool
+  -> word_big_enough: int
   -> string Patience_diff.Hunk.t list
   -> string Patience_diff.Hunk.t list
+
+val explode
+  : string array
+  -> keep_ws: bool
+  -> [`Newline of int * string option | `Word of string] array
 
 (** Print a hunk list, usually from [diff] or [refine] *)
 val print
@@ -75,6 +87,9 @@ val patdiff
   -> ?split_long_lines      : bool
   -> ?print_global_header   : bool
   -> ?location_style        : Format.Location_style.t
+  -> ?interleave            : bool
+  -> ?line_big_enough       : int
+  -> ?word_big_enough       : int
   -> from_                  : diff_input
   -> to_                    : diff_input
   -> unit

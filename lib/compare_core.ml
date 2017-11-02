@@ -13,6 +13,31 @@ let lines_of_contents contents =
   lines, has_trailing_newline
 ;;
 
+let is_text_char = function
+  (* ascii ordinary text char range *)
+  | '\x20'..'\x7e'
+  (* newline, carriage return, tab, form feed, vertical tab, backspace *)
+  | '\n' | '\r' | '\t' | '\x0c' | '\x0b' | '\x08'
+    -> true
+  | _ -> false
+;;
+
+let is_probably_binary lines =
+  (* null byte exists anywhere within the lines *)
+  Array.exists lines ~f:(fun line -> String.exists line ~f:(fun c -> c = '\x00'))
+  (* or strictly fewer than 70% of the characters are text characters *)
+  || (
+    let (text, total) =
+      (* Add one to account for the newline from splitting into lines *)
+      Array.fold lines
+        ~init:(0, 0)
+        ~f:(fun (text, total) line ->
+          (text + String.count line ~f:is_text_char + 1
+          , total + String.length line + 1))
+    in
+    text < total * 7 / 10
+  )
+
 let%test_unit _ =
   let test contents ~expect =
     [%test_result: string array * [ `With_trailing_newline | `Missing_trailing_newline ]]
@@ -35,11 +60,13 @@ let compare_lines config ~mine ~other =
   let context = config.C.context in
   let keep_ws = config.C.keep_ws in
   let split_long_lines = config.C.split_long_lines in
+  let line_big_enough = config.C.line_big_enough in
   let hunks =
     let transform = if keep_ws then Fn.id else Patdiff_core.remove_ws in
     (* Use external compare program? *)
     match config.C.ext_cmp with
-    | None -> Patience_diff.String.get_hunks ~transform ~context ~mine ~other
+    | None -> Patience_diff.String.get_hunks ~transform ~context
+                ~big_enough:line_big_enough ~mine ~other
     | Some prog ->
       let compare x y =
         let cmd = sprintf "%s %S %S" prog x y in
@@ -56,24 +83,40 @@ let compare_lines config ~mine ~other =
           let compare = compare
         end)
       in
-      P.get_hunks ~transform ~context ~mine ~other
+      P.get_hunks ~transform ~context ~big_enough:line_big_enough ~mine ~other
   in
-  let hunks =
-    match config.C.float_tolerance with
-    | None -> hunks
-    | Some tolerance -> Float_tolerance.apply hunks tolerance ~context
+  let assume_text = config.C.assume_text in
+  let (mine_is_binary, other_is_binary) =
+    if assume_text
+    then (false, false)
+    else (is_probably_binary mine, is_probably_binary other)
   in
-  (* Refine if desired *)
-  if config.C.unrefined then
-    (* Turn `Replace ranges into `Old and `New ranges.
-       `Replace's would otherwise be later interpreted as refined output *)
-    Patience_diff.Hunks.unified hunks
-  else
-    let rules = config.C.rules in
-    let output = config.C.output in
-    let produce_unified_lines = config.C.produce_unified_lines in
-    Patdiff_core.refine ~rules ~output ~keep_ws
-      ~produce_unified_lines ~split_long_lines hunks
+  if not assume_text && (mine_is_binary || other_is_binary)
+  then begin
+    if Array.equal ~equal:String.(=) mine other
+    then `Binary_same
+    else `Binary_different (mine_is_binary, other_is_binary)
+  end
+  else begin
+    let hunks =
+      match config.C.float_tolerance with
+      | None -> hunks
+      | Some tolerance -> Float_tolerance.apply hunks tolerance ~context
+    in
+    (* Refine if desired *)
+    if config.C.unrefined then
+      (* Turn `Replace ranges into `Old and `New ranges.
+         `Replace's would otherwise be later interpreted as refined output *)
+      `Hunks (Patience_diff.Hunks.unified hunks)
+    else
+      let rules = config.C.rules in
+      let output = config.C.output in
+      let produce_unified_lines = config.C.produce_unified_lines in
+      let interleave = config.C.interleave in
+      let word_big_enough = config.C.word_big_enough in
+      `Hunks (Patdiff_core.refine ~rules ~output ~keep_ws ~produce_unified_lines
+                ~split_long_lines ~interleave hunks ~word_big_enough)
+  end
 ;;
 
 let warn_if_no_trailing_newline
@@ -106,8 +149,18 @@ let compare_files (config : Configuration.t) ~old_file ~new_file =
 ;;
 
 let has_no_diff hunks =
-  List.for_all hunks ~f:Patience_diff.Hunk.all_same
+  match hunks with
+  | `Binary_same -> true
+  | `Binary_different _ -> false
+  | `Hunks hunks -> List.for_all hunks ~f:Patience_diff.Hunk.all_same
 ;;
+
+let binary_different_message ~old_file ~mine_is_binary ~new_file ~other_is_binary =
+  sprintf "Files %s%s and %s%s differ"
+    old_file
+    (if mine_is_binary then " (binary)" else "")
+    new_file
+    (if other_is_binary then " (binary)" else "")
 
 (* Print hunks to stdout *)
 let print hunks ~old_file ~new_file ~config =
@@ -128,8 +181,14 @@ There are no differences except those filtered by your settings\n%!"
       (* Substitute old/new_alt for the filenames in the final output *)
       let old_file = Option.value ~default:old_file config.C.old_alt in
       let new_file = Option.value ~default:new_file config.C.new_alt in
-      Patdiff_core.print hunks ~old_file ~new_file ~output ~rules
-        ~location_style:config.location_style
+      match hunks with
+      | `Binary_same -> assert false
+      | `Binary_different (mine_is_binary, other_is_binary) ->
+        Printf.printf "%s\n"
+          (binary_different_message ~old_file ~mine_is_binary ~new_file ~other_is_binary)
+      | `Hunks hunks ->
+        Patdiff_core.print hunks ~old_file ~new_file ~output ~rules
+          ~location_style:config.location_style
   end
 ;;
 
@@ -144,13 +203,19 @@ let diff_strings ?print_global_header (config : Configuration.t) ~old ~new_ =
   let hunks = compare_lines config ~mine:(lines old) ~other:(lines new_) in
   if has_no_diff hunks
   then `Same
-  else `Different (Patdiff_core.output_to_string
-                     hunks
-                     ?print_global_header
-                     ~file_names:(old.name, new_.name)
-                     ~output:config.output
-                     ~rules:config.rules
-                     ~location_style:config.location_style)
+  else `Different (
+    match hunks with
+    | `Binary_same -> assert false
+    | `Binary_different (mine_is_binary, other_is_binary) ->
+      binary_different_message ~old_file:old.name ~mine_is_binary ~new_file:new_.name ~other_is_binary
+    | `Hunks hunks ->
+      Patdiff_core.output_to_string
+        hunks
+        ?print_global_header
+        ~file_names:(old.name, new_.name)
+        ~output:config.output
+        ~rules:config.rules
+        ~location_style:config.location_style)
 ;;
 
 (* True if a file is a regular file *)

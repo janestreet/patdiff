@@ -8,12 +8,13 @@ module Output = Output_mode
 let ws_rex = Pcre.regexp "[\\s]+"
 let ws_rex_anchored = Pcre.regexp "^[\\s]*$"
 let ws_sub = Pcre.subst " "
+
 let remove_ws s = String.strip (Pcre.replace ~rex:ws_rex ~itempl:ws_sub s)
 let is_ws s = Pcre.pmatch s ~rex:ws_rex_anchored
 
 (* This regular expression describes the delimiters on which to split the string *)
 let words_rex = Pcre.regexp
-                  "\\\"|\\{|\\}|\\[|\\]|[\\=\\`\\+\\-\\/\\!\\@\\$\\%\\^\\&\\*\\:]+|\\#|,|\\.|;|\\)|\\(|\\s+"
+                  "\\\"|\\{|\\}|\\[|\\]|[\\=\\`\\+\\-\\/\\!\\@\\$\\%\\^\\&\\*\\:]+|\\#|,|\\.|;|\\)|\\(|_|\\s+"
 
 (* Split a string into a list of string options delimited by words_rex
    (delimiters included) *)
@@ -30,6 +31,21 @@ let split s ~keep_ws =
          | Pcre.Delim s -> Some s
          | Pcre.Group _ -> assert false   (* Irrelevant, since rex has no groups *)
          | Pcre.NoGroup -> assert false ) (* Ditto *)
+  end
+;;
+
+(* This function ensures that the tokens passed to Patience diff do not include
+   whitespace.  Whitespace is appended to words, and then removed by [~transform] later
+   on. The point is to make the semantic cleanup go well -- we don't want whitespace
+   matches to "count" as part of the length of a match. *)
+let whitespace_ignorant_split s =
+  if String.is_empty s
+  then []
+  else begin
+    let istext s = not (Pcre.pmatch s ~rex:ws_rex) in
+    split s ~keep_ws:false
+    |> List.group ~break:(fun split_result1 _ -> istext split_result1)
+    |> List.map ~f:String.concat
   end
 ;;
 
@@ -104,12 +120,33 @@ module Output_ops = struct
   ;;
 end
 
-let default_context = 6
+(* Default amount of context shown around each change in the diff *)
+let default_context = 16
 
-let diff ~context ~keep_ws ~mine ~other =
+(* The following constants were all chosen empirically. *)
+
+(* Default cutoff for line-level semantic cleanup.  Any match of [default_line_big_enough]
+   or more will not be deleted, even if it's surrounded by large inserts and deletes.
+   Raising this quantity can only decrease the number of matches, and lowering it
+   can only decrease the number of matches. *)
+let default_line_big_enough = 3
+
+(* Analagous to above, but for word-level refinement *)
+let default_word_big_enough = 7
+
+(* Governs the behavior of [split_for_readability].  We will only split ranges around
+   matches of size greater than [too_short_to_split].  Note that this should always
+   be at least 1, otherwise we will split on a single `Newline token.
+   Raising this quantity will result in less ranges being split, and setting it to
+   infinity is the same as passing in [~interleave:false]. *)
+let too_short_to_split = 2
+
+let diff ~context ~line_big_enough ~keep_ws ~mine ~other =
   let transform = if keep_ws then Fn.id else remove_ws in
-  Patience_diff.String.get_hunks ~transform ~context ~mine ~other
+  Patience_diff.String.get_hunks ~transform ~context
+    ~big_enough:line_big_enough ~mine ~other
 ;;
+
 
 type word_or_newline =
   [ `Newline of int * string option  (* (number of newlines, subsequent_whitespace) *)
@@ -120,7 +157,11 @@ type word_or_newline =
 (* Splits an array of lines into an array of pieces (`Newlines and R.Words) *)
 let explode ar ~keep_ws =
   let words = Array.to_list ar in
-  let words = List.map words ~f:(split ~keep_ws) in
+  let words =
+    if keep_ws
+    then List.map words ~f:(split ~keep_ws)
+    else List.map words ~f:whitespace_ignorant_split
+  in
   let to_words l = List.map l ~f:(fun s -> `Word s) in
   (*
      [`Newline of (int * string option)]
@@ -142,7 +183,7 @@ let explode ar ~keep_ws =
     List.concat_map words ~f:(fun x ->
       match x with
       | hd :: tl ->
-        if not(String.is_empty hd) && is_ws hd
+        if keep_ws && not(String.is_empty hd) && is_ws hd
         then `Newline (1, Some hd) ::             to_words tl
         else `Newline (1, None)    :: `Word hd :: to_words tl
       | [] ->
@@ -178,7 +219,7 @@ let explode ar ~keep_ws =
   (* Throw away the very first `Newline *)
   let words =
     match words with
-    | `Newline (_i, opt) :: tl -> `Newline (0, opt) :: tl
+    | `Newline (i, opt) :: tl -> `Newline (i - 1, opt) :: tl
     | `Word _ :: _ | [] ->
       raise_s [%message
         "Expected words to start with a `Newline."
@@ -269,7 +310,7 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
 ;;
 
 (* Get the hunks from two arrays of pieces (`Words and `Newlines) *)
-let diff_pieces ~old_pieces ~new_pieces ~keep_ws =
+let diff_pieces ~old_pieces ~new_pieces ~keep_ws ~word_big_enough =
   let context = -1 in
   let transform =
     if keep_ws
@@ -279,9 +320,11 @@ let diff_pieces ~old_pieces ~new_pieces ~keep_ws =
         Option.fold trailing_whitespace ~init:(String.make lines '\n') ~f:String.(^)
     else function
       | `Word s -> remove_ws s
-      | `Newline _ -> ""
+      | `Newline (0, _) -> ""
+      | `Newline (_, _) -> " "
   in
-  Patience_diff.String.get_hunks ~transform ~context ~mine:old_pieces ~other:new_pieces
+  Patience_diff.String.get_hunks ~transform ~context
+    ~big_enough:word_big_enough ~mine:old_pieces ~other:new_pieces
 ;;
 
 let ranges_are_just_whitespace ranges =
@@ -294,9 +337,65 @@ let ranges_are_just_whitespace ranges =
     | _ -> true)
 ;;
 
+(* Interleaves the display of minus lines and plus lines so that equal words are presented
+   close together.  There is some heuristic for when we think doing this improves the
+   diff. *)
+let split_for_readability rangelist =
+  let module R = Patience_diff.Range in
+  let ans = ref [] in
+  let pending_ranges = ref [] in
+  let append_range range =
+    pending_ranges := range :: !pending_ranges
+  in
+  List.iter rangelist ~f:(fun range ->
+    let split_was_executed =
+      match range with
+      | R.New _ | R.Old _ | R.Replace _ | R.Unified _
+        -> false
+      | R.Same seq ->
+        let first_newline = Array.find_mapi seq ~f:(fun i ->
+          function
+          | (`Word _, _) | (_, `Word _)
+          | (`Newline (0, _), _) | (_, `Newline (0, _))
+            -> None
+          | (`Newline first_nlA, `Newline first_nlB)
+            -> Some (i, first_nlA, first_nlB)
+        )
+        in
+        match first_newline with
+        | None ->
+          false
+        | Some (i, first_nlA, first_nlB) ->
+          if Array.length seq - i <= too_short_to_split
+          then false
+          else begin
+            append_range (R.Same (Array.sub seq ~pos:0 ~len:i));
+            (* A non-zero `Newline is required for [collapse] to work properly. *)
+            let nl = R.Same [|(`Newline (1, None), `Newline (1, None))|] in
+            append_range nl;
+            ans := (List.rev !pending_ranges) :: !ans;
+
+            pending_ranges := [];
+            let suf = Array.sub seq ~pos:i ~len:(Array.length seq - i) in
+            let decr_first (x,y) = (x-1, y) in
+            suf.(0) <- (`Newline (decr_first first_nlA), `Newline (decr_first first_nlB));
+            append_range (R.Same suf);
+            true
+          end
+    in
+    if not split_was_executed
+    then append_range range
+  );
+  if !pending_ranges <> []
+  then ans := (List.rev !pending_ranges) :: !ans;
+  List.rev !ans
+;;
+
 (* Refines the diff, splitting the lines into smaller arrays and diffing them, then
    collapsing them back into their initial lines after applying a format. *)
-let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunks =
+let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines
+      ~interleave ~word_big_enough
+      hunks =
   let module R = Patience_diff.Range in
   let module H = Patience_diff.Hunk in
   let module Rz = Format.Rules in
@@ -327,7 +426,7 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
         let old_pieces = explode old_ar ~keep_ws in
         let new_pieces = explode new_ar ~keep_ws in
         (* Diff the pieces *)
-        let sub_diff = diff_pieces ~old_pieces ~new_pieces ~keep_ws in
+        let sub_diff = diff_pieces ~old_pieces ~new_pieces ~keep_ws ~word_big_enough in
 
         (* Smash the hunks' ranges all together *)
         let sub_diff = Patience_diff.Hunks.ranges sub_diff in
@@ -403,7 +502,7 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
                          so add a break at this point *)
                       let new_accum =
                         if new_tokenpairs <> []
-                        then `Break :: `Range (make_newline ()) :: new_accum
+                        then  `Break :: `Range (make_newline ()) :: new_accum
                         else new_accum
                       in
                       take_ranges_until_exhausted new_len_so_far new_tokenpairs new_accum
@@ -438,12 +537,31 @@ let refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines hunk
             in
             split_lines 0 sub_diff [] []
         in
+        let sub_diff_pieces =
+          if interleave
+          then List.concat_map sub_diff_pieces ~f:split_for_readability
+          else sub_diff_pieces
+        in
 
         List.concat_map sub_diff_pieces ~f:(fun sub_diff ->
           let sub_old = Patience_diff.Range.old_only sub_diff in
           let sub_new = Patience_diff.Range.new_only sub_diff in
-          let old_all_same = Patience_diff.Range.all_same sub_old in
-          let new_all_same = Patience_diff.Range.all_same sub_new in
+          let all_same ranges =
+            List.for_all ranges ~f:(fun range ->
+              match range with
+              | Patience_diff.Range.Same _ -> true
+              | Patience_diff.Range.Old a | Patience_diff.Range.New a ->
+                if keep_ws
+                then false
+                else
+                  Array.for_all a ~f:(function
+                    | `Newline _ -> true
+                    | `Word _ -> false
+                  )
+              | _ -> false)
+          in
+          let old_all_same = all_same sub_old in
+          let new_all_same = all_same sub_new in
 
           let produce_unified_lines =
             produce_unified_lines &&
@@ -572,12 +690,16 @@ let patdiff
       ?(split_long_lines = true)
       ?print_global_header
       ?(location_style = Format.Location_style.Diff)
+      ?(interleave = true)
+      ?(line_big_enough = default_line_big_enough)
+      ?(word_big_enough = default_word_big_enough)
       ~from_ ~to_ () =
   let hunks =
-    diff ~context ~keep_ws
+    diff ~context ~keep_ws ~line_big_enough
       ~mine: (List.to_array (String.split_lines from_.text))
       ~other:(List.to_array (String.split_lines to_.text))
     |> refine ~rules ~produce_unified_lines ~output ~keep_ws ~split_long_lines
+         ~interleave ~word_big_enough
   in
   output_to_string
     ?print_global_header
@@ -604,7 +726,7 @@ let%test_module _ =
            ());
       [%expect {|
       -1,1 +1,1
-      [0;1;33m!|[0m[0;0mFoo [0;31mbar [0mbuzz[0m |}]
+      [0;1;33m!|[0m[0;0mFoo[0;31m bar[0m buzz[0m |}]
     ;;
 
     let%expect_test "Ascii is supported if [produce_unified_lines] is false" =

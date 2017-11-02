@@ -1,48 +1,5 @@
 open! Core
 
-module Configuration = struct
-
-  let ansi_config = sprintf
-                      "\
-;; -*- scheme -*-
-;; patdiff Configuration file
-
-(
- (context %d)
-
- (line_same
-  ((prefix ((text \" |\") (style ((bg bright_black) (fg black)))))))
-
- (line_old
-  ((prefix ((text \"-|\") (style ((bg red)(fg black)))))
-   (style ((fg red)))
-   (word_same (dim))))
-
- (line_new
-  ((prefix ((text \"+|\") (style ((bg green)(fg black)))))
-   (style ((fg green)))))
-
- (line_unified
-  ((prefix ((text \"!|\") (style ((bg yellow)(fg black)))))))
-
- (header_old
-  ((prefix ((text \"------ \") (style ((fg red)))))
-   (style (bold))))
-
- (header_new
-  ((prefix ((text \"++++++ \") (style ((fg green)))))
-   (style (bold))))
-
-
- (hunk
-  ((prefix ((text \"@|\") (style ((bg bright_black) (fg black)))))
-   (suffix ((text \" ============================================================\") (style ())))
-   (style (bold))))
-)"
-                      Patdiff_lib.Patdiff_core.default_context
-
-end
-
 module Readme : sig val readme : string end = struct
 
   let readme =

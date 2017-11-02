@@ -121,7 +121,7 @@ let%expect_test _ =
     ====== 10% ======
     ------ mine
     ++++++ other
-    @|-1,12 +1,12 ============================================================
+    @|-1,16 +1,16 ============================================================
      |((apples 12345678 23456788))
     -| (bananas (09:30:00.000000 16:00:00.000000))
     +| (bananas (09:30:00.000000 15:59:00.000000))
@@ -136,5 +136,9 @@ let%expect_test _ =
      | (nectarines 1.667m)
      | (oranges 1.66667m) (persimmons 17:15:00.000000)
      | (quinces ((size 49000) (shelf_life 50s)))
+     | (raspberries true)
+     | (strawberries (are_red Surprisingly_not_always))
+     | (tamarind ())
+     | (ugli_fruits 32s))
     ("Unclean exit" (Exit_non_zero 1)) |}]
 ;;
