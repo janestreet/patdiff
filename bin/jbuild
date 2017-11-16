@@ -1,5 +1,6 @@
 (executables
  ((names (patdiff))
+(flags (:standard -safe-string))
   (libraries (
     core
     core_extended

@@ -1,6 +1,7 @@
 
 (library
  ((name patdiff_test)
+(flags (:standard -safe-string))
   (libraries (
     async
     core
