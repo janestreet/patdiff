@@ -1,4 +1,5 @@
 opam-version: "1.2"
+version: "v0.10.0"
 maintainer: "opensource@janestreet.com"
 authors: ["Jane Street Group, LLC <opensource@janestreet.com>"]
 homepage: "https://github.com/janestreet/patdiff"
@@ -9,14 +10,14 @@ build: [
   ["jbuilder" "build" "-p" name "-j" jobs]
 ]
 depends: [
-  "core"
-  "core_extended"
-  "expect_test_helpers"
-  "patience_diff"
-  "ppx_driver"
-  "ppx_jane"
-  "re2"
-  "sexplib"
+  "core"                    {>= "v0.10" & < "v0.11"}
+  "core_extended"           {>= "v0.10" & < "v0.11"}
+  "expect_test_helpers"     {>= "v0.10" & < "v0.11"}
+  "patience_diff"           {>= "v0.10" & < "v0.11"}
+  "ppx_driver"              {>= "v0.10" & < "v0.11"}
+  "ppx_jane"                {>= "v0.10" & < "v0.11"}
+  "re2"                     {>= "v0.10" & < "v0.11"}
+  "sexplib"                 {>= "v0.10" & < "v0.11"}
   "jbuilder"                {build & >= "1.0+beta12"}
   "ocaml-migrate-parsetree" {>= "0.4"}
   "pcre"
