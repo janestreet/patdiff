@@ -1,3 +1,7 @@
+## git version
+
+- Switch from `Core_extended.Std.Deprecated_command` to `Core.Command`.
+
 ## 113.24.00
 
 - `patdiff -location-style omake` should print the line number of the

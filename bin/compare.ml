@@ -14,198 +14,6 @@ text from stdin and color it in the normal patdiff way.
 The file ~/.patdiff is used as a config file if it exists.  You can
 write a sample config with the -make-config flag."
 
-let usage_arg = "[FILE1 FILE2] [OPTIONS]"
-
-
-module Accum = struct
-
-
-  (* These are all options because they override the config file if specified,
-     so we want to know if they were actually given on the command line. *)
-  type t =
-    { config_opt                          : string                    option        ref
-    ; context_opt                         : int                       option        ref
-    ; word_big_enough_opt                 : int                       option        ref
-    ; line_big_enough_opt                 : int                       option        ref
-    ; unrefined_opt                       : bool                      option        ref
-    ; keep_ws_opt                         : bool                      option        ref
-    ; split_long_lines_opt                : bool                      option        ref
-    ; interleave_opt                      : bool                      option        ref
-    ; assume_text_opt                     : bool                      option        ref
-    ; output                              : P.Output.t                option        ref
-    ; produce_unified_lines_opt           : bool                      option        ref
-    ; quiet_opt                           : bool                      option        ref
-    ; shallow_opt                         : bool                      option        ref
-    ; double_check_opt                    : bool                      option        ref
-    ; mask_uniques_opt                    : bool                      option        ref
-    ; ext_cmp_opt                         : string                    option option ref
-    ; float_tolerance_opt                 : Percent.t                 option option ref
-    ; old_alt_opt                         : string                    option option ref
-    ; new_alt_opt                         : string                    option option ref
-    ; make_config_file                    : string                    option        ref
-    ; do_readme                           : bool                      option        ref
-    ; include_                            : string                    list          ref
-    ; exclude                             : string                    list          ref
-    ; reverse                             : bool                      option        ref
-    ; location_style                      : P.Format.Location_style.t option        ref
-    ; warn_if_no_trailing_newline_in_both : bool                      option        ref
-    }
-
-  let empty =
-    { config_opt                          = ref None
-    ; context_opt                         = ref None
-    ; line_big_enough_opt                 = ref None
-    ; word_big_enough_opt                 = ref None
-    ; unrefined_opt                       = ref None
-    ; keep_ws_opt                         = ref None
-    ; split_long_lines_opt                = ref None
-    ; interleave_opt                      = ref None
-    ; assume_text_opt                     = ref None
-    ; output                              = ref None
-    ; produce_unified_lines_opt           = ref None
-    ; quiet_opt                           = ref None
-    ; shallow_opt                         = ref None
-    ; double_check_opt                    = ref None
-    ; mask_uniques_opt                    = ref None
-    ; ext_cmp_opt                         = ref None
-    ; float_tolerance_opt                 = ref None
-    ; old_alt_opt                         = ref None
-    ; new_alt_opt                         = ref None
-    ; make_config_file                    = ref None
-    ; do_readme                           = ref None
-    ; include_                            = ref []
-    ; exclude                             = ref []
-    ; reverse                             = ref None
-    ; location_style                      = ref None
-    ; warn_if_no_trailing_newline_in_both = ref None
-    }
-  ;;
-end
-
-let init () = Accum.empty
-
-(* Helper for one-shot field updation used by command dispatches *)
-let set_once name r v =
-  match !r with
-  | Some _ -> failwithf "%s specified more than once" name ()
-  | None -> r := Some v
-;;
-
-let flags =
-  let module Cf = Deprecated_command.Flag in
-  [
-    Cf.arg_mut "-file"
-      (fun t s -> set_once "config" t.Accum.config_opt s)
-      ~doc: "FILE Use FILE as configuration file instead of ~/.patdiff";
-    Cf.noarg_mut "-default"
-      (fun t -> set_once "config" t.Accum.config_opt "")
-      ~doc: " Use the default configuration instead of ~/.patdiff";
-    Cf.arg_mut "-context"
-      (fun t i -> set_once "context" t.Accum.context_opt (int_of_string i))
-      ~doc: "NUM Show lines of unchanged context before and after changes";
-    Cf.arg_mut "-line-big-enough"
-      (fun t i -> set_once "line-big-enough" t.Accum.line_big_enough_opt (int_of_string i))
-      ~doc: "NUM Limit line-level semantic cleanup to the matches of length less than NUM lines";
-    Cf.arg_mut "-word-big-enough"
-      (fun t i -> set_once "word-big-enough" t.Accum.word_big_enough_opt (int_of_string i))
-      ~doc: "NUM Limit word-level semantic cleanup to the matches of length less than NUM words";
-    Cf.noarg_mut "-unrefined"
-      (fun t -> set_once "unrefined" t.Accum.unrefined_opt true)
-      ~doc: " Don't highlight word differences between lines";
-    Cf.noarg_mut "-keep-whitespace"
-      (fun t -> set_once "keep-whitespace" t.Accum.keep_ws_opt true)
-      ~doc: " Consider whitespace when comparing lines";
-    Cf.noarg_mut "-split-long-lines"
-      (fun t -> set_once "split-long-lines" t.Accum.split_long_lines_opt true)
-      ~doc: " Split long lines into multiple displayed lines";
-    Cf.noarg_mut "-no-interleave"
-      (fun t -> set_once "no-interleave" t.Accum.interleave_opt false)
-      ~doc: " Don't attempt to split up large hunks near equalities";
-    Cf.noarg_mut "-no-semantic-cleanup"
-      (fun t ->
-         set_once "line-big-enough" t.Accum.line_big_enough_opt 1;
-         set_once "word-big-enough" t.Accum.word_big_enough_opt 1)
-      ~doc: " Don't do any semantic cleanup; let small, spurious matches survive";
-    Cf.noarg_mut "-text"
-      (fun t -> set_once "-text" t.Accum.assume_text_opt true)
-      ~doc: " Treat all files as text (i.e. display diffs of binary file contents)";
-    Cf.noarg_mut "-html"
-      (fun t -> set_once "output (html, ansi, ascii)" t.Accum.output P.Output.Html)
-      ~doc: " Output in HTML format instead of default (ASCII with ANSI escape codes)";
-    Cf.noarg_mut "-ascii"
-      (fun t -> set_once "output (html, ansi, ascii)" t.Accum.output P.Output.Ascii)
-      ~doc: " Output in ASCII with no ANSI escape codes (implies -unrefined)";
-    Cf.noarg_mut "-ansi"
-      (fun t -> set_once "output (html, ansi, ascii)" t.Accum.output P.Output.Ansi)
-      ~doc: " Output in ASCII with ANSI escape codes";
-    Cf.noarg_mut "-dont-produce-unified-lines"
-      (fun t -> set_once "word unify" t.Accum.produce_unified_lines_opt false)
-      ~doc: " Don't produce unified lines";
-    Cf.noarg_mut "-quiet"
-      (fun t -> set_once "quiet" t.Accum.quiet_opt true)
-      ~doc: " Report only whether files differ, not the details";
-    Cf.noarg_mut "-shallow"
-      (fun t -> set_once "shallow" t.Accum.shallow_opt true)
-      ~doc: " When comparing directories, don't recurse into subdirs";
-    Cf.noarg_mut "-double-check"
-      (fun t -> set_once "double_check" t.Accum.double_check_opt true)
-      ~doc: " If files seem identical, double check with cmp";
-    Cf.noarg_mut "-mask-uniques"
-      (fun t -> set_once "mask_uniques" t.Accum.mask_uniques_opt true)
-      ~doc: " When comparing directories, don't compare against /dev/null";
-    Cf.arg_mut "-ext-cmp"
-      (fun t s ->
-         set_once "external compare" t.Accum.ext_cmp_opt (Some s);
-         set_once "unrefined" t.Accum.unrefined_opt true)
-      ~doc: "FILE Use external string comparison program (implies -unrefined)";
-    Cf.arg_mut "-float-tolerance"
-      (fun t s ->
-         set_once "float tolerance"
-           t.Accum.float_tolerance_opt
-           (Some (Percent.of_string s)))
-      ~doc: "PERCENT Consider strings equal if only difference is floats changing within PERCENT";
-    Cf.arg_mut "-alt-old"
-      (fun t s -> set_once "alternate old" t.Accum.old_alt_opt (Some s))
-      ~doc: "NAME Mask old filename with NAME";
-    Cf.arg_mut "-alt-new"
-      (fun t s -> set_once "alternate new" t.Accum.new_alt_opt (Some s))
-      ~doc: "NAME Mask new filename with NAME";
-    Cf.arg_mut "-make-config"
-      (fun t s -> set_once "config" t.Accum.make_config_file s)
-      ~doc:Make_config.doc;
-    Cf.noarg_mut "-readme"
-      (fun t -> set_once "readme" t.Accum.do_readme true)
-      ~doc:Readme.doc;
-    Cf.arg_mut "-include"
-      (fun t s -> t.Accum.include_ := s :: !(t.Accum.include_))
-      ~doc:"REGEXP include files matching this pattern when comparing two directories";
-    Cf.arg_mut "-exclude"
-      (fun t s -> t.Accum.exclude := s :: !(t.Accum.exclude))
-      ~doc:"REGEXP exclude files matching this pattern when comparing two directories \
-            (overrides include patterns)";
-    Cf.noarg_mut "-reverse"
-      (fun t -> set_once "reverse" t.Accum.reverse true)
-      ~doc:" produce a diff that undoes the changes";
-    P.Format.Location_style.(
-      Cf.arg_mut "-location-style"
-        (fun t s -> set_once "location style" t.Accum.location_style (of_string  s))
-        ~doc:(sprintf "<%s> how to format location information in hunk headers"
-                (String.concat ~sep:"|" (List.map all ~f:to_string))));
-    Cf.arg_mut "-warn-if-no-trailing-newline-in-both"
-      (fun t s ->
-         set_once "-warn-if-no-trailing-newline-in-both"
-           t.Accum.warn_if_no_trailing_newline_in_both
-           (match String.lowercase s with
-            | "true" -> true
-            | "false" -> false
-            | other ->
-              failwiths "expected true or false, got" other [%sexp_of: string]))
-      ~doc:(sprintf "BOOL warn when neither file ends in a newline, even though this \
-                     does not constitute a diff (default: read from config, or %s)"
-              (Bool.to_string Configuration.warn_if_no_trailing_newline_in_both_default));
-  ]
-;;
-
 module Args = struct
   type compare_flags =
     { unrefined_opt                       : bool option
@@ -238,98 +46,51 @@ module Args = struct
   type t =
     | Compare of compare_flags
     | Make_config of string
-    | Print_readme
 
 end
 
 let remove_at_exit = ref []
 
-(* XXX : These need to work with the new flags *)
-let final t anon =
-  match !(t.Accum.make_config_file) with
-  | Some config_file -> Args.Make_config config_file
+let files_from_anons = function
+  | Some (old_file, new_file) -> old_file, new_file
   | None ->
-    match !(t.Accum.do_readme) with
-    | Some true -> Args.Print_readme
-    | _ ->
-      let args ~old_file ~new_file =
-        let old_file, new_file =
-          match !(t.Accum.reverse) with
-          | Some true -> new_file, old_file
-          | None | Some false -> old_file, new_file
-        in
-        Args.Compare
-          { Args.
-            old_file                            = old_file
-          ; new_file                            = new_file
-          ; unrefined_opt                       = !(t.Accum.unrefined_opt)
-          ; produce_unified_lines_opt           = !(t.Accum.produce_unified_lines_opt)
-          ; ext_cmp_opt                         = !(t.Accum.ext_cmp_opt)
-          ; float_tolerance_opt                 = !(t.Accum.float_tolerance_opt)
-          ; keep_ws_opt                         = !(t.Accum.keep_ws_opt)
-          ; split_long_lines_opt                = !(t.Accum.split_long_lines_opt)
-          ; interleave_opt                      = !(t.Accum.interleave_opt)
-          ; assume_text_opt                     = !(t.Accum.assume_text_opt)
-          ; shallow_opt                         = !(t.Accum.shallow_opt)
-          ; quiet_opt                           = !(t.Accum.quiet_opt)
-          ; double_check_opt                    = !(t.Accum.double_check_opt)
-          ; mask_uniques_opt                    = !(t.Accum.mask_uniques_opt)
-          ; output                              = !(t.Accum.output)
-          ; context_opt                         = !(t.Accum.context_opt)
-          ; line_big_enough_opt                 = !(t.Accum.line_big_enough_opt)
-          ; word_big_enough_opt                 = !(t.Accum.word_big_enough_opt)
-          ; config_opt                          = !(t.Accum.config_opt)
-          ; old_alt_opt                         = !(t.Accum.old_alt_opt)
-          ; new_alt_opt                         = !(t.Accum.new_alt_opt)
-          ; include_                            = !(t.Accum.include_)
-          ; exclude                             = !(t.Accum.exclude)
-          ; location_style                      = !(t.Accum.location_style)
-          ; warn_if_no_trailing_newline_in_both = !(t.Accum.warn_if_no_trailing_newline_in_both)
-          }
+    (* read from stdin *)
+    let temp_txt_file prefix =
+      let file, oc = Filename.open_temp_file prefix ".txt" in
+      remove_at_exit := file :: !remove_at_exit;
+      file, oc
+    in
+    let old_file, old_oc = temp_txt_file "patdiff_old_" in
+    let new_file, new_oc = temp_txt_file "patdiff_new_" in
+    let add_prefixes = ["+";">"] in
+    let remove_prefixes = ["-";"<"] in
+    let begins_with line prefixes = List.exists prefixes ~f:(fun prefix ->
+      String.is_prefix line ~prefix
+    )
+    in
+    let maybe_remove line prefixes =
+      let begins_with = List.find prefixes ~f:(fun prefix ->
+        String.is_prefix line ~prefix
+      )
       in
-      match anon with
-      | [old_file; new_file] -> args ~old_file ~new_file
-      | [] ->
-        (* read from stdin *)
-        let temp_txt_file prefix =
-          let file, oc = Filename.open_temp_file prefix ".txt" in
-          remove_at_exit := file :: !remove_at_exit;
-          file, oc
-        in
-        let old_file, old_oc = temp_txt_file "patdiff_old_" in
-        let new_file, new_oc = temp_txt_file "patdiff_new_" in
-        let add_prefixes = ["+";">"] in
-        let remove_prefixes = ["-";"<"] in
-        let begins_with line prefixes = List.exists prefixes ~f:(fun prefix ->
-          String.is_prefix line ~prefix
-        )
-        in
-        let maybe_remove line prefixes =
-          let begins_with = List.find prefixes ~f:(fun prefix ->
-            String.is_prefix line ~prefix
-          )
-          in
-          match begins_with with
-          | None -> line
-          | Some prefix -> " " ^ String.chop_prefix_exn line ~prefix
-        in
-        let process line begins_with_prefixes maybe_remove_prefixes oc =
-          if not (begins_with line begins_with_prefixes)
-          then begin
-            Out_channel.output_string oc (maybe_remove line maybe_remove_prefixes);
-            Out_channel.newline oc
-          end
-        in
-        In_channel.iter_lines In_channel.stdin ~f:(fun line ->
-          process line add_prefixes remove_prefixes old_oc;
-          process line remove_prefixes add_prefixes new_oc
-        );
-        Out_channel.close old_oc;
-        Out_channel.close new_oc;
-        args ~old_file ~new_file
-      | _ ->
-        failwithf "Please provide zero or two files to compare Usage: %s" usage_arg ()
-;;
+      match begins_with with
+      | None -> line
+      | Some prefix -> " " ^ String.chop_prefix_exn line ~prefix
+    in
+    let process line begins_with_prefixes maybe_remove_prefixes oc =
+      if not (begins_with line begins_with_prefixes)
+      then begin
+        Out_channel.output_string oc (maybe_remove line maybe_remove_prefixes);
+        Out_channel.newline oc
+      end
+    in
+    In_channel.iter_lines In_channel.stdin ~f:(fun line ->
+      process line add_prefixes remove_prefixes old_oc;
+      process line remove_prefixes add_prefixes new_oc
+    );
+    Out_channel.close old_oc;
+    Out_channel.close new_oc;
+    old_file, new_file
 
 (* Override default/config file options with command line arguments *)
 let override config (args : Args.compare_flags) =
@@ -440,7 +201,6 @@ let main' args =
 let main arg =
   match arg with
   | Args.Make_config file -> Make_config.main file
-  | Args.Print_readme -> Readme.main ()
   | Args.Compare compare_args ->
     let res = main' compare_args in
     List.iter !remove_at_exit ~f:(fun file ->
@@ -452,12 +212,195 @@ let main arg =
 ;;
 
 let command =
-  Deprecated_command.create
-    ~summary
-    ~usage_arg
-    ~init
-    ~flags
-    ~final
-    main
+  let flag_no_arg ?(inverted=false) name ~doc =
+    let open Command.Param in
+    map ~f:(fun b -> if b then Some (not inverted) else None) (flag name no_arg ~doc)
+  in
+  let specified_more_than_once s = failwithf "%s specified more than once" s () in
+  let open Command.Let_syntax in
+  Command.basic ~summary ~readme:(fun () -> Readme.doc)
+    [%map_open
+      let config_opt =
+        [%map
+          let default =
+            flag "default" no_arg
+              ~doc:" Use the default configuration instead of ~/.patdiff"
+          and file =
+            flag "file" (optional file)
+              ~doc:"FILE Use FILE as configuration file instead of ~/.patdiff"
+          in
+          match file, default with
+          | Some _, true -> specified_more_than_once "config"
+          | None, true -> Some ""
+          | _, false -> file
+        ]
+      and context_opt =
+        flag "context" (optional int)
+          ~doc:"NUM Show lines of unchanged context before and after changes"
+      and line_big_enough_opt, word_big_enough_opt =
+        [%map
+          let line_big_enough =
+            flag "line-big-enough" (optional int)
+              ~doc:"NUM Limit line-level semantic cleanup to the matches of length less than \
+                    NUM lines"
+          and no_semantic_cleanup =
+            flag "no-semantic-cleanup" no_arg
+              ~doc:" Don't do any semantic cleanup; let small, spurious matches survive"
+          and word_big_enough =
+            flag "word-big-enough" (optional int)
+              ~doc:"NUM Limit word-level semantic cleanup to the matches of length less than \
+                    NUM words"
+          in
+          let f name value =
+            match value, no_semantic_cleanup with
+            | Some _, true -> specified_more_than_once name
+            | None, true -> Some 1
+            | _, false -> value
+          in
+          f "line-big-enough" line_big_enough, f "word-big-enough" word_big_enough
+        ]
+      and ext_cmp_opt, unrefined_opt =
+        [%map
+          let ext_cmp =
+            flag "ext-cmp" (optional file)
+              ~doc:"FILE Use external string comparison program (implies -unrefined)"
+          and unrefined =
+            flag "unrefined" no_arg
+              ~doc:" Don't highlight word differences between lines"
+          in
+          let unrefined_opt =
+            match ext_cmp, unrefined with
+            | Some _, true ->
+              (* unrefined is set more than once, but both values agree, so it's fine. *)
+              Some true
+            | Some _, false
+            | None, true ->
+              (* only set once *)
+              Some true
+            | None, false ->
+              (* never set. *)
+              None
+          in
+          let ext_cmp_opt = Option.map ~f:Option.some ext_cmp in
+          ext_cmp_opt, unrefined_opt
+        ]
+      and keep_ws_opt =
+        flag_no_arg "keep-whitespace"
+          ~doc:" Consider whitespace when comparing lines"
+      and split_long_lines_opt =
+        flag_no_arg "split-long-lines"
+          ~doc:" Split long lines into multiple displayed lines"
+      and interleave_opt =
+        flag_no_arg ~inverted:true "no-interleave"
+          ~doc:" Don't attempt to split up large hunks near equalities"
+      and assume_text_opt =
+        flag_no_arg "text"
+          ~doc:" Treat all files as text (i.e. display diffs of binary file contents)"
+      and output =
+        choose_one [
+          map ~f:(function true -> Some (Some P.Output.Html) | _ -> None) (
+            flag "html" no_arg
+              ~doc:" Output in HTML format instead of default (ASCII with ANSI escape \
+                    codes)"
+          );
+          map ~f:(function true -> Some (Some P.Output.Ascii) | _ -> None) (
+            flag "ascii" no_arg
+              ~doc: " Output in ASCII with no ANSI escape codes (implies -unrefined)"
+          );
+          map ~f:(function true -> Some (Some P.Output.Ansi) | _ -> None)
+            (flag "ansi" no_arg ~doc: " Output in ASCII with ANSI escape codes")
+        ] ~if_nothing_chosen:(`Default_to None)
+      and produce_unified_lines_opt =
+        flag_no_arg ~inverted:true "dont-produce-unified-lines"
+          ~doc: " Don't produce unified lines"
+      and quiet_opt =
+        flag_no_arg "quiet"
+          ~doc: " Report only whether files differ, not the details"
+      and shallow_opt =
+        flag_no_arg "shallow"
+          ~doc: " When comparing directories, don't recurse into subdirs"
+      and double_check_opt =
+        flag_no_arg "double-check"
+          ~doc: " If files seem identical, double check with cmp"
+      and mask_uniques_opt =
+        flag_no_arg "mask-uniques"
+          ~doc: " When comparing directories, don't compare against /dev/null"
+      and float_tolerance_opt =
+        flag "float-tolerance" (optional (Arg_type.map percent ~f:Option.some))
+          ~doc:"PERCENT Consider strings equal if only difference is floats changing \
+                within PERCENT"
+      and old_alt_opt =
+        flag "alt-old" (optional (Arg_type.map file ~f:Option.some))
+          ~doc:"NAME Mask old filename with NAME"
+      and new_alt_opt =
+        flag "alt-new" (optional (Arg_type.map file ~f:Option.some))
+          ~doc:"NAME Mask new filename with NAME"
+      and make_config =
+        flag "make-config" (optional file)
+          ~doc:Make_config.doc
+      and include_ =
+        flag "include" (listed string)
+          ~doc:"REGEXP include files matching this pattern when comparing two directories"
+      and exclude =
+        flag "exclude" (listed string)
+          ~doc:"REGEXP exclude files matching this pattern when comparing two \
+                directories (overrides include patterns)"
+      and reverse =
+        flag "reverse" no_arg
+          ~doc:" produce a diff that undoes the changes"
+      and location_style =
+        flag "location-style" (optional (Arg_type.create P.Format.Location_style.of_string))
+          ~doc:(
+            let open P.Format.Location_style in
+            sprintf "<%s> how to format location information in hunk headers"
+              (String.concat ~sep:"|" (List.map all ~f:to_string)))
+      and warn_if_no_trailing_newline_in_both =
+        flag "warn-if-no-trailing-newline-in-both" (optional bool) ~doc:(
+          sprintf "BOOL warn when neither file ends in a newline, even though this \
+                   does not constitute a diff (default: read from config, or %b)"
+            Configuration.warn_if_no_trailing_newline_in_both_default
+        )
+      and files =
+        anon (maybe (t2 ("FILE1" %: file) ("FILE2" %: file)))
+      in
+      fun () ->
+        let args =
+          match make_config with
+          | Some file -> Args.Make_config file
+          | None ->
+            let old_file, new_file =
+              let pair = files_from_anons files in
+              if reverse then Tuple.T2.swap pair else pair
+            in
+            Args.Compare
+              { config_opt
+              ; context_opt
+              ; line_big_enough_opt
+              ; word_big_enough_opt
+              ; unrefined_opt
+              ; keep_ws_opt
+              ; split_long_lines_opt
+              ; interleave_opt
+              ; assume_text_opt
+              ; output
+              ; produce_unified_lines_opt
+              ; quiet_opt
+              ; shallow_opt
+              ; double_check_opt
+              ; mask_uniques_opt
+              ; ext_cmp_opt
+              ; float_tolerance_opt
+              ; old_alt_opt
+              ; new_alt_opt
+              ; include_
+              ; exclude
+              ; location_style
+              ; warn_if_no_trailing_newline_in_both
+              ; old_file
+              ; new_file
+              }
+        in
+        main args
+    ]
 
 
