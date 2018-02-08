@@ -1,5 +1,4 @@
 open! Core
-open Re2.Std
 open! Import
 
 module Range = Patience_diff.Range
