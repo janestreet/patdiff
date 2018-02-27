@@ -3,6 +3,11 @@
 export HERE=$(readlink -f $(dirname "$BASH_SOURCE"))
 export PATH="$(readlink -f $HERE/../bin/):$PATH"
 
+function patdiff {
+    patdiff.exe "$@"
+}
+export -f patdiff
+
 function visible_colors {
     $HERE/../../ansicodes/bin/ansicodes.exe visualize -minimize
 }

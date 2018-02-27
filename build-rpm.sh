@@ -4,9 +4,11 @@ pkg=$1
 
 jsrpmbuild=/j/office/app/jsrpmbuild/prod/bin/jsrpmbuild
 
-rpm="$(${jsrpmbuild} rpm -build-env-dir ${TMPDIR:-/tmp} ${pkg}.pkg.sexp)"
+rpm="$("${jsrpmbuild}" rpm -build-env-dir "${TMPDIR:-/tmp}" "${pkg}.pkg.sexp")"
 
-tar -c -f ${pkg}.rpm.tar -C $(dirname $rpm) --transform="s;^;${pkg}/;" $(basename $rpm)
+tar -c -f "${pkg}.rpm.tar" -C "$(dirname "$rpm")" --transform="s;^;${pkg}/;" "$(basename "$rpm")"
+
+rm "$rpm"
 
 # Why this crazy tarball stuff?
 #

@@ -27,7 +27,7 @@ module String_with_floats = struct
   let float_regex = lazy
     (let prefix = "(^|[ ;:,(){}\\[\\]<>=\\+\\-\\*/$])" in
      let suffix = "($|[ ;:,(){}\\[\\]<>=\\+\\-\\*/%]|(bp|s|m|ms)($|[^0-9a-zA-Z_]))" in
-     Re2.create_exn (prefix ^ "([0-9]+(\\.[0-9]+)?)" ^ suffix))
+     Re2.create_exn (prefix ^ "([\\-]?[0-9]+(\\.[0-9]+)?)" ^ suffix))
   ;;
 
   let create s =
@@ -54,15 +54,15 @@ module String_with_floats = struct
     open! Expect_test_helpers
 
     let%expect_test _ =
-      let prev = create "(dynamic (Ok ((price_range (18.8305 39.1095)))))\n" in
-      let next = create "(dynamic (Ok ((price_range (18.772 38.988)))))\n"   in
+      let prev = create "(dynamic (Ok ((price_range (-18.8305 39.1095)))))\n" in
+      let next = create "(dynamic (Ok ((price_range (-18.772 38.988)))))\n"   in
       print_s [%message (prev : t) (next : t)];
       [%expect {|
         ((prev (
-           (floats (18.8305 39.1095))
+           (floats (-18.8305 39.1095))
            (without_floats "(dynamic (Ok ((price_range ( )))))\n")))
          (next (
-           (floats (18.772 38.988))
+           (floats (-18.772 38.988))
            (without_floats "(dynamic (Ok ((price_range ( )))))\n")))) |}]
     ;;
 
