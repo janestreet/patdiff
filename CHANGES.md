@@ -1,4 +1,4 @@
-## git version
+## v0.11
 
 - Switch from `Core_extended.Std.Deprecated_command` to `Core.Command`.
 
