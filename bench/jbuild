@@ -2,7 +2,7 @@
  ((name patdiff_bench)
 (flags (:standard -safe-string))
   (libraries (core core_extended patdiff_lib))
-  (preprocess (pps (ppx_jane ppx_driver.runner)))))
+  (preprocess (pps (ppx_jane ppxlib.runner)))))
 
 (alias
  ((name save_benchmarks)
