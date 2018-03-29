@@ -1,3 +1,8 @@
+## git version
+
+- Fixed detection heuristic for binary files to function correctly given UTF-8
+  input.
+
 ## v0.11
 
 - Switch from `Core_extended.Std.Deprecated_command` to `Core.Command`.

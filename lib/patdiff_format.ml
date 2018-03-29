@@ -242,7 +242,7 @@ module Location_style = struct
             | Same s -> init + Array.length s
             | Old _ | New _ | Replace _ | Unified _ -> r.return init))
       in
-      sprintf "File \"%s\", line %i, characters 0-1:" mine_filename mine_start
+      error_message_start ~file:mine_filename ~line:mine_start;
   ;;
 
 end

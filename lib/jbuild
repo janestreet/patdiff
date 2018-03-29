@@ -1,7 +1,6 @@
 (library
  ((name patdiff_lib)
   (public_name patdiff.lib)
-(flags (:standard -safe-string))
   (libraries
    (core
     core_extended

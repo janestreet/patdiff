@@ -13,31 +13,6 @@ let lines_of_contents contents =
   lines, has_trailing_newline
 ;;
 
-let is_text_char = function
-  (* ascii ordinary text char range *)
-  | '\x20'..'\x7e'
-  (* newline, carriage return, tab, form feed, vertical tab, backspace *)
-  | '\n' | '\r' | '\t' | '\x0c' | '\x0b' | '\x08'
-    -> true
-  | _ -> false
-;;
-
-let is_probably_binary lines =
-  (* null byte exists anywhere within the lines *)
-  Array.exists lines ~f:(fun line -> String.exists line ~f:(fun c -> c = '\x00'))
-  (* or strictly fewer than 70% of the characters are text characters *)
-  || (
-    let (text, total) =
-      (* Add one to account for the newline from splitting into lines *)
-      Array.fold lines
-        ~init:(0, 0)
-        ~f:(fun (text, total) line ->
-          (text + String.count line ~f:is_text_char + 1
-          , total + String.length line + 1))
-    in
-    text < total * 7 / 10
-  )
-
 let%test_unit _ =
   let test contents ~expect =
     [%test_result: string array * [ `With_trailing_newline | `Missing_trailing_newline ]]
@@ -48,7 +23,6 @@ let%test_unit _ =
   test "hello\nworld" ~expect:([| "hello" ; "world" |], `Missing_trailing_newline);
   test "hello\nworld\n" ~expect:([| "hello" ; "world" |], `With_trailing_newline);
 ;;
-
 
 let lines_of_file file = lines_of_contents (In_channel.read_all file)
 ;;
@@ -87,9 +61,9 @@ let compare_lines config ~mine ~other =
   in
   let assume_text = config.C.assume_text in
   let (mine_is_binary, other_is_binary) =
-    if assume_text
-    then (false, false)
-    else (is_probably_binary mine, is_probably_binary other)
+    match assume_text with
+    | true -> (false, false)
+    | false -> Is_utf8.clearly_not_utf8 ~lines:mine, Is_utf8.clearly_not_utf8 ~lines:other
   in
   if not assume_text && (mine_is_binary || other_is_binary)
   then begin
@@ -155,12 +129,22 @@ let has_no_diff hunks =
   | `Hunks hunks -> List.for_all hunks ~f:Patience_diff.Hunk.all_same
 ;;
 
-let binary_different_message ~old_file ~mine_is_binary ~new_file ~other_is_binary =
-  sprintf "Files %s%s and %s%s differ"
-    old_file
-    (if mine_is_binary then " (binary)" else "")
-    new_file
-    (if other_is_binary then " (binary)" else "")
+let binary_different_message
+      ~(config : Configuration.t)
+      ~old_file ~mine_is_binary
+      ~new_file ~other_is_binary =
+  match config.location_style with
+  | Diff ->
+    sprintf "Files %s%s and %s%s differ"
+      old_file
+      (if mine_is_binary then " (binary)" else "")
+      new_file
+      (if other_is_binary then " (binary)" else "")
+  | Omake ->
+    String.concat
+      [ error_message_start ~file:old_file ~line:1; "\n"
+      ; "  File \""; new_file;"\"\n"
+      ; "  binary files differ\n" ]
 
 (* Print hunks to stdout *)
 let print hunks ~old_file ~new_file ~config =
@@ -185,7 +169,7 @@ There are no differences except those filtered by your settings\n%!"
       | `Binary_same -> assert false
       | `Binary_different (mine_is_binary, other_is_binary) ->
         Printf.printf "%s\n"
-          (binary_different_message ~old_file ~mine_is_binary ~new_file ~other_is_binary)
+          (binary_different_message ~config ~old_file ~mine_is_binary ~new_file ~other_is_binary)
       | `Hunks hunks ->
         Patdiff_core.print hunks ~old_file ~new_file ~output ~rules
           ~location_style:config.location_style
@@ -207,7 +191,8 @@ let diff_strings ?print_global_header (config : Configuration.t) ~old ~new_ =
     match hunks with
     | `Binary_same -> assert false
     | `Binary_different (mine_is_binary, other_is_binary) ->
-      binary_different_message ~old_file:old.name ~mine_is_binary ~new_file:new_.name ~other_is_binary
+      binary_different_message ~config
+        ~old_file:old.name ~mine_is_binary ~new_file:new_.name ~other_is_binary
     | `Hunks hunks ->
       Patdiff_core.output_to_string
         hunks
