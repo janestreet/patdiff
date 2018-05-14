@@ -3,11 +3,6 @@
   (libraries (core core_extended patdiff_lib))
   (preprocess (pps (ppx_jane ppxlib.runner)))))
 
-(alias
- ((name save_benchmarks)
-  (deps (inline_benchmarks_runner inline_benchmarks_runner.exe))
-  (action (bash "./inline_benchmarks_runner jenga-save-benchmarks"))))
-
 (rule
  ((targets (benchmark_inputs.ml))
   (deps ())
@@ -18,6 +13,5 @@ let new_ = {|\n$(hg cat -r e2539d6e474b $(hg root)/lib/core_kernel/src/core_list
 let old  = {|\n$(hg cat -r cf191a635efb $(hg root)/lib/core_kernel/src/core_list.ml)|}
 EOF
 "))))
-
 
 (jbuild_version 1)
