@@ -137,7 +137,7 @@ let%test_module "clearly_not_utf8" = (module struct
     if size <= 0 (* with no characters left, return empty list *)
     then []
     else (
-      let leading = Gen.generate utf8_leading_byte_gen ~size:0 state in
+      let leading = Gen.generate utf8_leading_byte_gen ~size:0 ~random:state in
       match leading with
       | '\x00' .. '\x7F' -> (* pure ASCII *)
         leading :: (create_utf8_char_list ~size:(size - 1) state)
@@ -147,7 +147,7 @@ let%test_module "clearly_not_utf8" = (module struct
         if size < 2 (* not enough space to generate 2-byte sequence, reject *)
         then create_utf8_char_list ~size state
         else (
-          let cont = Gen.generate continuation_byte_gen ~size:0 state in
+          let cont = Gen.generate continuation_byte_gen ~size:0 ~random:state in
           leading :: cont :: (create_utf8_char_list ~size:(size - 2) state))
       | '\xE0' .. '\xEF' -> (* 3-byte sequence leading byte *)
         if size < 3 (* not enough space, reject *)
@@ -159,8 +159,8 @@ let%test_module "clearly_not_utf8" = (module struct
             | '\xED' -> post_ED_byte_gen
             | _      -> continuation_byte_gen
           in
-          let cont1 = Gen.generate cont1_gen             ~size:0 state in
-          let cont2 = Gen.generate continuation_byte_gen ~size:0 state in
+          let cont1 = Gen.generate cont1_gen             ~size:0 ~random:state in
+          let cont2 = Gen.generate continuation_byte_gen ~size:0 ~random:state in
           leading :: cont1 :: cont2 :: (create_utf8_char_list ~size:(size - 3) state))
       | '\xF0' .. '\xF4' -> (* 4-byte sequence leading byte *)
         if size < 4 (* not enough space, reject *)
@@ -172,19 +172,19 @@ let%test_module "clearly_not_utf8" = (module struct
             | '\xF4' -> post_F4_byte_gen
             | _      -> continuation_byte_gen
           in
-          let cont1 = Gen.generate cont1_gen             ~size:0 state in
-          let cont2 = Gen.generate continuation_byte_gen ~size:0 state in
-          let cont3 = Gen.generate continuation_byte_gen ~size:0 state in
+          let cont1 = Gen.generate cont1_gen             ~size:0 ~random:state in
+          let cont2 = Gen.generate continuation_byte_gen ~size:0 ~random:state in
+          let cont3 = Gen.generate continuation_byte_gen ~size:0 ~random:state in
           leading :: cont1 :: cont2 :: cont3
           :: (create_utf8_char_list ~size:(size - 4) state))
       | _                -> create_utf8_char_list ~size state (* never reached *))
 
   let utf8_string_gen =
-    Gen.create (fun ~size state ->
+    Gen.create (fun ~size ~random:state ->
       (* Adapted from Core_kernel.String.For_quickcheck.default_length *)
       let upper_bound      = size + 1                                      in
       let weighted_low_gen = Int.gen_log_uniform_incl 0 upper_bound        in
-      let weighted_low     = Gen.generate weighted_low_gen ~size:0 state   in
+      let weighted_low     = Gen.generate weighted_low_gen ~size:0 ~random:state in
       let string_size      = upper_bound - weighted_low                    in
 
       let char_list        = create_utf8_char_list ~size:string_size state in

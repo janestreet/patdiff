@@ -6,8 +6,8 @@
 (rule
  ((targets (benchmark_inputs.ml))
   (deps ())
-;; the command needs access to the hg repository, which doesn't work
-                 ;; in the sandbox
+  ;; the command needs access to the hg repository, which doesn't work
+  ;; in the sandbox
   (action (bash "cat - > benchmark_inputs.ml <<EOF
 let new_ = {|\n$(hg cat -r e2539d6e474b $(hg root)/lib/core_kernel/src/core_list.ml)|}
 let old  = {|\n$(hg cat -r cf191a635efb $(hg root)/lib/core_kernel/src/core_list.ml)|}
