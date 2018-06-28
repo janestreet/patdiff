@@ -2,7 +2,6 @@
  ((names (patdiff))
   (libraries (
     core
-    core_extended
     patdiff_lib
     pcre
     sexplib))

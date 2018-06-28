@@ -3,8 +3,9 @@
   (public_name patdiff.lib)
   (libraries
    (core
-    core_extended
     expect_test_helpers
+    core_extended.find_files
+    shell.filename_extended
     patience_diff
     pcre
     re2

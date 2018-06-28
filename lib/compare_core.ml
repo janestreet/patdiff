@@ -1,5 +1,4 @@
 open Core
-open Core_extended.Std
 open Import
 
 let lines_of_contents contents =
@@ -211,13 +210,13 @@ let rec diff_dirs config ~old_file ~new_file ~file_filter =
   let module C = Configuration in
   (* Get a list of files for this directory only; do not descend farther
      (We recursively call diff_dirs later if we need to descend.) *)
-  let options = { Find.Options.default with
-                  Find.Options.max_depth = Some 1;
+  let options = { Find_files.Options.default with
+                  max_depth = Some 1;
                   filter = file_filter
                 } in
   let set_of_file file =
-    let files = Find.find_all ~options file in
-    let f = fun x -> let (n, _s) = x in Filename.make_relative ~to_:file n in
+    let files = Find_files.find_all ~options file in
+    let f = fun x -> let (n, _s) = x in Filename_extended.make_relative ~to_:file n in
     let names = List.map files ~f in
     String.Set.of_list names
   in

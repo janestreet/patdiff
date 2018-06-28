@@ -1,5 +1,4 @@
 open Core
-open Core_extended.Std
 module P = Patdiff_lib.Patdiff_core
 module Compare_core = Patdiff_lib.Compare_core
 module Configuration = Patdiff_lib.Configuration
@@ -146,7 +145,7 @@ let main' args =
         new_file, old_file
     in
     (* Match file with its twin file in dir *)
-    let module FO = Find.Options in
+    let module FO = Find_files.Options in
     let filter = fun (filename, _stats) -> filename = file in
     let options = {
       FO.
@@ -159,7 +158,7 @@ let main' args =
       skip_dir = FO.default.FO.skip_dir;
       relative_paths = false;
     } in
-    let matches = Find.find_all ~options dir in
+    let matches = Find_files.find_all ~options dir in
     begin match matches with
     | [(matched_filename, _stats)] ->
       let old_file, new_file =

@@ -1,5 +1,4 @@
 open! Core
-open Core_extended.Std
 
 val diff_files
   :  Configuration.t
@@ -11,7 +10,7 @@ val diff_dirs
   : Configuration.t
   -> old_file : string
   -> new_file : string
-  -> file_filter:(Find.file_info -> bool) option
+  -> file_filter:(Find_files.file_info -> bool) option
   -> [ `Different | `Same ]
 
 (* diff strings and output to strings, supposed to be used by ocaml code *)

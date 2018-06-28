@@ -1,6 +1,7 @@
 (library
  ((name patdiff_bench)
-  (libraries (core core_extended patdiff_lib))
+  (libraries (core
+              patdiff_lib))
   (preprocess (pps (ppx_jane ppxlib.runner)))))
 
 (rule

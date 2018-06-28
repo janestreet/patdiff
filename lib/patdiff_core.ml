@@ -248,7 +248,10 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
   let line = ref [] in
   (* lines is the return array *)
   let lines = ref [] in
-  let apply = Output_ops.Rule.apply ~output ~refined:false in
+  let apply ~rule = function
+    | "" -> ""
+    | s -> Output_ops.Rule.apply s ~rule ~output ~refined:false
+  in
   (*
    * Finish the current segment by applying the appropriate format
    * and popping it on to the end of the current line
@@ -306,6 +309,21 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
     finish_segment ()
   in
   List.iter ranges ~f;
+  (match !line with
+   | [] | [""] -> ()
+   | line ->
+     let line = String.concat (List.rev line) in
+     if is_ws line
+     then
+       (* This branch was unreachable in our regression tests, but I can't prove it's
+          unreachable in all cases. Rather than raise in production, let's drop this
+          whitespace. *)
+       ()
+     else
+       raise_s [%message
+         "Invariant violated: [collapse] got a line not terminated with a newline"
+           (line : string)
+       ]);
   Array.of_list (List.rev !lines)
 ;;
 

@@ -1,6 +1,6 @@
 open! Core
 open Patdiff_lib
-module Shell = Core_extended.Std.Shell
+
 
 let bench_core_list config =
   let old  = { Patdiff_core.name = "old"; text = Benchmark_inputs.old  } in
