@@ -180,14 +180,9 @@ let%test_module "clearly_not_utf8" = (module struct
       | _                -> create_utf8_char_list ~size state (* never reached *))
 
   let utf8_string_gen =
-    Gen.create (fun ~size ~random:state ->
-      (* Adapted from Core_kernel.String.For_quickcheck.default_length *)
-      let upper_bound      = size + 1                                      in
-      let weighted_low_gen = Int.gen_log_uniform_incl 0 upper_bound        in
-      let weighted_low     = Gen.generate weighted_low_gen ~size:0 ~random:state in
-      let string_size      = upper_bound - weighted_low                    in
-
-      let char_list        = create_utf8_char_list ~size:string_size state in
+    Gen.create (fun ~size ~random ->
+      let string_size = Gen.generate Gen.small_non_negative_int ~size ~random in
+      let char_list = create_utf8_char_list ~size:string_size random in
       String.of_char_list char_list)
 
   let%test_unit "purely ASCII strings pass" =
