@@ -7,10 +7,8 @@
     core_extended.find_files
     shell.filename_extended
     patience_diff
-    pcre
-    re2
+    re
     sexplib))
   (preprocess (pps (ppx_jane ppxlib.runner)))))
-
 
 (jbuild_version 1)

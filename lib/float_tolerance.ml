@@ -25,28 +25,40 @@ module String_with_floats = struct
   ;;
 
   let float_regex = lazy
-    (let prefix = "(^|[ ;:,(){}\\[\\]<>=\\+\\-\\*/$])" in
-     let suffix = "($|[ ;:,(){}\\[\\]<>=\\+\\-\\*/%]|(bp|s|m|ms)($|[^0-9a-zA-Z_]))" in
-     Re2.create_exn (prefix ^ "([\\-]?[0-9]+(\\.[0-9]+)?)" ^ suffix))
+    (let open Re in
+     let delim = set {| ;:,(){}[]<>=+-*/|} in
+     let prefix = group (alt [ start; char '$'; delim ]) in
+     let float =
+       group (seq [ opt (char '-')
+                  ; rep1 digit
+                  ; opt (seq [ char '.'; rep1 digit ]) ])
+     in
+     let suffix =
+       let suffix_with_delim = alt [ stop; char '%'; delim ] in
+       let suffix_with_unit =
+         let unit = alt [ str "bp"; str "s"; str "m"; str "ms" ] in
+         seq [ unit; eow ]
+       in
+       group (alt [ suffix_with_delim; suffix_with_unit ])
+     in
+     compile (seq [ prefix; float; suffix ]))
   ;;
 
   let create s =
-    let rec aux floats line =
-      match Re2.find_first ~sub:(`Index 2) (force float_regex) line with
-      | Error _ ->
-        { floats         = Array.of_list (List.rev floats)
-        ; without_floats = line
-        }
-      | Ok s ->
+    let rec loop floats line =
+      match Re.exec_opt (force float_regex) line with
+      | None -> { floats = Array.of_list_rev floats; without_floats = line }
+      | Some groups ->
+        let float = Float.of_string (Re.Group.get groups 2) in
         let line =
-          Re2.replace_exn (force float_regex) line ~only:0 ~f:(fun re2_match ->
-            let prefix = Re2.Match.get_exn re2_match ~sub:(`Index 1) in
-            let suffix = Re2.Match.get_exn re2_match ~sub:(`Index 4) in
+          Re.replace (force float_regex) line ~all:false ~f:(fun groups ->
+            let prefix = Re.Group.get groups 1 in
+            let suffix = Re.Group.get groups 3 in
             prefix ^ suffix)
         in
-        aux (Float.of_string s :: floats) line
+        loop (float :: floats) line
     in
-    aux [] s
+    loop [] s
   ;;
 
   include struct

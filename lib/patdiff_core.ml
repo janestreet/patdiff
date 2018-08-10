@@ -5,16 +5,22 @@ module Format = Patdiff_format
 module Output = Output_mode
 
 (* Strip whitespace from a string by stripping and replacing with spaces *)
-let ws_rex = Pcre.regexp "[\\s]+"
-let ws_rex_anchored = Pcre.regexp "^[\\s]*$"
-let ws_sub = Pcre.subst " "
+let ws_rex = Re.compile Re.(rep1 space)
+let ws_rex_anchored = Re.compile Re.(seq [ bol; rep space; eol ])
+let ws_sub = " "
 
-let remove_ws s = String.strip (Pcre.replace ~rex:ws_rex ~itempl:ws_sub s)
-let is_ws s = Pcre.pmatch s ~rex:ws_rex_anchored
+let remove_ws s = String.strip (Re.replace_string ws_rex s ~by:ws_sub)
+
+let is_ws = Re.execp ws_rex_anchored
 
 (* This regular expression describes the delimiters on which to split the string *)
-let words_rex = Pcre.regexp
-                  "\\\"|\\{|\\}|\\[|\\]|[\\=\\`\\+\\-\\/\\!\\@\\$\\%\\^\\&\\*\\:]+|\\#|,|\\.|;|\\)|\\(|_|\\s+"
+let words_rex =
+  let open Re in
+  let delim = set {|"{}[]#,.;()_|} in
+  let punct = rep1 (set {|=`+-/!@$%^&*:|}) in
+  let space = rep1 space in
+  compile (alt [ delim; punct; space ])
+;;
 
 (* Split a string into a list of string options delimited by words_rex
    (delimiters included) *)
@@ -23,14 +29,16 @@ let split s ~keep_ws =
   if String.is_empty s && keep_ws
   then [ "" ]
   else begin
-    let list = Pcre.full_split ~max:(-1) ~rex:words_rex s in
-    List.filter_map list ~f:
-      (fun split_result ->
-         match split_result with
-         | Pcre.Text s -> Some s
-         | Pcre.Delim s -> Some s
-         | Pcre.Group _ -> assert false   (* Irrelevant, since rex has no groups *)
-         | Pcre.NoGroup -> assert false ) (* Ditto *)
+    Re.split_full words_rex s
+    |> List.filter_map ~f:(fun token ->
+      let string =
+        match token with
+        | `Delim d -> Re.Group.get d 0
+        | `Text t -> t
+      in
+      if String.is_empty string
+      then None
+      else Some string)
   end
 ;;
 
@@ -42,13 +50,21 @@ let whitespace_ignorant_split s =
   if String.is_empty s
   then []
   else begin
-    let istext s = not (Pcre.pmatch s ~rex:ws_rex) in
+    let istext s = not (Re.execp ws_rex s) in
     split s ~keep_ws:false
     |> List.group ~break:(fun split_result1 _ -> istext split_result1)
     |> List.map ~f:String.concat
   end
 ;;
 
+include struct
+  open Expect_test_helpers
+
+  let%expect_test _ =
+    print_s ([%sexp_of: string list] (split ~keep_ws:true ""));
+    [%expect {| ("") |}]
+  ;;
+end
 
 module type Output = Output_intf.S
 
@@ -131,7 +147,7 @@ let default_context = 16
    can only decrease the number of matches. *)
 let default_line_big_enough = 3
 
-(* Analagous to above, but for word-level refinement *)
+(* Analogous to above, but for word-level refinement *)
 let default_word_big_enough = 7
 
 (* Governs the behavior of [split_for_readability].  We will only split ranges around
