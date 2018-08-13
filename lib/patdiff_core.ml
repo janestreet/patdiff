@@ -19,7 +19,13 @@ let words_rex =
   let delim = set {|"{}[]#,.;()_|} in
   let punct = rep1 (set {|=`+-/!@$%^&*:|}) in
   let space = rep1 space in
-  compile (alt [ delim; punct; space ])
+  (* We don't want to split up ANSI color sequences, so let's make sure they get through
+     intact. *)
+  let ansi_sgr_sequence =
+    let esc = char '\027' in
+    seq [ esc; char '['; rep (alt [ char ';'; digit ]); char 'm' ]
+  in
+  compile (alt [ delim; punct; space; ansi_sgr_sequence ])
 ;;
 
 (* Split a string into a list of string options delimited by words_rex

@@ -8,7 +8,6 @@ Expect no ANSI escapes and no intra-line refinement.
   > hello
   > EOF
 
-
   $ patdiff.exe -default prev next -ascii
   ------ prev
   ++++++ next
