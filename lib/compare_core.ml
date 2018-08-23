@@ -66,7 +66,7 @@ let compare_lines config ~mine ~other =
   in
   if not assume_text && (mine_is_binary || other_is_binary)
   then begin
-    if Array.equal ~equal:String.(=) mine other
+    if Array.equal String.(=)  mine other
     then `Binary_same
     else `Binary_different (mine_is_binary, other_is_binary)
   end

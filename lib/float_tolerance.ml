@@ -21,7 +21,7 @@ module String_with_floats = struct
     in
     stage (fun t t' ->
       String.(=) t.without_floats t'.without_floats
-      && Array.equal ~equal t.floats t'.floats)
+      && Array.equal equal  t.floats t'.floats)
   ;;
 
   let float_regex = lazy
