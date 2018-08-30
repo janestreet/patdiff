@@ -2,7 +2,8 @@ open! Core
 open! Async
 open Import
 
-let ahello = "
+let ahello =
+  {|
   hello
   hello
   hello
@@ -16,9 +17,11 @@ let ahello = "
   hello
   hello
   goodbye
-"
+|}
+;;
 
-let bhello = "
+let bhello =
+  {|
   goodbye
   hello
   hello
@@ -32,11 +35,13 @@ let bhello = "
   hello
   hello
   hello
-"
+|}
+;;
 
 let%expect_test "Don't focus too much on unique lines if it gives absurd diffs." =
   let%bind () = patdiff ~extra_flags:[] ~mine:ahello ~other:bhello in
-  [%expect {|
+  [%expect
+    {|
 (fg:red)------ (+bold)mine
 (fg:green)++++++ (+bold)other
 (fg:black)@|(+bold)-1,14 +1,14(off) ============================================================
@@ -58,23 +63,27 @@ let%expect_test "Don't focus too much on unique lines if it gives absurd diffs."
 ("Unclean exit" (Exit_non_zero 1)) |}]
 ;;
 
-
-let ayellow = "
+let ayellow =
+  {|
 val kernel                         : string option
 val build_date                     : Date.t option
 val build_time                     : Time_float.Ofday.t option
 val x_library_inlining             : bool
-"
+|}
+;;
 
-let byellow = "
+let byellow =
+  {|
 val kernel                         : string option
 val build_time                     : Time_float.t option
 val x_library_inlining             : bool
-"
+|}
+;;
 
 let%expect_test "Prefer one yellow line and one red line to two yellow lines" =
   let%bind () = patdiff ~extra_flags:[] ~mine:ayellow ~other:byellow in
-  [%expect {|
+  [%expect
+    {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other
         (fg:black)@|(+bold)-1,5 +1,4(off) ============================================================
@@ -92,7 +101,8 @@ let bcity = "hello with the signs of the city\n"
 
 let%expect_test "Prefer one block of equality to two" =
   let%bind () = patdiff ~extra_flags:[] ~mine:acity ~other:bcity in
-  [%expect {|
+  [%expect
+    {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other
         (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
@@ -100,19 +110,24 @@ let%expect_test "Prefer one block of equality to two" =
         ("Unclean exit" (Exit_non_zero 1)) |}]
 ;;
 
-let aarb = "
+let aarb =
+  {|
           (the_army_that_fun_what_me_key_keyboard     (2000wel then ~1e-875))
           (the_army_that_fun_what_you_key_keyboard (1000wel then ~1e-730))
-"
+|}
+;;
 
-let barb = "
+let barb =
+  {|
           (the_army_that_fun_what_me_key_keyboard     (3000wel then ~1e-589))
           (the_army_that_fun_what_you_key_keyboard (2000wel then ~1e-314))
-"
+|}
+;;
 
 let%expect_test "Try to match up long variable names" =
   let%bind () = patdiff ~extra_flags:[] ~mine:aarb ~other:barb in
-  [%expect {|
+  [%expect
+    {|
 (fg:red)------ (+bold)mine
 (fg:green)++++++ (+bold)other
 (fg:black)@|(+bold)-1,3 +1,3(off) ============================================================
@@ -127,7 +142,8 @@ let%expect_test "Try to match up long variable names" =
 (* The following section contains 3 examples from real diffs
    (i.e., different versions of the same Jane Street file). *)
 
-let acode = "  let seen = Node_id.Hash_set.create () in
+let acode =
+  {|  let seen = Node_id.Hash_set.create () in
   let rec iter_descendants node =
     if not (Hash_set.mem seen node.id) then begin
       Hash_set.add seen node.id;
@@ -141,30 +157,34 @@ let acode = "  let seen = Node_id.Hash_set.create () in
 
 let save_dot t file =
   Out_channel.with_file file ~f:(fun out ->
-    let node_name node = \"n\" ^ Node_id.to_string node.id in
-    fprintf out \"digraph G {\\n\";
-    fprintf out \"  rankdir = BT\\n\";
+    let node_name node = "n" ^ Node_id.to_string node.id in
+    fprintf out "digraph G {\n";
+    fprintf out "  rankdir = BT\n";
     let handle_descendant (type a) (from : a Node.t) =
       let from_name = node_name from in
-      fprintf out \"  %s [label=\"%s %s\\nheight = %d\"]\\n\"
+      fprintf out "  %s [label="%s %s\nheight = %d"]\n"
         from_name from_name (Kind.name from.kind) from.height;
       Node.iteri_parents from ~f:(fun _ to_ ->
-        fprintf out \"  %s -> %s\\n\" from_name (node_name to_));
+        fprintf out "  %s -> %s\n" from_name (node_name to_));
       begin match from.kind with
       | Bind_lhs_change bind ->
         Bind.iter_nodes_created_on_rhs bind ~f:(fun to_ ->
-          fprintf out \"  %s -> %s [style=dashed]\\n\" from_name (node_name to_));
+          fprintf out "  %s -> %s [style=dashed]\n" from_name (node_name to_));
       | _ -> ()
       end
     in
     iter_observer_descendants t ~f:handle_descendant;
-    fprintf out \"}\\n%!\")
-"
-let bcode = "  Node.Packed.iter_descendants (directly_observed t) ~f\n"
+    fprintf out "}\n%!")
+|}
+;;
+
+let bcode = {|  Node.Packed.iter_descendants (directly_observed t) ~f
+|}
 
 let%expect_test "Delete spurious matches, part 1" =
   let%bind () = patdiff ~extra_flags:[] ~mine:acode ~other:bcode in
-  [%expect {|
+  [%expect
+    {|
         (fg:red)------ (+bold)mine
         (fg:green)++++++ (+bold)other
         (fg:black)@|(+bold)-1,32 +1,1(off) ============================================================
@@ -204,22 +224,25 @@ let%expect_test "Delete spurious matches, part 1" =
         ("Unclean exit" (Exit_non_zero 1)) |}]
 ;;
 
-let amodule = "module App = struct
+let amodule =
+  {|module App = struct
   let main = main
-  let appname = \"carole-exploder\"
-  let default_appdir = Some \"/j/office/app/carole/exploder\"
+  let appname = "carole-exploder"
+  let default_appdir = Some "/j/office/app/carole/exploder"
   let before_async = ignore
   let instances_in_subdir = false
   let multi_machine = false
 end
-"
+|}
+;;
 
-let bmodule = "let compile_command =
+let bmodule =
+  {|let compile_command =
   Command.async_basic
-    ~summary:\"compile a Carole config repo\"
+    ~summary:"compile a Carole config repo"
     Command.Spec.(
       empty
-      +> anon (\"repo\" %: file)
+      +> anon ("repo" %: file)
     )
     (fun dir () ->
        read_file_list ~dir >>= fun files ->
@@ -229,22 +252,23 @@ let bmodule = "let compile_command =
        in
        Carole_plugin.Intf.load files >>= function
        | Error error ->
-         Printf.printf \"Can't compile: %s\\n%!\" error;
+         Printf.printf "Can't compile: %s\n%!" error;
          exit 1
        | Ok all_systems ->
-         Printf.printf \"Compiles: \\n%s\\n%!\"
+         Printf.printf "Compiles: \n%s\n%!"
            (All_systems_pretty_sexp.create all_systems
             |> All_systems_pretty_sexp.sexp_of_t
             |> Sexp.to_string_hum
            );
          exit 0
     )
-"
-
+|}
+;;
 
 let%expect_test "Delete spurious matches, part 2 - whitespace ought not to match" =
   let%bind () = patdiff ~extra_flags:[] ~mine:amodule ~other:bmodule in
-  [%expect {|
+  [%expect
+    {|
 (fg:red)------ (+bold)mine
 (fg:green)++++++ (+bold)other
 (fg:black)@|(+bold)-1,8 +1,25(off) ============================================================
@@ -284,7 +308,8 @@ let%expect_test "Delete spurious matches, part 2 - whitespace ought not to match
 ("Unclean exit" (Exit_non_zero 1)) |}]
 ;;
 
-let ascattered = "  let pred t select =
+let ascattered =
+  {|  let pred t select =
     with_return (fun {return} ->
       let select token = match select token with Some x -> x | None -> return None in
       let eval_term term =
@@ -293,17 +318,21 @@ let ascattered = "  let pred t select =
       Olang.eval t ~compare:(fun t1 t2 ->
         Bignum_float.compare (eval_term t1) (eval_term t2))
       |> Option.some)
-"
+|}
+;;
 
-let bscattered = "  let eval_filter (field, num_sel) oinfo =
+let bscattered =
+  {|  let eval_filter (field, num_sel) oinfo =
     select_opt oinfo ~eval:(Numeric_selector.eval num_sel)
       ~sel:(fun oinfo ->
         Oinfo.From_server.float_field oinfo field)
-"
+|}
+;;
 
 let%expect_test "Delete spurious matches, part 3 - shorter example with a lot of chaff" =
   let%bind () = patdiff ~extra_flags:[] ~mine:ascattered ~other:bscattered in
-  [%expect {|
+  [%expect
+    {|
     (fg:red)------ (+bold)mine
     (fg:green)++++++ (+bold)other
     (fg:black)@|(+bold)-1,9 +1,4(off) ============================================================

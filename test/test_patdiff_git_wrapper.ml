@@ -13,23 +13,23 @@ let links =
   ]
 ;;
 
-let%expect_test "patdiff-git-wrapper" = within_temp_dir ~links (fun () ->
-  (* Set up repo with a dirty working directory. *)
-  let%bind () = run "git" [ "init"; "-q" ] in
-  let%bind () = Writer.save "foo" ~contents:"foo bar baz\n" in
-  let%bind () = run "git" [ "add"; "foo"; ] in
-  let%bind () = run "git" [ "commit"; "-a"; "-m"; "z"; "-q"; ] in
-  let%bind () = Writer.save "foo" ~contents:"foo baz quux\n" in
-
-  (* Override whatever patdiff config the user has. *)
-  let%bind () = run "patdiff" [ "-make-config"; ".patdiff"; ] in
-  let%bind () = [%expect {| Default configuration written to .patdiff |}] in
-  Unix.putenv ~key:"HOME" ~data:".";
-
-  (* Standard git diff. *)
-  let%bind () = run "git" [ "diff" ] in
-  let%bind () =
-    [%expect {|
+let%expect_test "patdiff-git-wrapper" =
+  within_temp_dir ~links (fun () ->
+    (* Set up repo with a dirty working directory. *)
+    let%bind () = run "git" [ "init"; "-q" ] in
+    let%bind () = Writer.save "foo" ~contents:"foo bar baz\n" in
+    let%bind () = run "git" [ "add"; "foo" ] in
+    let%bind () = run "git" [ "commit"; "-a"; "-m"; "z"; "-q" ] in
+    let%bind () = Writer.save "foo" ~contents:"foo baz quux\n" in
+    (* Override whatever patdiff config the user has. *)
+    let%bind () = run "patdiff" [ "-make-config"; ".patdiff" ] in
+    let%bind () = [%expect {| Default configuration written to .patdiff |}] in
+    Unix.putenv ~key:"HOME" ~data:".";
+    (* Standard git diff. *)
+    let%bind () = run "git" [ "diff" ] in
+    let%bind () =
+      [%expect
+        {|
       diff --git a/foo b/foo
       index 1aeaedb..434ebd4 100644
       --- a/foo
@@ -37,12 +37,12 @@ let%expect_test "patdiff-git-wrapper" = within_temp_dir ~links (fun () ->
       @@ -1 +1 @@
       -foo bar baz
       +foo baz quux |}]
-  in
-
-  (* Diff according to instructions in the script. *)
-  Unix.putenv ~key:"GIT_EXTERNAL_DIFF" ~data:"patdiff-git-wrapper";
-  let%bind () = system "git diff | ansicodes visualize -minimize" in
-  [%expect {|
+    in
+    (* Diff according to instructions in the script. *)
+    Unix.putenv ~key:"GIT_EXTERNAL_DIFF" ~data:"patdiff-git-wrapper";
+    let%bind () = system "git diff | ansicodes visualize -minimize" in
+    [%expect
+      {|
       (+bold)patdiff -git a/foo b/foo
       (+bold)index 1aeaedb..0000000 100644
       (fg:red)------ (+bold) a/foo

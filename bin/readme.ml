@@ -12,9 +12,7 @@ let main () =
     (Filename.temp_file "patdiff" ".man")
     ~f:(fun fn ->
       let readme = Text.Readme.readme in
-      Out_channel.write_lines fn [readme];
-      ignore (Unix.system (sprintf "groff -Tascii -man %s|less" fn));
-    )
-    ~finally:(fun fn ->
-      Exn.handle_uncaught (fun () -> Unix.unlink fn) ~exit:false);
+      Out_channel.write_lines fn [ readme ];
+      ignore (Unix.system (sprintf "groff -Tascii -man %s|less" fn)))
+    ~finally:(fun fn -> Exn.handle_uncaught (fun () -> Unix.unlink fn) ~exit:false)
 ;;

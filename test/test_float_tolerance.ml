@@ -5,8 +5,7 @@ open Import
 let diff mine other tolerance message =
   printf !"====== %{Sexp} ======\n" message;
   patdiff
-    ~extra_flags:[ "-float-tol"; Percent.to_string tolerance
-                 ; "-ascii" ]
+    ~extra_flags:[ "-float-tol"; Percent.to_string tolerance; "-ascii" ]
     ~mine
     ~other
 ;;
@@ -18,18 +17,18 @@ let test prev next =
 ;;
 
 let%expect_test _ =
-  let%bind () =
-    test "
+  let%bind () = test {|
  foo
  bar
  bax
- baz\n"
-      "
+ baz
+|} {|
  foo
  bar
- baz\n"
-  in
-  [%expect {|
+ baz
+|} in
+  [%expect
+    {|
       ====== strict ======
       ------ mine
       ++++++ other
@@ -55,7 +54,7 @@ let%expect_test _ =
 let%expect_test _ =
   let%bind () =
     test
-      "((apples 12345678 23456789))
+      {|((apples 12345678 23456789))
  (bananas (09:30:00.000000 16:00:00.000000))
  (clementines 10s) (durian 50ms)
  (elderberries 1s) (figs 2s)
@@ -70,9 +69,9 @@ let%expect_test _ =
  (raspberries true)
  (strawberries (are_red Surprisingly_not_always))
  (tamarind ())
- (ugli_fruits 30s))\n"
-
-      "((apples 12345678 23456788))
+ (ugli_fruits 30s))
+|}
+      {|((apples 12345678 23456788))
  (bananas (09:30:00.000000 15:59:00.000000))
  (clementines 10s) (durian 50ms)
  (elderberries 1s) (figs 2s)
@@ -87,9 +86,11 @@ let%expect_test _ =
  (raspberries true)
  (strawberries (are_red Surprisingly_not_always))
  (tamarind ())
- (ugli_fruits 32s))\n"
+ (ugli_fruits 32s))
+|}
   in
-  [%expect {|
+  [%expect
+    {|
     ====== strict ======
     ------ mine
     ++++++ other

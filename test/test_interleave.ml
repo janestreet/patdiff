@@ -2,7 +2,8 @@ open! Core
 open! Async
 open Import
 
-let asexp = "((matrix
+let asexp =
+  {|((matrix
    ((Wub (Doj 0.2uf Doj_min)) 0.017678127290832395)
    ((Wub (Doj 0.2uf Doj_roral)) 0.0048403389770755555)
    ((Wub (Doj 0.5uf Doj_min)) 0.014466863493201646)
@@ -13,9 +14,11 @@ let asexp = "((matrix
    ((Wub (Doj 2uf Doj_roral)) -0.0025208962986203744)
    ((Wub (Doj 5uf Doj_min)) -0.0080637581989214044)
    ((Wub (Doj 5uf Doj_roral)) -0.00970044513736832)
-"
+|}
+;;
 
-let bsexp = "((matrix
+let bsexp =
+  {|((matrix
    ((Wub (Doj 0.2uf Doj_min)) 0.018567212015996211)
    ((Wub (Doj 0.2uf Doj_roral)) 0.018367577773486032)
    ((Wub (Doj 0.5uf Doj_min)) 0.010881217012225865)
@@ -26,11 +29,13 @@ let bsexp = "((matrix
    ((Wub (Doj 2uf Doj_roral)) 0.032593610617333894)
    ((Wub (Doj 5uf Doj_min)) -0.0029337298579622381)
    ((Wub (Doj 5uf Doj_roral)) 0.023400924901561738)
-"
+|}
+;;
 
 let%expect_test "Interleave sexp files" =
   let%bind () = patdiff ~extra_flags:[] ~mine:asexp ~other:bsexp in
-  [%expect {|
+  [%expect
+    {|
 (fg:red)------ (+bold)mine
 (fg:green)++++++ (+bold)other
 (fg:black)@|(+bold)-1,11 +1,11(off) ============================================================

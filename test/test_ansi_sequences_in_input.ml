@@ -8,7 +8,8 @@ let bansi = "\027[0;2m\n"
 
 let%expect_test "ansi escape code in input" =
   let%bind () = patdiff ~extra_flags:[] ~mine:aansi ~other:bansi in
-  [%expect {|
+  [%expect
+    {|
     (fg:red)------ (+bold)mine
     (fg:green)++++++ (+bold)other
     (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
@@ -18,14 +19,14 @@ let%expect_test "ansi escape code in input" =
   |}]
 ;;
 
-
 let acolored_text = "\027[0;33myellow text\027[0m\n"
 
 let bcolored_text = "\027[0;34mblue text\027[0m\n"
 
 let%expect_test "colored text" =
   let%bind () = patdiff ~extra_flags:[] ~mine:acolored_text ~other:bcolored_text in
-  [%expect {|
+  [%expect
+    {|
     (fg:red)------ (+bold)mine
     (fg:green)++++++ (+bold)other
     (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================

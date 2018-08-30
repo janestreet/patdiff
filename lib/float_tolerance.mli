@@ -9,5 +9,5 @@ open Import
 val apply
   :  string Patience_diff.Hunks.t
   -> Percent.t
-  -> context : int
+  -> context:int
   -> string Patience_diff.Hunks.t

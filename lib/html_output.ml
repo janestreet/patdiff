@@ -21,7 +21,7 @@ let string_of_color c =
   | C.Bright_magenta -> "#FF00FF"
   | C.Bright_cyan -> "#00FFFF"
   | C.Bright_white -> "#FFFFFF"
-  | C.RGB6 {r; g; b} ->
+  | C.RGB6 { r; g; b } ->
     let percent x = float (x * 100) /. 5.0 in
     sprintf "rgb(%f%%,%f%%,%f%%)" (percent r) (percent g) (percent b)
   | C.Gray24 { level } ->
@@ -33,26 +33,28 @@ module Style = struct
   let apply text ~styles =
     let module S = Patdiff_format.Style in
     let start_tags, end_tags =
-      List.fold styles ~init:([],[]) ~f:(fun (s, e) style ->
+      List.fold styles ~init:([], []) ~f:(fun (s, e) style ->
         match style with
-        | S.Bold -> "<span style=\"font-weight:bold\">"::s, "</span>"::e
+        | S.Bold -> "<span style=\"font-weight:bold\">" :: s, "</span>" :: e
         | S.Reset -> s, e
         | S.Foreground c | S.Fg c ->
-          (sprintf "<span style=\"color:%s\">" (string_of_color c))::s, "</span>"::e
+          sprintf "<span style=\"color:%s\">" (string_of_color c) :: s, "</span>" :: e
         | S.Background c | S.Bg c ->
-          (sprintf "<span style=\"background-color:%s\">" (string_of_color c))::s,
-          "</span>"::e
-        | S.Underline | S.Emph -> "<u>"::s, "</u>"::e
-        | S.Blink -> "<span style=\"text-decoration:blink\">"::s, "</span>"::e
+          ( sprintf "<span style=\"background-color:%s\">" (string_of_color c) :: s
+          , "</span>" :: e )
+        | S.Underline | S.Emph -> "<u>" :: s, "</u>" :: e
+        | S.Blink -> "<span style=\"text-decoration:blink\">" :: s, "</span>" :: e
         | S.Inverse -> s, e
-        | S.Hide -> "<!-- "::s, " -->"::e
+        | S.Hide -> "<!-- " :: s, " -->" :: e
         | S.Dim ->
           (* "<span style=\"font-weight:lighter\">"::s, "</span>"::e *)
-          (sprintf "<span style=\"color:%s\">" (string_of_color Patdiff_format.Color.Gray))::s,
-          "</span>"::e
-      )
+          ( sprintf
+              "<span style=\"color:%s\">"
+              (string_of_color Patdiff_format.Color.Gray)
+            :: s
+          , "</span>" :: e ))
     in
-    let lst = start_tags @ [text] @ end_tags in
+    let lst = start_tags @ [ text ] @ end_tags in
     String.concat ~sep:"" lst
   ;;
 end
@@ -65,40 +67,45 @@ let html_escape_char = function
   | '>' -> "&gt;"
   | '&' -> "&amp;"
   | c -> String.of_char c
+;;
 
-let html_escape s =
-  String.concat_map s ~f:html_escape_char
+let html_escape s = String.concat_map s ~f:html_escape_char
 
 module Rule = struct
-
   let apply text ~rule ~refined =
     let module R = Patdiff_format.Rule in
     let module A = Patdiff_format.Rule.Annex in
     let apply styles text = Style.apply text ~styles in
-    sprintf "%s%s%s"
+    sprintf
+      "%s%s%s"
       (apply rule.R.pre.A.styles rule.R.pre.A.text)
-      (if refined then apply [Patdiff_format.Style.Reset] text else apply rule.R.styles (html_escape text))
+      (if refined
+       then apply [ Patdiff_format.Style.Reset ] text
+       else apply rule.R.styles (html_escape text))
       (apply rule.R.suf.A.styles rule.R.suf.A.text)
-
+  ;;
 end
 
 let print_header ~rules ~file_names:(old_file, new_file) ~print =
   let print_line file rule =
     let get_time s =
-      try Time.to_string (Time.of_span_since_epoch (Time.Span.of_sec (Unix.stat s).Unix.st_mtime))
-      with _e -> "" in
+      try
+        Time.to_string
+          (Time.of_span_since_epoch (Time.Span.of_sec (Unix.stat s).Unix.st_mtime))
+      with
+      | _e -> ""
+    in
     let time = get_time file in
     print (Rule.apply (file ^ " " ^ time) ~rule ~refined:false)
   in
   let module Rz = Patdiff_format.Rules in
   print_line old_file rules.Rz.header_old;
-  print_line new_file rules.Rz.header_new;
+  print_line new_file rules.Rz.header_new
 ;;
 
 let print ~print_global_header ~file_names ~rules ~print ~location_style hunks =
   print "<pre style=\"font-family:consolas,monospace\">";
-  if print_global_header
-  then print_header ~rules ~file_names ~print;
+  if print_global_header then print_header ~rules ~file_names ~print;
   let f hunk =
     let module Rz = Patdiff_format.Rules in
     Patdiff_format.Location_style.sprint
@@ -113,8 +120,7 @@ let print ~print_global_header ~file_names ~rules ~print ~location_style hunks =
       | R.Same r ->
         let mr = Array.map r ~f:snd in
         Array.iter mr ~f:print
-      | R.Old r | R.New r | R.Unified r ->
-        Array.iter r ~f:print
+      | R.Old r | R.New r | R.Unified r -> Array.iter r ~f:print
       | R.Replace (ar1, ar2) ->
         Array.iter ar1 ~f:print;
         Array.iter ar2 ~f:print
@@ -122,5 +128,5 @@ let print ~print_global_header ~file_names ~rules ~print ~location_style hunks =
     List.iter hunk.ranges ~f:handle_range
   in
   List.iter hunks ~f;
-  print "</pre>";
+  print "</pre>"
 ;;

@@ -10,7 +10,7 @@ val iter'
   -> unit
 
 val iter
-  :  f_hunk_break:((int*int) -> (int*int) -> unit)
+  :  f_hunk_break:(int * int -> int * int -> unit)
   -> f_line:(string -> unit)
   -> t
   -> unit

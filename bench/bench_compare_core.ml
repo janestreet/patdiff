@@ -1,9 +1,8 @@
 open! Core
 open Patdiff_lib
 
-
 let bench_core_list config =
-  let old  = { Patdiff_core.name = "old"; text = Benchmark_inputs.old  } in
+  let old = { Patdiff_core.name = "old"; text = Benchmark_inputs.old } in
   let new_ = { Patdiff_core.name = "new"; text = Benchmark_inputs.new_ } in
   fun () -> Compare_core.diff_strings config ~old ~new_
 ;;
