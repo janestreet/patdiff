@@ -1,12 +1,12 @@
 
 (library
  ((name patdiff_test)
-  (preprocess (pps (ppx_jane -dont-check-doc-comments-attachment ppxlib.runner)))
   (libraries (
     async
     core
     expect_test_helpers
-    ))))
+    ))
+  (preprocess (pps (ppx_jane ppxlib.runner)))))
 
 
 (jbuild_version 1)
