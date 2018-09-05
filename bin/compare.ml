@@ -212,7 +212,7 @@ let command =
        and file =
          flag
            "file"
-           (optional file)
+           (optional Filename.arg_type)
            ~doc:"FILE Use FILE as configuration file instead of ~/.patdiff"
        in
        match file, default with
@@ -256,7 +256,7 @@ let command =
        let%map ext_cmp =
          flag
            "ext-cmp"
-           (optional file)
+           (optional Filename.arg_type)
            ~doc:"FILE Use external string comparison program (implies -unrefined)"
        and unrefined =
          flag "unrefined" no_arg ~doc:" Don't highlight word differences between lines"
@@ -342,14 +342,15 @@ let command =
      and old_alt_opt =
        flag
          "alt-old"
-         (optional (Arg_type.map file ~f:Option.some))
+         (optional (Arg_type.map Filename.arg_type ~f:Option.some))
          ~doc:"NAME Mask old filename with NAME"
      and new_alt_opt =
        flag
          "alt-new"
-         (optional (Arg_type.map file ~f:Option.some))
+         (optional (Arg_type.map Filename.arg_type ~f:Option.some))
          ~doc:"NAME Mask new filename with NAME"
-     and make_config = flag "make-config" (optional file) ~doc:Make_config.doc
+     and make_config =
+       flag "make-config" (optional Filename.arg_type) ~doc:Make_config.doc
      and include_ =
        flag
          "include"
@@ -381,7 +382,9 @@ let command =
               "BOOL warn when neither file ends in a newline, even though this does not \
                constitute a diff (default: read from config, or %b)"
               Configuration.warn_if_no_trailing_newline_in_both_default)
-     and files = anon (maybe (t2 ("FILE1" %: file) ("FILE2" %: file))) in
+     and files =
+       anon (maybe (t2 ("FILE1" %: Filename.arg_type) ("FILE2" %: Filename.arg_type)))
+     in
      fun () ->
        let args =
          match make_config with
