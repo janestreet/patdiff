@@ -109,18 +109,18 @@ let needleman_wunsch xs ys ~equal =
     Array.init rows ~f:(fun _ -> Array.create ~len:cols Int.max_value)
   in
   for i = 0 to rows do
-    (a.(i)).(0) <- i
+    a.(i).(0) <- i
   done;
   for j = 0 to cols do
-    (a.(0)).(j) <- j
+    a.(0).(j) <- j
   done;
   for i = 1 to rows do
     for j = 1 to cols do
-      (a.(i)).(j)
+      a.(i).(j)
       <- min3
-           ((a.(i - 1)).(j) + 1)
-           ((a.(i)).(j - 1) + 1)
-           ((a.(i - 1)).(j - 1) + if equal xs.(i - 1) ys.(j - 1) then 0 else 1)
+           (a.(i - 1).(j) + 1)
+           (a.(i).(j - 1) + 1)
+           (a.(i - 1).(j - 1) + if equal xs.(i - 1) ys.(j - 1) then 0 else 1)
     done
   done;
   a
@@ -142,16 +142,18 @@ let recover_ranges xs ys a =
     then acc
     else (
       let i', j', matched =
-        match smallest (a.(i - 1)).(j) (a.(i - 1)).(j - 1) (a.(i)).(j - 1) with
+        match smallest a.(i - 1).(j) a.(i - 1).(j - 1) a.(i).(j - 1) with
         | 0 -> i - 1, j, false
-        | 1 -> i - 1, j - 1, (a.(i)).(j) = (a.(i - 1)).(j - 1)
+        | 1 -> i - 1, j - 1, a.(i).(j) = a.(i - 1).(j - 1)
         | 2 -> i, j - 1, false
         | _ -> failwith "smallest only returns 0, 1, or 2."
       in
       let acc =
         match matched, acc with
-        | true, [] | true, Second _ :: _ -> First [ i - 1, j - 1 ] :: acc
-        | false, [] | false, First _ :: _ ->
+        | true, []
+        | true, Second _ :: _ -> First [ i - 1, j - 1 ] :: acc
+        | false, []
+        | false, First _ :: _ ->
           Second
             (cons_minus_one i [] ~if_unequal_to:i', cons_minus_one j [] ~if_unequal_to:j')
           :: acc
@@ -226,7 +228,8 @@ end = struct
             match car, cadr with
             | Same car_lines, Same cadr_lines ->
               Skip (Same (Array.concat [ car_lines; cadr_lines ]), pos)
-            | Unified _, _ | _, Unified _ ->
+            | Unified _, _
+            | _, Unified _ ->
               raise_s
                 [%message
                   "Unexpected unified range."
@@ -242,8 +245,8 @@ end = struct
             | _, End ->
               raise_s [%message "Produced End in running step." (last : string Range.t)]
             | Same _, Start -> None
-            | (Old _ | New _ | Replace _), (Start | Middle) | Same _, Middle ->
-              Some (last, End))
+            | (Old _ | New _ | Replace _), (Start | Middle)
+            | Same _, Middle -> Some (last, End))
           ~finishing_step:(function
             | None -> Done
             | Some result -> Yield (result, None))
@@ -255,8 +258,8 @@ end = struct
 
       let%expect_test _ =
         let test ranges = print_s [%sexp (f ranges : t Sequence.t)] in
-        let same = Range.Same [|"same", "same"|] in
-        let not_same = Range.New [|"new"|] in
+        let same = Range.Same [| "same", "same" |] in
+        let not_same = Range.New [| "new" |] in
         test [ same; same ];
         let%bind () = [%expect {| () |}] in
         test [ same; not_same; same; same; not_same; same; same ];
@@ -346,8 +349,8 @@ end = struct
         let test ranges =
           print_s [%sexp (Merged_with_position.f ranges |> f ~context:1 : t Sequence.t)]
         in
-        let same = Range.Same [|"same", "same"|] in
-        let not_same = Range.New [|"new"|] in
+        let same = Range.Same [| "same", "same" |] in
+        let not_same = Range.New [| "new" |] in
         test [ same; same ];
         let%bind () = [%expect {| () |}] in
         test

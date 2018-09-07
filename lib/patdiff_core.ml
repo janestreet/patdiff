@@ -5,13 +5,9 @@ module Output = Output_mode
 
 (* Strip whitespace from a string by stripping and replacing with spaces *)
 let ws_rex = Re.compile Re.(rep1 space)
-
 let ws_rex_anchored = Re.compile Re.(seq [ bol; rep space; eol ])
-
 let ws_sub = " "
-
 let remove_ws s = String.strip (Re.replace_string ws_rex s ~by:ws_sub)
-
 let is_ws = Re.execp ws_rex_anchored
 
 (* This regular expression describes the delimiters on which to split the string *)
@@ -230,7 +226,8 @@ let explode ar ~keep_ws =
   let words =
     match words with
     | `Newline (i, opt) :: tl -> `Newline (i - 1, opt) :: tl
-    | `Word _ :: _ | [] ->
+    | `Word _ :: _
+    | [] ->
       raise_s
         [%message
           "Expected words to start with a `Newline." (words : word_or_newline list)]
@@ -330,7 +327,8 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
   in
   List.iter ranges ~f;
   (match !line with
-   | [] | [ "" ] -> ()
+   | []
+   | [ "" ] -> ()
    | line ->
      let line = String.concat (List.rev line) in
      if is_ws line
@@ -374,7 +372,8 @@ let diff_pieces ~old_pieces ~new_pieces ~keep_ws ~word_big_enough =
 let ranges_are_just_whitespace ranges =
   let module R = Patience_diff.Range in
   List.for_all ranges ~f:(function
-    | R.Old piece_array | R.New piece_array ->
+    | R.Old piece_array
+    | R.New piece_array ->
       Array.for_all piece_array ~f:(function
         | `Word s -> String.is_empty (remove_ws s)
         | `Newline _ -> true)
@@ -396,7 +395,10 @@ let split_for_readability rangelist =
       | R.Same seq ->
         let first_newline =
           Array.find_mapi seq ~f:(fun i -> function
-            | `Word _, _ | _, `Word _ | `Newline (0, _), _ | _, `Newline (0, _) -> None
+            | `Word _, _
+            | _, `Word _
+            | `Newline (0, _), _
+            | _, `Newline (0, _) -> None
             | `Newline first_nlA, `Newline first_nlB -> Some (i, first_nlA, first_nlB))
         in
         (match first_newline with
@@ -407,7 +409,7 @@ let split_for_readability rangelist =
            else (
              append_range (R.Same (Array.sub seq ~pos:0 ~len:i));
              (* A non-zero `Newline is required for [collapse] to work properly. *)
-             let nl = R.Same [|`Newline (1, None), `Newline (1, None)|] in
+             let nl = R.Same [| `Newline (1, None), `Newline (1, None) |] in
              append_range nl;
              ans := List.rev !pending_ranges :: !ans;
              pending_ranges := [];
@@ -514,7 +516,7 @@ let refine
                             take_until_max (wordlen + len_so_far) rest (tokenpair :: accum))
                    in
                    let make_newline () =
-                     R.Same [|`Newline (1, None), `Newline (1, None)|]
+                     R.Same [| `Newline (1, None), `Newline (1, None) |]
                    in
                    (* Keep taking ranges until all tokens exhausted.
                       Returns (new len_so_far, range list) *)
@@ -554,7 +556,8 @@ let refine
                          | `Range r -> r :: rangeaccum, rangelistaccum)
                    in
                    split_lines new_len_so_far rest rangeaccum rangelistaccum
-                 | R.New tokens_arr | R.Old tokens_arr ->
+                 | R.New tokens_arr
+                 | R.Old tokens_arr ->
                    let new_len_so_far = get_new_len_so_far ~len_so_far tokens_arr in
                    split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
                  | R.Replace (old_arr, new_arr) ->
@@ -580,7 +583,8 @@ let refine
             List.for_all ranges ~f:(fun range ->
               match range with
               | Patience_diff.Range.Same _ -> true
-              | Patience_diff.Range.Old a | Patience_diff.Range.New a ->
+              | Patience_diff.Range.Old a
+              | Patience_diff.Range.New a ->
                 if keep_ws
                 then false
                 else
@@ -650,13 +654,15 @@ let refine
                    (match produce_unified_lines, old_all_same, new_all_same with
                     | true, true, false -> R.Unified new_ar
                     | true, false, true -> R.Unified old_ar
-                    | false, _, _ | _, false, false -> R.Replace (old_ar, new_ar)
+                    | false, _, _
+                    | _, false, false -> R.Replace (old_ar, new_ar)
                     | _ -> assert false))
             in
             range))
-      | R.New a when not keep_ws && Array.for_all a ~f:is_ws ->
-        [ R.Same (Array.zip_exn a a) ]
-      | R.Old a when not keep_ws && Array.for_all a ~f:is_ws -> []
+      | R.New a
+        when not keep_ws && Array.for_all a ~f:is_ws -> [ R.Same (Array.zip_exn a a) ]
+      | R.Old a
+        when not keep_ws && Array.for_all a ~f:is_ws -> []
       | (R.New _ | R.Old _ | R.Same _ | R.Unified _) as range -> [ range ]
     in
     let refined_ranges = List.concat_map hunk.H.ranges ~f:aux in
@@ -678,7 +684,7 @@ let print ~old_file ~new_file ~rules ~output ~location_style hunks =
 ;;
 
 let output_to_string
-      ?(print_global_header=false)
+      ?(print_global_header = false)
       ~file_names
       ~rules
       ~output
@@ -708,17 +714,17 @@ type diff_input =
   }
 
 let patdiff
-      ?(context=default_context)
-      ?(keep_ws=false)
-      ?(rules=Format.Rules.default)
-      ?(output=Output.Ansi)
-      ?(produce_unified_lines=true)
-      ?(split_long_lines=true)
+      ?(context = default_context)
+      ?(keep_ws = false)
+      ?(rules = Format.Rules.default)
+      ?(output = Output.Ansi)
+      ?(produce_unified_lines = true)
+      ?(split_long_lines = true)
       ?print_global_header
-      ?(location_style=Format.Location_style.Diff)
-      ?(interleave=true)
-      ?(line_big_enough=default_line_big_enough)
-      ?(word_big_enough=default_word_big_enough)
+      ?(location_style = Format.Location_style.Diff)
+      ?(interleave = true)
+      ?(line_big_enough = default_line_big_enough)
+      ?(word_big_enough = default_word_big_enough)
       ~from_
       ~to_
       ()
@@ -749,9 +755,8 @@ let patdiff
 ;;
 
 let%test_module _ =
-  ( module struct
+  (module struct
     let from_ = { name = "old"; text = "Foo bar buzz" }
-
     let to_ = { name = "old"; text = "Foo buzz" }
 
     let%expect_test "Ansi output generates a single line diff" =
@@ -799,5 +804,5 @@ let%test_module _ =
       | exception _ -> true
       | (_ : string) -> false
     ;;
-  end )
+  end)
 ;;

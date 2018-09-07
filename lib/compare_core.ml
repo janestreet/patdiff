@@ -19,9 +19,9 @@ let%test_unit _ =
       ~expect
   in
   test "" ~expect:([||], `With_trailing_newline);
-  test "hello" ~expect:([|"hello"|], `Missing_trailing_newline);
-  test "hello\nworld" ~expect:([|"hello"; "world"|], `Missing_trailing_newline);
-  test "hello\nworld\n" ~expect:([|"hello"; "world"|], `With_trailing_newline)
+  test "hello" ~expect:([| "hello" |], `Missing_trailing_newline);
+  test "hello\nworld" ~expect:([| "hello"; "world" |], `Missing_trailing_newline);
+  test "hello\nworld\n" ~expect:([| "hello"; "world" |], `With_trailing_newline)
 ;;
 
 (* Returns a Hunk.t list, ready to be printed *)
@@ -55,7 +55,6 @@ let compare_lines config ~mine ~other =
                        type t = string [@@deriving sexp]
 
                        let hash = String.hash
-
                        let compare = compare
                      end)
       in
@@ -239,7 +238,6 @@ let diff_strings ?print_global_header (config : Configuration.t) ~old ~new_ =
 
 (* True if a file is a regular file *)
 let is_reg path = (Unix.stat path).Unix.st_kind = Unix.S_REG
-
 let is_dir path = (Unix.stat path).Unix.st_kind = Unix.S_DIR
 
 let rec diff_dirs config ~old_file ~new_file ~file_filter =

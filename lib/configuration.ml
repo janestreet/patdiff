@@ -157,7 +157,6 @@ module Annex = struct
   [@@deriving sexp]
 
   let blank = { text = None; style = None }
-
   let get_text t = Option.value t.text ~default:""
 
   let length t_opt =
@@ -592,7 +591,7 @@ let light_bg =
 ;;
 
 let%test_module _ =
-  ( module struct
+  (module struct
     (* Ensure both sexps are parseable *)
     let%test_unit _ =
       let dark = Lazy.force dark_bg in
@@ -600,7 +599,7 @@ let%test_module _ =
       ignore (dark : t);
       ignore (light : t)
     ;;
-  end )
+  end)
 ;;
 
 let load_sexp_conv f conv = Result.try_with (fun () -> Sexp.load_sexp_conv_exn f conv)
@@ -621,7 +620,9 @@ let rec load_exn' ~set config_file =
          (let new_file = config_file ^ ".new" in
           match Sys.file_exists new_file with
           | `Yes | `Unknown -> ()
-          | `No -> (try Sexp.save_hum new_file (Config.sexp_of_t c) with _ -> ()));
+          | `No ->
+            (try Sexp.save_hum new_file (Config.sexp_of_t c) with
+             | _ -> ()));
          c)
   in
   match config.Config.config_path with
@@ -635,7 +636,7 @@ let rec load_exn' ~set config_file =
 let load_exn config_file = load_exn' ~set:String.Set.empty config_file
 
 (* prints errors to stderr *)
-let load ?(quiet_errors=false) config_file =
+let load ?(quiet_errors = false) config_file =
   try Some (load_exn config_file) with
   | e ->
     if not quiet_errors

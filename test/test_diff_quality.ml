@@ -96,7 +96,6 @@ let%expect_test "Prefer one yellow line and one red line to two yellow lines" =
 ;;
 
 let acity = "hello and please remove me; hello with the signs of the city\n"
-
 let bcity = "hello with the signs of the city\n"
 
 let%expect_test "Prefer one block of equality to two" =

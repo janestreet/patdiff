@@ -3,7 +3,6 @@ open! Async
 open Import
 
 let aansi = "\027[0;1m\n"
-
 let bansi = "\027[0;2m\n"
 
 let%expect_test "ansi escape code in input" =
@@ -20,7 +19,6 @@ let%expect_test "ansi escape code in input" =
 ;;
 
 let acolored_text = "\027[0;33myellow text\027[0m\n"
-
 let bcolored_text = "\027[0;34mblue text\027[0m\n"
 
 let%expect_test "colored text" =

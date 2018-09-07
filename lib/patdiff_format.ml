@@ -70,7 +70,6 @@ module Color = struct
   include Comparable.Make (T)
 
   let rgb6_exn (r, g, b) = RGB6 (RGB6.create_exn ~r ~g ~b)
-
   let gray24_exn level = Gray24 (Gray24.create_exn ~level)
 end
 
@@ -108,10 +107,8 @@ module Rule = struct
       }
     [@@deriving fields, sexp_of]
 
-    let create ?(styles=[]) text = { text; styles }
-
+    let create ?(styles = []) text = { text; styles }
     let blank = create ""
-
     let strip_styles t = { t with styles = [] }
   end
 
@@ -127,7 +124,7 @@ module Rule = struct
      instance, a line_new rule might have a bold "+" prefix and a green
      style.
   *)
-  let create ?(pre=Annex.blank) ?(suf=Annex.blank) styles ~name =
+  let create ?(pre = Annex.blank) ?(suf = Annex.blank) styles ~name =
     { pre; suf; styles; name }
   ;;
 

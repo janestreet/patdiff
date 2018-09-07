@@ -10,9 +10,7 @@ module Output : module type of struct
 end
 
 val default_context : int
-
 val default_line_big_enough : int
-
 val default_word_big_enough : int
 
 (** [diff ~context ~keep_ws ~mine ~other] uses [Patience_diff.String] to get a list of

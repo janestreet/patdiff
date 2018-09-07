@@ -37,9 +37,11 @@ module Style = struct
         match style with
         | S.Bold -> "<span style=\"font-weight:bold\">" :: s, "</span>" :: e
         | S.Reset -> s, e
-        | S.Foreground c | S.Fg c ->
+        | S.Foreground c
+        | S.Fg c ->
           sprintf "<span style=\"color:%s\">" (string_of_color c) :: s, "</span>" :: e
-        | S.Background c | S.Bg c ->
+        | S.Background c
+        | S.Bg c ->
           ( sprintf "<span style=\"background-color:%s\">" (string_of_color c) :: s
           , "</span>" :: e )
         | S.Underline | S.Emph -> "<u>" :: s, "</u>" :: e
@@ -120,7 +122,9 @@ let print ~print_global_header ~file_names ~rules ~print ~location_style hunks =
       | R.Same r ->
         let mr = Array.map r ~f:snd in
         Array.iter mr ~f:print
-      | R.Old r | R.New r | R.Unified r -> Array.iter r ~f:print
+      | R.Old r
+      | R.New r
+      | R.Unified r -> Array.iter r ~f:print
       | R.Replace (ar1, ar2) ->
         Array.iter ar1 ~f:print;
         Array.iter ar2 ~f:print

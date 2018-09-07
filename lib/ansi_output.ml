@@ -67,11 +67,17 @@ let codes_of_style : Patdiff_format.Style.t -> string = function
   | Blink -> "5"
   | Inverse -> "7"
   | Hide -> "8"
-  | Fg c | Foreground c -> codes_of_foreground_color c
-  | Bg c | Background c -> codes_of_background_color c
+  | Fg c
+  | Foreground c -> codes_of_foreground_color c
+  | Bg c
+  | Background c -> codes_of_background_color c
 ;;
 
-let apply_styles ?(drop_leading_resets=false) (styles : Patdiff_format.Style.t list) str =
+let apply_styles
+      ?(drop_leading_resets = false)
+      (styles : Patdiff_format.Style.t list)
+      str
+  =
   let styles =
     if drop_leading_resets
     then

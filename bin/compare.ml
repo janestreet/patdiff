@@ -131,7 +131,8 @@ let main' args =
     then failwith "Can only specify -include or -exclude when diffing two dirs"
   in
   match is_dir old_file, is_dir new_file with
-  | true, false | false, true ->
+  | true, false
+  | false, true ->
     if_not_diffing_two_dirs ();
     (* One is a directory, the other is a file *)
     let dir, file = if is_dir old_file then old_file, new_file else new_file, old_file in
@@ -187,14 +188,16 @@ let main arg =
   | Args.Make_config file -> Make_config.main file
   | Args.Compare compare_args ->
     let res = main' compare_args in
-    List.iter !remove_at_exit ~f:(fun file -> try Unix.unlink file with _ -> ());
+    List.iter !remove_at_exit ~f:(fun file ->
+      try Unix.unlink file with
+      | _ -> ());
     (match res with
      | `Same -> exit 0
      | `Different -> exit 1)
 ;;
 
 let command =
-  let flag_no_arg ?(inverted=false) name ~doc =
+  let flag_no_arg ?(inverted = false) name ~doc =
     let open Command.Param in
     map ~f:(fun b -> if b then Some (not inverted) else None) (flag name no_arg ~doc)
   in
@@ -266,7 +269,8 @@ let command =
          | Some _, true ->
            (* unrefined is set more than once, but both values agree, so it's fine. *)
            Some true
-         | Some _, false | None, true -> (* only set once *)
+         | Some _, false
+         | None, true -> (* only set once *)
            Some true
          | None, false -> (* never set. *)
            None

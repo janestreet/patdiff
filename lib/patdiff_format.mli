@@ -82,7 +82,6 @@ module Rule : sig
       }
 
     val create : ?styles:Style.t list -> string -> t
-
     val blank : t
   end
 
@@ -95,11 +94,8 @@ module Rule : sig
   [@@deriving sexp_of]
 
   val create : ?pre:Annex.t -> ?suf:Annex.t -> Style.t list -> name:string -> t
-
   val blank : name:string -> t
-
   val unstyled_prefix : string -> name:string -> t
-
   val strip_styles : t -> t
 end
 
@@ -121,7 +117,6 @@ module Rules : sig
   [@@deriving sexp_of]
 
   val default : t
-
   val strip_styles : t -> t
 end
 
