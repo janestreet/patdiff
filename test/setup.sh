@@ -9,7 +9,7 @@ function patdiff {
 export -f patdiff
 
 function visible_colors {
-    $HERE/../../ansicodes/bin/ansicodes.exe visualize -minimize
+    $HERE/../../ansicodes/bin/main.exe visualize -minimize
 }
 
 export -f visible_colors

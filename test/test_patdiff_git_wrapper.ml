@@ -1,17 +1,12 @@
 open! Core
 open! Async
-open! Expect_test_helpers
+open! Import
 
 (* The patdiff devs don't review the patdiff-git-wrapper script. This test is to warn them
    of obvious mistakes, like silently changing the calling convention without updating the
    script. It does not cover all the code paths that git might exercise. *)
 
-let links =
-  [ "../bin/patdiff.exe", `In_path_as, "patdiff"
-  ; "../bin/patdiff-git-wrapper", `In_path_as, "patdiff-git-wrapper"
-  ; "../../ansicodes/bin/ansicodes.exe", `In_path_as, "ansicodes"
-  ]
-;;
+let links = ("../bin/patdiff-git-wrapper", `In_path_as, "patdiff-git-wrapper") :: links
 
 let%expect_test "patdiff-git-wrapper" =
   within_temp_dir ~links (fun () ->
@@ -23,7 +18,8 @@ let%expect_test "patdiff-git-wrapper" =
     let%bind () = Writer.save "foo" ~contents:"foo baz quux\n" in
     (* Override whatever patdiff config the user has. *)
     let%bind () = run "patdiff" [ "-make-config"; ".patdiff" ] in
-    let%bind () = [%expect {| Default configuration written to .patdiff |}] in
+    let%bind () = [%expect {|
+      Default configuration written to .patdiff |}] in
     Unix.putenv ~key:"HOME" ~data:".";
     (* Standard git diff. *)
     let%bind () = run "git" [ "diff" ] in

@@ -12,7 +12,7 @@ let pipe commands =
 
 let links =
   [ "../bin/patdiff.exe", `In_path_as, "patdiff"
-  ; "../../ansicodes/bin/ansicodes.exe", `In_path_as, "ansicodes"
+  ; "../../ansicodes/bin/main.exe", `In_path_as, "ansicodes"
   ]
 ;;
 
