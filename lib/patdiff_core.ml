@@ -455,7 +455,7 @@ let refine
       assert split_long_lines;
       match
         Or_error.bind Linux_ext.get_terminal_size ~f:(fun get_size ->
-          Or_error.try_with get_size)
+          Or_error.try_with (fun () -> get_size `Controlling))
       with
       | Error _ -> 80
       | Ok pair -> snd pair)
