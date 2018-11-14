@@ -87,6 +87,7 @@ let apply_styles
     else (
       match styles with
       | [] -> []
+      | Reset :: _ -> styles
       | _ :: _ -> Reset :: styles)
   in
   match styles with
@@ -100,10 +101,19 @@ let apply_styles
 
 module Rule = struct
   let apply text ~(rule : Patdiff_format.Rule.t) ~refined =
+    let only_whitespace =
+      not (String.is_empty text) && String.for_all text ~f:Char.is_whitespace
+    in
+    let text_style : Patdiff_format.Style.t list =
+      match refined, only_whitespace with
+      | true, _ -> [ Reset ]
+      | false, false -> rule.styles
+      | false, true -> Inverse :: rule.styles
+    in
     sprintf
       "%s%s%s"
       (apply_styles rule.pre.styles rule.pre.text)
-      (apply_styles (if refined then [ Reset ] else rule.styles) text)
+      (apply_styles text_style text)
       (apply_styles rule.suf.styles rule.suf.text)
   ;;
 end

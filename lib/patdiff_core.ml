@@ -772,7 +772,7 @@ let%test_module _ =
       [%expect
         {|
       -1,1 +1,1
-      [0;1;33m!|[0m[0;0mFoo[0;31m bar[0m buzz[0m |}]
+      [0;1;33m!|[0m[0mFoo[0;31m bar[0m buzz[0m |}]
     ;;
 
     let%expect_test "Ascii is supported if [produce_unified_lines] is false" =

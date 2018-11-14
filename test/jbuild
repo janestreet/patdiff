@@ -5,6 +5,7 @@
     async
     core
     expect_test_helpers
+    patdiff_lib
     ))
   (preprocess (pps (ppx_jane ppxlib.runner)))))
 

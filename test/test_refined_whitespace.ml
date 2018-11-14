@@ -15,7 +15,7 @@ let%expect_test "Show added newline at start of input" =
         (fg:black)@|(+bold)-1,1 +1,2(off) ============================================================
         (fg:black bg:red)-|(off)bar
         (fg:black bg:green)+|
-        (fg:black bg:green)+|(fg:green) (off)bar
+        (fg:black bg:green)+|(fg:green +reverse) (off)bar
         ("Unclean exit" (Exit_non_zero 1)) |}]
 ;;
 
@@ -53,7 +53,7 @@ let%expect_test "Show leading whitespace" =
         (fg:green)++++++ (+bold)other
         (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
         (fg:black bg:red)-|(off)bar
-        (fg:black bg:green)+|(fg:green) (off)bar
+        (fg:black bg:green)+|(fg:green +reverse) (off)bar
         ("Unclean exit" (Exit_non_zero 1)) |}]
 ;;
 
@@ -64,8 +64,8 @@ let%expect_test "Show internal whitespace" =
       (fg:red)------ (+bold)mine
       (fg:green)++++++ (+bold)other
       (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
-      (fg:black bg:red)-|(off)foo(fg:red) (off)bar
-      (fg:black bg:green)+|(off)foo(fg:green)  (off)bar
+      (fg:black bg:red)-|(off)foo(fg:red +reverse) (off)bar
+      (fg:black bg:green)+|(off)foo(fg:green +reverse)  (off)bar
       ("Unclean exit" (Exit_non_zero 1)) |}]
 ;;
 
@@ -77,6 +77,6 @@ let%expect_test "Show trailing whitespace" =
 (fg:green)++++++ (+bold)other
 (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
 (fg:black bg:red)-|(off)foo
-(fg:black bg:green)+|(off)foo(fg:green)
+(fg:black bg:green)+|(off)foo(fg:green +reverse)
 ("Unclean exit" (Exit_non_zero 1)) |}]
 ;;

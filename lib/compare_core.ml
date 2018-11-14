@@ -121,6 +121,15 @@ let compare_files (config : Configuration.t) ~old_file ~new_file =
     then `Binary_same
     else `Binary_different (mine_is_binary, other_is_binary)
   else (
+    let keep_ws =
+      config.keep_ws
+      || Should_keep_whitespace.for_diff
+           ~file1:old_file
+           ~file2:new_file
+           ~contents1:mine
+           ~contents2:other
+    in
+    let config = Configuration.override ~keep_ws config in
     let mine, old_file_newline = lines_of_contents mine in
     let other, new_file_newline = lines_of_contents other in
     warn_if_no_trailing_newline
@@ -212,6 +221,15 @@ let diff_files config ~old_file ~new_file =
 
 let diff_strings ?print_global_header (config : Configuration.t) ~old ~new_ =
   let lines { Patdiff_core.name = _; text } = String.split_lines text |> Array.of_list in
+  let keep_ws =
+    config.keep_ws
+    || Should_keep_whitespace.for_diff
+         ~file1:old.Patdiff_core.name
+         ~file2:new_.Patdiff_core.name
+         ~contents1:old.Patdiff_core.text
+         ~contents2:new_.Patdiff_core.text
+  in
+  let config = Configuration.override ~keep_ws config in
   let hunks = compare_lines config ~mine:(lines old) ~other:(lines new_) in
   if has_no_diff hunks
   then `Same
