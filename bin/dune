@@ -1,0 +1,12 @@
+(executables
+  (names patdiff)
+  (libraries core patdiff_lib pcre sexplib)
+  (preprocess (pps ppx_jane ppxlib.runner)))
+
+(install
+  (section bin)
+  (files (patdiff.exe as patdiff)))
+
+(install
+  (section bin)
+  (files patdiff-git-wrapper))

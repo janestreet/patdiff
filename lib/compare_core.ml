@@ -263,11 +263,11 @@ let rec diff_dirs config ~old_file ~new_file ~file_filter =
   (* Get a list of files for this directory only; do not descend farther
      (We recursively call diff_dirs later if we need to descend.) *)
   let options =
-    { Find_files.Options.default with max_depth = Some 1; filter = file_filter }
+    { Core_extended.Find.Options.default with max_depth = Some 1; filter = file_filter }
   in
   let set_of_file file =
-    let files = Find_files.find_all ~options file in
-    let f (n, _s) = Filename_extended.make_relative ~to_:file n in
+    let files = Core_extended.Find.find_all ~options file in
+    let f (n, _s) = Core_extended.Extended_filename.make_relative ~to_:file n in
     let names = List.map files ~f in
     String.Set.of_list names
   in

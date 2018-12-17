@@ -137,7 +137,7 @@ let main' args =
     (* One is a directory, the other is a file *)
     let dir, file = if is_dir old_file then old_file, new_file else new_file, old_file in
     (* Match file with its twin file in dir *)
-    let module FO = Find_files.Options in
+    let module FO = Core_extended.Find.Options in
     let filter (filename, _stats) = filename = file in
     let options =
       { FO.min_depth = 1
@@ -150,7 +150,7 @@ let main' args =
       ; relative_paths = false
       }
     in
-    let matches = Find_files.find_all ~options dir in
+    let matches = Core_extended.Find.find_all ~options dir in
     (match matches with
      | [ (matched_filename, _stats) ] ->
        let old_file, new_file =
@@ -215,7 +215,7 @@ let command =
        and file =
          flag
            "file"
-           (optional Filename.arg_type)
+           (optional Arg_type.Export.file)
            ~doc:"FILE Use FILE as configuration file instead of ~/.patdiff"
        in
        match file, default with
@@ -259,7 +259,7 @@ let command =
        let%map ext_cmp =
          flag
            "ext-cmp"
-           (optional Filename.arg_type)
+           (optional Arg_type.Export.file)
            ~doc:"FILE Use external string comparison program (implies -unrefined)"
        and unrefined =
          flag "unrefined" no_arg ~doc:" Don't highlight word differences between lines"
@@ -346,15 +346,15 @@ let command =
      and old_alt_opt =
        flag
          "alt-old"
-         (optional (Arg_type.map Filename.arg_type ~f:Option.some))
+         (optional (Arg_type.map Arg_type.Export.file ~f:Option.some))
          ~doc:"NAME Mask old filename with NAME"
      and new_alt_opt =
        flag
          "alt-new"
-         (optional (Arg_type.map Filename.arg_type ~f:Option.some))
+         (optional (Arg_type.map Arg_type.Export.file ~f:Option.some))
          ~doc:"NAME Mask new filename with NAME"
      and make_config =
-       flag "make-config" (optional Filename.arg_type) ~doc:Make_config.doc
+       flag "make-config" (optional Arg_type.Export.file) ~doc:Make_config.doc
      and include_ =
        flag
          "include"
@@ -387,7 +387,7 @@ let command =
                constitute a diff (default: read from config, or %b)"
               Configuration.warn_if_no_trailing_newline_in_both_default)
      and files =
-       anon (maybe (t2 ("FILE1" %: Filename.arg_type) ("FILE2" %: Filename.arg_type)))
+       anon (maybe (t2 ("FILE1" %: Arg_type.Export.file) ("FILE2" %: Arg_type.Export.file)))
      in
      fun () ->
        let args =
