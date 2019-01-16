@@ -16,12 +16,12 @@ let links =
   ]
 ;;
 
-let patdiff ~extra_flags ~mine ~other =
+let patdiff ~extra_flags ~prev ~next =
   within_temp_dir ~links (fun () ->
-    let%bind () = Writer.save "mine" ~contents:mine
-    and () = Writer.save "other" ~contents:other in
+    let%bind () = Writer.save "prev" ~contents:prev
+    and () = Writer.save "next" ~contents:next in
     pipe
-      [ "patdiff", [ "-default"; "mine"; "other" ] @ extra_flags
+      [ "patdiff", [ "-default"; "prev"; "next" ] @ extra_flags
       ; "ansicodes", [ "visualize"; "-minimize" ]
       ])
 ;;

@@ -2,16 +2,16 @@ open! Core
 open! Async
 open Import
 
-let patdiff ~mine ~other extra_flags =
-  patdiff ~extra_flags:("-keep-whitespace" :: extra_flags) ~mine ~other
+let patdiff ~prev ~next extra_flags =
+  patdiff ~extra_flags:("-keep-whitespace" :: extra_flags) ~prev ~next
 ;;
 
 let%expect_test "Show added newline at start of input" =
-  let%bind () = patdiff ~mine:"bar\n" ~other:"\n bar\n" [] in
+  let%bind () = patdiff ~prev:"bar\n" ~next:"\n bar\n" [] in
   [%expect
     {|
-        (fg:red)------ (+bold)mine
-        (fg:green)++++++ (+bold)other
+        (fg:red)------ (+bold)prev
+        (fg:green)++++++ (+bold)next
         (fg:black)@|(+bold)-1,1 +1,2(off) ============================================================
         (fg:black bg:red)-|(off)bar
         (fg:black bg:green)+|
@@ -20,11 +20,11 @@ let%expect_test "Show added newline at start of input" =
 ;;
 
 let%expect_test "-unrefined works too" =
-  let%bind () = patdiff ~mine:"bar\n" ~other:"\n bar\n" [ "-unrefined" ] in
+  let%bind () = patdiff ~prev:"bar\n" ~next:"\n bar\n" [ "-unrefined" ] in
   [%expect
     {|
-      (fg:red)------ (+bold)mine
-      (fg:green)++++++ (+bold)other
+      (fg:red)------ (+bold)prev
+      (fg:green)++++++ (+bold)next
       (fg:black)@|(+bold)-1,1 +1,2(off) ============================================================
       (fg:black bg:red)-|(fg:red)bar
       (fg:black bg:green)+|
@@ -33,11 +33,11 @@ let%expect_test "-unrefined works too" =
 ;;
 
 let%expect_test "-ascii works too (it implies -unrefined)" =
-  let%bind () = patdiff ~mine:"bar\n" ~other:"\n bar\n" [ "-ascii" ] in
+  let%bind () = patdiff ~prev:"bar\n" ~next:"\n bar\n" [ "-ascii" ] in
   [%expect
     {xxx|
-      ------ mine
-      ++++++ other
+      ------ prev
+      ++++++ next
       @|-1,1 +1,2 ============================================================
       -|bar
       +|
@@ -46,11 +46,11 @@ let%expect_test "-ascii works too (it implies -unrefined)" =
 ;;
 
 let%expect_test "Show leading whitespace" =
-  let%bind () = patdiff ~mine:"bar\n" ~other:" bar\n" [] in
+  let%bind () = patdiff ~prev:"bar\n" ~next:" bar\n" [] in
   [%expect
     {|
-        (fg:red)------ (+bold)mine
-        (fg:green)++++++ (+bold)other
+        (fg:red)------ (+bold)prev
+        (fg:green)++++++ (+bold)next
         (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
         (fg:black bg:red)-|(off)bar
         (fg:black bg:green)+|(fg:green +reverse) (off)bar
@@ -58,11 +58,11 @@ let%expect_test "Show leading whitespace" =
 ;;
 
 let%expect_test "Show internal whitespace" =
-  let%bind () = patdiff ~mine:"foo bar\n" ~other:"foo  bar\n" [] in
+  let%bind () = patdiff ~prev:"foo bar\n" ~next:"foo  bar\n" [] in
   [%expect
     {|
-      (fg:red)------ (+bold)mine
-      (fg:green)++++++ (+bold)other
+      (fg:red)------ (+bold)prev
+      (fg:green)++++++ (+bold)next
       (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
       (fg:black bg:red)-|(off)foo(fg:red +reverse) (off)bar
       (fg:black bg:green)+|(off)foo(fg:green +reverse)  (off)bar
@@ -70,11 +70,11 @@ let%expect_test "Show internal whitespace" =
 ;;
 
 let%expect_test "Show trailing whitespace" =
-  let%bind () = patdiff ~mine:"foo\n" ~other:"foo \n" [] in
+  let%bind () = patdiff ~prev:"foo\n" ~next:"foo \n" [] in
   [%expect
     {|
-(fg:red)------ (+bold)mine
-(fg:green)++++++ (+bold)other
+(fg:red)------ (+bold)prev
+(fg:green)++++++ (+bold)next
 (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
 (fg:black bg:red)-|(off)foo
 (fg:black bg:green)+|(off)foo(fg:green +reverse)

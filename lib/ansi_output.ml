@@ -105,10 +105,13 @@ module Rule = struct
       not (String.is_empty text) && String.for_all text ~f:Char.is_whitespace
     in
     let text_style : Patdiff_format.Style.t list =
-      match refined, only_whitespace with
-      | true, _ -> [ Reset ]
-      | false, false -> rule.styles
-      | false, true -> Inverse :: rule.styles
+      if List.is_empty rule.styles
+      then []
+      else (
+        match refined, only_whitespace with
+        | true, _ -> [ Reset ]
+        | false, true -> Inverse :: rule.styles
+        | false, false -> rule.styles)
     in
     sprintf
       "%s%s%s"
@@ -131,7 +134,7 @@ let print ~print_global_header ~file_names ~rules ~print ~location_style hunks =
     Patdiff_format.Location_style.sprint
       location_style
       hunk
-      ~mine_filename:(fst file_names)
+      ~prev_filename:(fst file_names)
       ~rule:(Rule.apply ~rule:rules.Rz.hunk ~refined:false)
     |> print
   in

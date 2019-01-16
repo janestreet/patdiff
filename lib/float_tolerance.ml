@@ -171,15 +171,15 @@ let recover_ranges xs ys a =
     | First ijs ->
       let xys = Array.of_list ijs |> Array.map ~f:(fun (i, j) -> xs.(i), ys.(j)) in
       Range.Same xys
-    | Second (is, []) -> Old (elts_of_indices is xs)
-    | Second ([], js) -> New (elts_of_indices js ys)
+    | Second (is, []) -> Prev (elts_of_indices is xs)
+    | Second ([], js) -> Next (elts_of_indices js ys)
     | Second (is, js) -> Replace (elts_of_indices is xs, elts_of_indices js ys))
 ;;
 
 let do_tolerance ~equal hunks =
   Hunks.concat_map_ranges hunks ~f:(fun range ->
     match (range : string Range.t) with
-    | Same _ | Old _ | New _ -> [ range ]
+    | Same _ | Prev _ | Next _ -> [ range ]
     | Unified _ ->
       raise_s [%message "Unexpected Unified range." ~_:(range : string Range.t)]
     | Replace (prev, next) ->
@@ -235,9 +235,9 @@ end = struct
                   "Unexpected unified range."
                     (car : string Range.t)
                     (cadr : string Range.t)]
-            | (Old _ | New _ | Replace _), (Old _ | New _ | Replace _)
-            | Same _, (Old _ | New _ | Replace _)
-            | (Old _ | New _ | Replace _), Same _ -> Yield ((car, pos), (cadr, Middle)))
+            | (Prev _ | Next _ | Replace _), (Prev _ | Next _ | Replace _)
+            | Same _, (Prev _ | Next _ | Replace _)
+            | (Prev _ | Next _ | Replace _), Same _ -> Yield ((car, pos), (cadr, Middle)))
           ~inner_finished:(fun (last, pos) ->
             match last, pos with
             | Unified _, _ ->
@@ -245,7 +245,7 @@ end = struct
             | _, End ->
               raise_s [%message "Produced End in running step." (last : string Range.t)]
             | Same _, Start -> None
-            | (Old _ | New _ | Replace _), (Start | Middle)
+            | (Prev _ | Next _ | Replace _), (Start | Middle)
             | Same _, Middle -> Some (last, End))
           ~finishing_step:(function
             | None -> Done
@@ -259,7 +259,7 @@ end = struct
       let%expect_test _ =
         let test ranges = print_s [%sexp (f ranges : t Sequence.t)] in
         let same = Range.Same [| "same", "same" |] in
-        let not_same = Range.New [| "new" |] in
+        let not_same = Range.Next [| "new" |] in
         test [ same; same ];
         let%bind () = [%expect {| () |}] in
         test [ same; not_same; same; same; not_same; same; same ];
@@ -267,12 +267,12 @@ end = struct
           [%expect
             {|
         (((Same ((same same))) Start)
-         ((New (new)) Middle)
+         ((Next (new)) Middle)
          ((Same (
             (same same)
             (same same)))
           Middle)
-         ((New (new)) Middle)
+         ((Next (new)) Middle)
          ((Same (
             (same same)
             (same same)))
@@ -333,7 +333,7 @@ end = struct
         match range with
         | Unified _ ->
           raise_s [%message "Unexpected Unified range." ~_:(range : string Range.t)]
-        | Old _ | New _ | Replace _ -> Sequence.singleton (Keep range)
+        | Prev _ | Next _ | Replace _ -> Sequence.singleton (Keep range)
         | Same lines ->
           (match pos with
            | Start -> drop_from_start context lines
@@ -350,7 +350,7 @@ end = struct
           print_s [%sexp (Merged_with_position.f ranges |> f ~context:1 : t Sequence.t)]
         in
         let same = Range.Same [| "same", "same" |] in
-        let not_same = Range.New [| "new" |] in
+        let not_same = Range.Next [| "new" |] in
         test [ same; same ];
         let%bind () = [%expect {| () |}] in
         test
@@ -372,16 +372,16 @@ end = struct
             {|
         ((Drop 1)
          (Keep (Same ((same same))))
-         (Keep (New (new)))
+         (Keep (Next (new)))
          (Keep (
            Same (
              (same same)
              (same same))))
-         (Keep (New (new)))
+         (Keep (Next (new)))
          (Keep (Same ((same same))))
          (Drop 1)
          (Keep (Same ((same same))))
-         (Keep (New (new)))
+         (Keep (Next (new)))
          (Keep (Same ((same same))))) |}]
         in
         [%expect {| |}]
@@ -391,39 +391,39 @@ end = struct
 
   module Reconstruct_hunk : sig
     val f
-      :  mine_start:int
-      -> other_start:int
+      :  prev_start:int
+      -> next_start:int
       -> Drop_or_keep.t Sequence.t
       -> string Hunk.t Sequence.t
   end = struct
     type t =
-      { mine_start : int
-      ; other_start : int
+      { prev_start : int
+      ; next_start : int
       ; ranges : string Range.t list
       }
     [@@deriving sexp_of]
 
     let to_hunk t =
-      { Hunk.mine_start = t.mine_start
-      ; mine_size = List.sum (module Int) t.ranges ~f:Range.mine_size
-      ; other_start = t.other_start
-      ; other_size = List.sum (module Int) t.ranges ~f:Range.other_size
+      { Hunk.prev_start = t.prev_start
+      ; prev_size = List.sum (module Int) t.ranges ~f:Range.prev_size
+      ; next_start = t.next_start
+      ; next_size = List.sum (module Int) t.ranges ~f:Range.next_size
       ; ranges = List.rev t.ranges
       }
     ;;
 
-    let f ~mine_start ~other_start drop_or_keeps =
+    let f ~prev_start ~next_start drop_or_keeps =
       Sequence.unfold_with_and_finish
         drop_or_keeps
-        ~init:{ mine_start; other_start; ranges = [] }
+        ~init:{ prev_start; next_start; ranges = [] }
         ~running_step:(fun t drop_or_keep ->
           match (drop_or_keep : Drop_or_keep.t) with
           | Keep range -> Skip { t with ranges = range :: t.ranges }
           | Drop n ->
             let hunk = to_hunk t in
             let t =
-              { mine_start = t.mine_start + hunk.mine_size + n
-              ; other_start = t.other_start + hunk.other_size + n
+              { prev_start = t.prev_start + hunk.prev_size + n
+              ; next_start = t.next_start + hunk.next_size + n
               ; ranges = []
               }
             in
@@ -439,8 +439,8 @@ end = struct
     Merged_with_position.f (Hunk.ranges hunk)
     |> Drop_or_keep.f ~context
     |> Reconstruct_hunk.f
-         ~mine_start:(Hunk.mine_start hunk)
-         ~other_start:(Hunk.other_start hunk)
+         ~prev_start:(Hunk.prev_start hunk)
+         ~next_start:(Hunk.next_start hunk)
     |> Sequence.to_list
   ;;
 end

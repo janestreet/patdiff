@@ -230,26 +230,26 @@ module Location_style = struct
     | other -> failwiths "invalid location style" other [%sexp_of: string]
   ;;
 
-  let sprint t (hunk : string Patience_diff.Hunk.t) ~mine_filename ~rule =
+  let sprint t (hunk : string Patience_diff.Hunk.t) ~prev_filename ~rule =
     match t with
     | Diff ->
       rule
         (sprintf
            "-%i,%i +%i,%i"
-           hunk.mine_start
-           hunk.mine_size
-           hunk.other_start
-           hunk.other_size)
+           hunk.prev_start
+           hunk.prev_size
+           hunk.next_start
+           hunk.next_size)
     (* omake locations must be parseable, so we can't let the user config insert
        arbitrary prefixes and suffixes and ANSI color rubbish. *)
     | Omake ->
       (* Print line number of first difference, skipping past context lines. *)
-      let mine_start =
+      let prev_start =
         with_return (fun r ->
-          List.fold hunk.ranges ~init:hunk.mine_start ~f:(fun init -> function
+          List.fold hunk.ranges ~init:hunk.prev_start ~f:(fun init -> function
             | Same s -> init + Array.length s
-            | Old _ | New _ | Replace _ | Unified _ -> r.return init))
+            | Prev _ | Next _ | Replace _ | Unified _ -> r.return init))
       in
-      error_message_start ~file:mine_filename ~line:mine_start
+      error_message_start ~file:prev_filename ~line:prev_start
   ;;
 end

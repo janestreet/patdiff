@@ -3,10 +3,10 @@
 patdiff \- find differences between two files
 
 .SH SYNOPSIS
-\fBpatdiff\fP [options] \fIfrom-file\fP \fIto-file\fP
+\fBpatdiff\fP [options] \fIprev-file\fP \fInext-file\fP
 
 .SH DESCRIPTION
-Put simply, \fBpatdiff\fP compares the contents of the two files \fIfrom-file\fP and \fIto-file\fP.  If desired, a configuration file defining how to format the output can be used. The comparison is done using the patience diff algorithm
+Put simply, \fBpatdiff\fP compares the contents of the two files \fIprev-file\fP and \fInext-file\fP.  If desired, a configuration file defining how to format the output can be used. The comparison is done using the patience diff algorithm
 
 By default, compare two files and output the result of the comparison to the terminal, highlighting differences between the files on a word-by-word basis.  All whitespace is considered equal and effectively ignored.  The styling of the output is determined by the configuration file used.  A configuration file is searched for at ~/.patdiff, and if none is found, default styling is applied.  The exit code follows the diff standard, much like GNU diff. (0 = same, 1 = different, 2 = error)
 
@@ -20,10 +20,10 @@ Use FILE as configuration file (overrides ~/.patdiff)
 Use the default configuration file (overrides ~./patdiff)
 
 \fB-context\fP \fINUM\fP
-Display NUM lines of unchanged context before and after changes 
+Display NUM lines of unchanged context before and after changes
 
 \fB-unrefined\fP
-Don't highlight differences between words, only highlight differences between lines (improves performance) 
+Don't highlight differences between words, only highlight differences between lines (improves performance)
 
 \fB-keep-whitespace\fP
 Consider whitespace when comparing files
@@ -32,25 +32,25 @@ Consider whitespace when comparing files
 Output in LaTeX format instead of ANSI terminal
 
 \fB-dont_produce_unified_lines\fP
-When refining and highlighting the differences between the words of the files, don't unify the word difference into a single unified line. 
+When refining and highlighting the differences between the words of the files, don't unify the word difference into a single unified line.
 
 \fB-quiet\fP
-Only report whether files differ, don't print the actual differences. 
+Only report whether files differ, don't print the actual differences.
 
 \fB-shallow\fP
-When comparing directories, don't recurse into subdirectories. Simply compare the files and directories in the immediate directories.  If two subdirectories have the same name but different contents, enabling this option will cause them to be reported as such but treated as the same. 
+When comparing directories, don't recurse into subdirectories. Simply compare the files and directories in the immediate directories.  If two subdirectories have the same name but different contents, enabling this option will cause them to be reported as such but treated as the same.
 
 \fB-double-check\fP
-If files seem the same, double check with 'cmp'.  If they are not actually identical, report so, but still exit 0. 
+If files seem the same, double check with 'cmp'.  If they are not actually identical, report so, but still exit 0.
 
 \fBmask-uniques\fP
-When comparing directories, don't diff unique files against /dev/null.  This is useful if you know the contents of the unique files and don't need to see the contents of the entire file. 
+When comparing directories, don't diff unique files against /dev/null.  This is useful if you know the contents of the unique files and don't need to see the contents of the entire file.
 
 \fB-ext-cmp\fP \fIFILE\fP
-By default, this program uses OCaml's String.compare function to compare each line.  With this option, you can provide an external program that takes two anonymous strings as arguments and returns exit codes according the diff standard (0 = same, 1 = different, 2 = error). \fIpatdiff\fP will then use the external program when comparing lines.  Using this option implies -unrefined, because the external calls are expensive and refinement basically loses its meaning with an arbitrary compare	function. 
+By default, this program uses OCaml's String.compare function to compare each line.  With this option, you can provide an external program that takes two anonymous strings as arguments and returns exit codes according the diff standard (0 = same, 1 = different, 2 = error). \fIpatdiff\fP will then use the external program when comparing lines.  Using this option implies -unrefined, because the external calls are expensive and refinement basically loses its meaning with an arbitrary compare	function.
 
 \fBalt-old\fP \fINAME\fP
-In the header of the output, use NAME instead of the default old filename and time last modified. 
+In the header of the output, use NAME instead of the default old filename and time last modified.
 
 \fB-alt-new\fP \fINAME\fP
 Same as -alt-old, but for the new filename.
@@ -66,9 +66,9 @@ Write the default configuration file to FILE. No other arguments (besides the co
 
 .SH CONFIGURATION
 
-Formatting for the output of patdiff is specified in the configuration file.  All fields are optional.  The following fields are available: 
+Formatting for the output of patdiff is specified in the configuration file.  All fields are optional.  The following fields are available:
 
-\fBconfig_path\fP Directs patdiff to load another configuration file instead of this one.  All other options in this file will be ignored. 
+\fBconfig_path\fP Directs patdiff to load another configuration file instead of this one.  All other options in this file will be ignored.
         (config_path "/home/username/.patdiff2")
 
 .SS Command Line Arguments
@@ -147,4 +147,3 @@ The following formatting options are available:
         header_new
 
 See the default configuration file to for a sample configuration.
-

@@ -2,14 +2,14 @@ open! Core
 
 val diff_files
   :  Configuration.t
-  -> old_file:string
-  -> new_file:string
+  -> prev_file:string
+  -> next_file:string
   -> [`Different | `Same]
 
 val diff_dirs
   :  Configuration.t
-  -> old_file:string
-  -> new_file:string
+  -> prev_file:string
+  -> next_file:string
   -> file_filter:(Find_files.file_info -> bool) option
   -> [`Different | `Same]
 
@@ -18,6 +18,6 @@ val diff_dirs
 val diff_strings
   :  ?print_global_header:bool
   -> Configuration.t
-  -> old:Patdiff_core.diff_input
-  -> new_:Patdiff_core.diff_input
+  -> prev:Patdiff_core.diff_input
+  -> next:Patdiff_core.diff_input
   -> [`Different of string | `Same]

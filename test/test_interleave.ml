@@ -33,11 +33,11 @@ let bsexp =
 ;;
 
 let%expect_test "Interleave sexp files" =
-  let%bind () = patdiff ~extra_flags:[] ~mine:asexp ~other:bsexp in
+  let%bind () = patdiff ~extra_flags:[] ~prev:asexp ~next:bsexp in
   [%expect
     {|
-(fg:red)------ (+bold)mine
-(fg:green)++++++ (+bold)other
+(fg:red)------ (+bold)prev
+(fg:green)++++++ (+bold)next
 (fg:black)@|(+bold)-1,11 +1,11(off) ============================================================
 (fg:black) |(off)((matrix
 (fg:black bg:red)-|(off)   ((Wub (Doj 0.2uf Doj_min)) 0.(fg:red)017678127290832395(off))

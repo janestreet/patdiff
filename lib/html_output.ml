@@ -88,7 +88,7 @@ module Rule = struct
   ;;
 end
 
-let print_header ~rules ~file_names:(old_file, new_file) ~print =
+let print_header ~rules ~file_names:(prev_file, next_file) ~print =
   let print_line file rule =
     let get_time s =
       try
@@ -101,8 +101,8 @@ let print_header ~rules ~file_names:(old_file, new_file) ~print =
     print (Rule.apply (file ^ " " ^ time) ~rule ~refined:false)
   in
   let module Rz = Patdiff_format.Rules in
-  print_line old_file rules.Rz.header_old;
-  print_line new_file rules.Rz.header_new
+  print_line prev_file rules.Rz.header_old;
+  print_line next_file rules.Rz.header_new
 ;;
 
 let print ~print_global_header ~file_names ~rules ~print ~location_style hunks =
@@ -113,7 +113,7 @@ let print ~print_global_header ~file_names ~rules ~print ~location_style hunks =
     Patdiff_format.Location_style.sprint
       location_style
       hunk
-      ~mine_filename:(fst file_names)
+      ~prev_filename:(fst file_names)
       ~rule:(Rule.apply ~rule:rules.Rz.hunk ~refined:false)
     |> print;
     let module R = Patience_diff.Range in
@@ -122,8 +122,8 @@ let print ~print_global_header ~file_names ~rules ~print ~location_style hunks =
       | R.Same r ->
         let mr = Array.map r ~f:snd in
         Array.iter mr ~f:print
-      | R.Old r
-      | R.New r
+      | R.Prev r
+      | R.Next r
       | R.Unified r -> Array.iter r ~f:print
       | R.Replace (ar1, ar2) ->
         Array.iter ar1 ~f:print;

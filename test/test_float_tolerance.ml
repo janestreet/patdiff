@@ -2,12 +2,12 @@ open! Core
 open! Async
 open Import
 
-let diff mine other tolerance message =
+let diff prev next tolerance message =
   printf !"====== %{Sexp} ======\n" message;
   patdiff
     ~extra_flags:[ "-float-tol"; Percent.to_string tolerance; "-ascii" ]
-    ~mine
-    ~other
+    ~prev
+    ~next
 ;;
 
 let test prev next =
@@ -30,8 +30,8 @@ let%expect_test _ =
   [%expect
     {|
       ====== strict ======
-      ------ mine
-      ++++++ other
+      ------ prev
+      ++++++ next
       @|-1,5 +1,4 ============================================================
        |
        | foo
@@ -40,8 +40,8 @@ let%expect_test _ =
        | baz
       ("Unclean exit" (Exit_non_zero 1))
       ====== 10% ======
-      ------ mine
-      ++++++ other
+      ------ prev
+      ++++++ next
       @|-1,5 +1,4 ============================================================
        |
        | foo
@@ -92,8 +92,8 @@ let%expect_test _ =
   [%expect
     {|
     ====== strict ======
-    ------ mine
-    ++++++ other
+    ------ prev
+    ++++++ next
     @|-1,16 +1,16 ============================================================
     -|((apples 12345678 23456789))
     -| (bananas (09:30:00.000000 16:00:00.000000))
@@ -120,8 +120,8 @@ let%expect_test _ =
     +| (ugli_fruits 32s))
     ("Unclean exit" (Exit_non_zero 1))
     ====== 10% ======
-    ------ mine
-    ++++++ other
+    ------ prev
+    ++++++ next
     @|-1,16 +1,16 ============================================================
      |((apples 12345678 23456788))
     -| (bananas (09:30:00.000000 16:00:00.000000))

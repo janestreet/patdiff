@@ -131,7 +131,7 @@ module Location_style : sig
   val sprint
     :  t
     -> string Patience_diff.Hunk.t
-    -> mine_filename:string
+    -> prev_filename:string
     -> rule:(string -> string)
     -> string
 end

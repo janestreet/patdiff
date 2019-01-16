@@ -33,8 +33,8 @@ module Args = struct
     ; line_big_enough_opt : int option
     ; word_big_enough_opt : int option
     ; config_opt : string option
-    ; old_file : string
-    ; new_file : string
+    ; prev_file : string
+    ; next_file : string
     ; old_alt_opt : string option option
     ; new_alt_opt : string option option
     ; include_ : string list
@@ -51,7 +51,7 @@ end
 let remove_at_exit = ref []
 
 let files_from_anons = function
-  | Some (old_file, new_file) -> old_file, new_file
+  | Some (prev_file, next_file) -> prev_file, next_file
   | None ->
     (* read from stdin *)
     let temp_txt_file prefix =
@@ -59,8 +59,8 @@ let files_from_anons = function
       remove_at_exit := file :: !remove_at_exit;
       file, oc
     in
-    let old_file, old_oc = temp_txt_file "patdiff_old_" in
-    let new_file, new_oc = temp_txt_file "patdiff_new_" in
+    let prev_file, old_oc = temp_txt_file "patdiff_old_" in
+    let next_file, new_oc = temp_txt_file "patdiff_new_" in
     let add_prefixes = [ "+"; ">" ] in
     let remove_prefixes = [ "-"; "<" ] in
     let begins_with line prefixes =
@@ -85,7 +85,7 @@ let files_from_anons = function
       process line remove_prefixes add_prefixes new_oc);
     Out_channel.close old_oc;
     Out_channel.close new_oc;
-    old_file, new_file
+    prev_file, next_file
 ;;
 
 (* Override default/config file options with command line arguments *)
@@ -121,21 +121,24 @@ let main' args =
   let config = override config args in
   (* 2012-06-28 mbac: /dev/null is used as a placeholder for deleted files. *)
   let file_or_dev_null f = if Sys.file_exists_exn f then f else "/dev/null" in
-  let old_file = file_or_dev_null args.A.old_file in
-  let new_file = file_or_dev_null args.A.new_file in
-  if old_file = "/dev/null" && new_file = "/dev/null"
-  then failwithf "Both files, %s and %s, do not exist" args.A.old_file args.A.new_file ();
+  let prev_file = file_or_dev_null args.A.prev_file in
+  let next_file = file_or_dev_null args.A.next_file in
+  if prev_file = "/dev/null" && next_file = "/dev/null"
+  then
+    failwithf "Both files, %s and %s, do not exist" args.A.prev_file args.A.next_file ();
   let is_dir = Sys.is_directory_exn in
   let if_not_diffing_two_dirs () =
     if args.A.include_ <> [] || args.A.exclude <> []
     then failwith "Can only specify -include or -exclude when diffing two dirs"
   in
-  match is_dir old_file, is_dir new_file with
+  match is_dir prev_file, is_dir next_file with
   | true, false
   | false, true ->
     if_not_diffing_two_dirs ();
     (* One is a directory, the other is a file *)
-    let dir, file = if is_dir old_file then old_file, new_file else new_file, old_file in
+    let dir, file =
+      if is_dir prev_file then prev_file, next_file else next_file, prev_file
+    in
     (* Match file with its twin file in dir *)
     let module FO = Find_files.Options in
     let filter (filename, _stats) = filename = file in
@@ -153,10 +156,10 @@ let main' args =
     let matches = Find_files.find_all ~options dir in
     (match matches with
      | [ (matched_filename, _stats) ] ->
-       let old_file, new_file =
-         if is_dir old_file then matched_filename, file else file, matched_filename
+       let prev_file, next_file =
+         if is_dir prev_file then matched_filename, file else file, matched_filename
        in
-       Compare_core.diff_files ~old_file ~new_file config
+       Compare_core.diff_files ~prev_file ~next_file config
      | [] -> failwithf "File not found in %s: %s" dir file ()
      | _ ->
        (* This is impossible because max_depth is 1 *)
@@ -176,11 +179,11 @@ let main' args =
                    || List.exists args.A.include_ ~f:(fun pat -> Pcre.pmatch s ~pat))
              | _ -> true)
     in
-    Compare_core.diff_dirs ~old_file ~new_file config ~file_filter
+    Compare_core.diff_dirs ~prev_file ~next_file config ~file_filter
   | false, false ->
     (* Both are files *)
     if_not_diffing_two_dirs ();
-    Compare_core.diff_files ~old_file ~new_file config
+    Compare_core.diff_files ~prev_file ~next_file config
 ;;
 
 let main arg =
@@ -394,7 +397,7 @@ let command =
          match make_config with
          | Some file -> Args.Make_config file
          | None ->
-           let old_file, new_file =
+           let prev_file, next_file =
              let pair = files_from_anons files in
              if reverse then Tuple.T2.swap pair else pair
            in
@@ -422,8 +425,8 @@ let command =
              ; exclude
              ; location_style
              ; warn_if_no_trailing_newline_in_both
-             ; old_file
-             ; new_file
+             ; prev_file
+             ; next_file
              }
        in
        main args)

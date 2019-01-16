@@ -13,14 +13,14 @@ val default_context : int
 val default_line_big_enough : int
 val default_word_big_enough : int
 
-(** [diff ~context ~keep_ws ~mine ~other] uses [Patience_diff.String] to get a list of
-    hunks describing the comparison between [mine] and [other]. *)
+(** [diff ~context ~keep_ws ~prev ~next] uses [Patience_diff.String] to get a list of
+    hunks describing the comparison between [prev] and [next]. *)
 val diff
   :  context:int
   -> line_big_enough:int
   -> keep_ws:bool
-  -> mine:string array
-  -> other:string array
+  -> prev:string array
+  -> next:string array
   -> string Patience_diff.Hunk.t list
 
 (* [remove_ws] calls String.strip and replaces whitespace with " " *)
@@ -47,8 +47,8 @@ val explode
 
 (** Print a hunk list, usually from [diff] or [refine] *)
 val print
-  :  old_file:string
-  -> new_file:string
+  :  prev_file:string
+  -> next_file:string
   -> rules:Format.Rules.t
   -> output:Output.t
   -> location_style:Format.Location_style.t
@@ -81,7 +81,7 @@ type diff_input =
   }
 
 (** Runs the equivalent of the command line version of patdiff on two given contents
-    [from_] and [to_].  Uses [Patience_diff.String]. *)
+    [prev] and [next].  Uses [Patience_diff.String]. *)
 val patdiff
   :  ?context:int
   -> ?keep_ws:bool
@@ -94,7 +94,7 @@ val patdiff
   -> ?interleave:bool
   -> ?line_big_enough:int
   -> ?word_big_enough:int
-  -> from_:diff_input
-  -> to_:diff_input
+  -> prev:diff_input
+  -> next:diff_input
   -> unit
   -> string

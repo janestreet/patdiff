@@ -9,10 +9,10 @@ end = struct
 patdiff \- find differences between two files
 
 .SH SYNOPSIS
-\fBpatdiff.exe\fP [options] \fIfrom-file\fP \fIto-file\fP
+\fBpatdiff.exe\fP [options] \fIprev-file\fP \fInext-file\fP
 
 .SH DESCRIPTION
-Put simply, \fBpatdiff.exe\fP compares the contents of the two files \fIfrom-file\fP and \fIto-file\fP.  If desired, a configuration file defining how to format the output can be used. The comparison is done using the patience diff algorithm
+Put simply, \fBpatdiff.exe\fP compares the contents of the two files \fIprev-file\fP and \fInext-file\fP.  If desired, a configuration file defining how to format the output can be used. The comparison is done using the patience diff algorithm
 
 By default, compare two files and output the result of the comparison to the terminal, highlighting differences between the files on a word-by-word basis.  All whitespace is considered equal and effectively ignored.  The styling of the output is determined by the configuration file used.  A configuration file is searched for at ~/.patdiff, and if none is found, default styling is applied.  The exit code follows the diff standard, much like GNU diff. (0 = same, 1 = different, 2 = error)
 

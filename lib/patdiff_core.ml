@@ -94,10 +94,10 @@ module Output_ops = struct
             app x, app y)
         in
         R.Same formatted_ar
-      | R.New ar ->
-        R.New (Array.map ar ~f:(apply ~refined:false ~rule:rules.Rz.line_new))
-      | R.Old ar ->
-        R.Old (Array.map ar ~f:(apply ~refined:false ~rule:rules.Rz.line_old))
+      | R.Next ar ->
+        R.Next (Array.map ar ~f:(apply ~refined:false ~rule:rules.Rz.line_new))
+      | R.Prev ar ->
+        R.Prev (Array.map ar ~f:(apply ~refined:false ~rule:rules.Rz.line_old))
       | R.Unified ar ->
         R.Unified (Array.map ar ~f:(apply ~refined:true ~rule:rules.Rz.line_unified))
       | R.Replace (ar1, ar2) ->
@@ -149,14 +149,14 @@ let default_word_big_enough = 7
    infinity is the same as passing in [~interleave:false]. *)
 let too_short_to_split = 2
 
-let diff ~context ~line_big_enough ~keep_ws ~mine ~other =
+let diff ~context ~line_big_enough ~keep_ws ~prev ~next =
   let transform = if keep_ws then Fn.id else remove_ws in
   Patience_diff.String.get_hunks
     ~transform
     ~context
     ~big_enough:line_big_enough
-    ~mine
-    ~other
+    ~prev
+    ~next
 ;;
 
 type word_or_newline =
@@ -267,8 +267,8 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
     let rule =
       match !flag with
       | `Same -> rule_same
-      | `Old -> rule_old
-      | `New -> rule_new
+      | `Prev -> rule_old
+      | `Next -> rule_new
     in
     let formatted_segment = List.rev !segment |> String.concat |> apply ~rule in
     line := formatted_segment :: !line;
@@ -297,16 +297,16 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
          * this is, we want only one or the other. *)
         let f =
           match kind with
-          | `Old_only -> fst
-          | `New_only -> snd
+          | `Prev_only -> fst
+          | `Next_only -> snd
           | `Unified -> snd
         in
         Array.map ar ~f
-      | R.Old ar ->
-        flag := `Old;
+      | R.Prev ar ->
+        flag := `Prev;
         ar
-      | R.New ar ->
-        flag := `New;
+      | R.Next ar ->
+        flag := `Next;
         ar
       | R.Replace _ | R.Unified _ ->
         (* When calling collapse, we always call
@@ -346,7 +346,7 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
 ;;
 
 (* Get the hunks from two arrays of pieces (`Words and `Newlines) *)
-let diff_pieces ~old_pieces ~new_pieces ~keep_ws ~word_big_enough =
+let diff_pieces ~prev_pieces ~next_pieces ~keep_ws ~word_big_enough =
   let context = -1 in
   let transform =
     if keep_ws
@@ -365,15 +365,15 @@ let diff_pieces ~old_pieces ~new_pieces ~keep_ws ~word_big_enough =
     ~transform
     ~context
     ~big_enough:word_big_enough
-    ~mine:old_pieces
-    ~other:new_pieces
+    ~prev:prev_pieces
+    ~next:next_pieces
 ;;
 
 let ranges_are_just_whitespace ranges =
   let module R = Patience_diff.Range in
   List.for_all ranges ~f:(function
-    | R.Old piece_array
-    | R.New piece_array ->
+    | R.Prev piece_array
+    | R.Next piece_array ->
       Array.for_all piece_array ~f:(function
         | `Word s -> String.is_empty (remove_ws s)
         | `Newline _ -> true)
@@ -391,7 +391,7 @@ let split_for_readability rangelist =
   List.iter rangelist ~f:(fun range ->
     let split_was_executed =
       match range with
-      | R.New _ | R.Old _ | R.Replace _ | R.Unified _ -> false
+      | R.Next _ | R.Prev _ | R.Replace _ | R.Unified _ -> false
       | R.Same seq ->
         let first_newline =
           Array.find_mapi seq ~f:(fun i -> function
@@ -462,12 +462,12 @@ let refine
   in
   let aux hunk =
     let aux = function
-      | R.Replace (old_ar, new_ar) ->
+      | R.Replace (prev_ar, next_ar) ->
         (* Explode the arrays *)
-        let old_pieces = explode old_ar ~keep_ws in
-        let new_pieces = explode new_ar ~keep_ws in
+        let prev_pieces = explode prev_ar ~keep_ws in
+        let next_pieces = explode next_ar ~keep_ws in
         (* Diff the pieces *)
-        let sub_diff = diff_pieces ~old_pieces ~new_pieces ~keep_ws ~word_big_enough in
+        let sub_diff = diff_pieces ~prev_pieces ~next_pieces ~keep_ws ~word_big_enough in
         (* Smash the hunks' ranges all together *)
         let sub_diff = Patience_diff.Hunks.ranges sub_diff in
         (* Break it up where lines are too long *)
@@ -556,15 +556,15 @@ let refine
                          | `Range r -> r :: rangeaccum, rangelistaccum)
                    in
                    split_lines new_len_so_far rest rangeaccum rangelistaccum
-                 | R.New tokens_arr
-                 | R.Old tokens_arr ->
+                 | R.Next tokens_arr
+                 | R.Prev tokens_arr ->
                    let new_len_so_far = get_new_len_so_far ~len_so_far tokens_arr in
                    split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
-                 | R.Replace (old_arr, new_arr) ->
+                 | R.Replace (prev_arr, next_arr) ->
                    let new_len_so_far =
                      Int.max
-                       (get_new_len_so_far ~len_so_far old_arr)
-                       (get_new_len_so_far ~len_so_far new_arr)
+                       (get_new_len_so_far ~len_so_far prev_arr)
+                       (get_new_len_so_far ~len_so_far next_arr)
                    in
                    split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
                  | R.Unified _ -> assert false)
@@ -577,14 +577,14 @@ let refine
           else sub_diff_pieces
         in
         List.concat_map sub_diff_pieces ~f:(fun sub_diff ->
-          let sub_old = Patience_diff.Range.old_only sub_diff in
-          let sub_new = Patience_diff.Range.new_only sub_diff in
+          let sub_prev = Patience_diff.Range.prev_only sub_diff in
+          let sub_next = Patience_diff.Range.next_only sub_diff in
           let all_same ranges =
             List.for_all ranges ~f:(fun range ->
               match range with
               | Patience_diff.Range.Same _ -> true
-              | Patience_diff.Range.Old a
-              | Patience_diff.Range.New a ->
+              | Patience_diff.Range.Prev a
+              | Patience_diff.Range.Next a ->
                 if keep_ws
                 then false
                 else
@@ -593,77 +593,77 @@ let refine
                     | `Word _ -> false)
               | _ -> false)
           in
-          let old_all_same = all_same sub_old in
-          let new_all_same = all_same sub_new in
+          let prev_all_same = all_same sub_prev in
+          let next_all_same = all_same sub_next in
           let produce_unified_lines =
             produce_unified_lines
-            && ((not (ranges_are_just_whitespace sub_old) && new_all_same)
-                || (not (ranges_are_just_whitespace sub_new) && old_all_same))
+            && ((not (ranges_are_just_whitespace sub_prev) && next_all_same)
+                || (not (ranges_are_just_whitespace sub_next) && prev_all_same))
           in
           (* Collapse the pieces back into lines *)
-          let old_new_pairs =
-            match old_all_same, new_all_same with
+          let prev_next_pairs =
+            match prev_all_same, next_all_same with
             | true, true ->
-              let kind = `New_only in
+              let kind = `Next_only in
               let rule_same = rules.Rz.word_same_unified in
-              let new_ar = collapse sub_new ~rule_same ~kind in
-              [ new_ar, new_ar ]
+              let next_ar = collapse sub_next ~rule_same ~kind in
+              [ next_ar, next_ar ]
             | false, true ->
-              let kind = `Old_only in
+              let kind = `Prev_only in
               let rule_same =
                 if produce_unified_lines
                 then rules.Rz.word_same_unified
                 else rules.Rz.word_same_old
               in
-              let old_ar = collapse sub_old ~rule_same ~kind in
-              let kind = `New_only in
+              let prev_ar = collapse sub_prev ~rule_same ~kind in
+              let kind = `Next_only in
               let rule_same = rules.Rz.word_same_new in
-              let new_ar = collapse sub_new ~rule_same ~kind in
-              [ old_ar, new_ar ]
+              let next_ar = collapse sub_next ~rule_same ~kind in
+              [ prev_ar, next_ar ]
             | true, false ->
-              let kind = `New_only in
+              let kind = `Next_only in
               let rule_same =
                 if produce_unified_lines
                 then rules.Rz.word_same_unified
                 else rules.Rz.word_same_new
               in
-              let new_ar = collapse sub_new ~rule_same ~kind in
-              let kind = `Old_only in
+              let next_ar = collapse sub_next ~rule_same ~kind in
+              let kind = `Prev_only in
               let rule_same = rules.Rz.word_same_old in
-              let old_ar = collapse sub_old ~rule_same ~kind in
-              [ old_ar, new_ar ]
+              let prev_ar = collapse sub_prev ~rule_same ~kind in
+              [ prev_ar, next_ar ]
             | false, false ->
-              let kind = `Old_only in
+              let kind = `Prev_only in
               let rule_same = rules.Rz.word_same_old in
-              let old_ar = collapse sub_old ~rule_same ~kind in
-              let kind = `New_only in
+              let prev_ar = collapse sub_prev ~rule_same ~kind in
+              let kind = `Next_only in
               let rule_same = rules.Rz.word_same_new in
-              let new_ar = collapse sub_new ~rule_same ~kind in
-              [ old_ar, new_ar ]
+              let next_ar = collapse sub_next ~rule_same ~kind in
+              [ prev_ar, next_ar ]
           in
-          List.map old_new_pairs ~f:(fun (old_ar, new_ar) ->
+          List.map prev_next_pairs ~f:(fun (prev_ar, next_ar) ->
             let range =
-              match old_all_same, new_all_same with
-              | true, true -> R.Same (Array.map new_ar ~f:(fun x -> x, x))
+              match prev_all_same, next_all_same with
+              | true, true -> R.Same (Array.map next_ar ~f:(fun x -> x, x))
               | _ ->
-                (match old_ar, new_ar with
+                (match prev_ar, next_ar with
                  (* Ugly hack that takes care of empty files *)
-                 | [| "" |], new_ar -> R.Replace ([||], new_ar)
-                 | old_ar, [| "" |] -> R.Replace (old_ar, [||])
-                 | old_ar, new_ar ->
-                   (match produce_unified_lines, old_all_same, new_all_same with
-                    | true, true, false -> R.Unified new_ar
-                    | true, false, true -> R.Unified old_ar
+                 | [| "" |], next_ar -> R.Replace ([||], next_ar)
+                 | prev_ar, [| "" |] -> R.Replace (prev_ar, [||])
+                 | prev_ar, next_ar ->
+                   (match produce_unified_lines, prev_all_same, next_all_same with
+                    | true, true, false -> R.Unified next_ar
+                    | true, false, true -> R.Unified prev_ar
                     | false, _, _
-                    | _, false, false -> R.Replace (old_ar, new_ar)
+                    | _, false, false -> R.Replace (prev_ar, next_ar)
                     | _ -> assert false))
             in
             range))
-      | R.New a
+      | R.Next a
         when not keep_ws && Array.for_all a ~f:is_ws -> [ R.Same (Array.zip_exn a a) ]
-      | R.Old a
+      | R.Prev a
         when not keep_ws && Array.for_all a ~f:is_ws -> []
-      | (R.New _ | R.Old _ | R.Same _ | R.Unified _) as range -> [ range ]
+      | (R.Next _ | R.Prev _ | R.Same _ | R.Unified _) as range -> [ range ]
     in
     let refined_ranges = List.concat_map hunk.H.ranges ~f:aux in
     { hunk with H.ranges = refined_ranges }
@@ -672,12 +672,12 @@ let refine
   List.filter refined_hunks ~f:(fun h -> not (H.all_same h))
 ;;
 
-let print ~old_file ~new_file ~rules ~output ~location_style hunks =
+let print ~prev_file ~next_file ~rules ~output ~location_style hunks =
   Output_ops.print
     hunks
     ~rules
     ~output
-    ~file_names:(old_file, new_file)
+    ~file_names:(prev_file, next_file)
     ~print:(Printf.printf "%s\n")
     ~location_style
     ~print_global_header:true
@@ -725,8 +725,8 @@ let patdiff
       ?(interleave = true)
       ?(line_big_enough = default_line_big_enough)
       ?(word_big_enough = default_word_big_enough)
-      ~from_
-      ~to_
+      ~prev
+      ~next
       ()
   =
   let hunks =
@@ -734,8 +734,8 @@ let patdiff
       ~context
       ~keep_ws
       ~line_big_enough
-      ~mine:(List.to_array (String.split_lines from_.text))
-      ~other:(List.to_array (String.split_lines to_.text))
+      ~prev:(List.to_array (String.split_lines prev.text))
+      ~next:(List.to_array (String.split_lines next.text))
     |> refine
          ~rules
          ~produce_unified_lines
@@ -747,7 +747,7 @@ let patdiff
   in
   output_to_string
     ?print_global_header
-    ~file_names:(from_.name, to_.name)
+    ~file_names:(prev.name, next.name)
     ~rules
     ~output
     ~location_style
@@ -756,8 +756,8 @@ let patdiff
 
 let%test_module _ =
   (module struct
-    let from_ = { name = "old"; text = "Foo bar buzz" }
-    let to_ = { name = "old"; text = "Foo buzz" }
+    let prev = { name = "old"; text = "Foo bar buzz" }
+    let next = { name = "old"; text = "Foo buzz" }
 
     let%expect_test "Ansi output generates a single line diff" =
       printf
@@ -766,13 +766,12 @@ let%test_module _ =
            ~split_long_lines:false
            ~produce_unified_lines:true
            ~output:Ansi
-           ~from_
-           ~to_
+           ~prev
+           ~next
            ());
-      [%expect
-        {|
+      [%expect {|
       -1,1 +1,1
-      [0;1;33m!|[0m[0mFoo[0;31m bar[0m buzz[0m |}]
+      [0;1;33m!|[0mFoo[0;31m bar[0m buzz |}]
     ;;
 
     let%expect_test "Ascii is supported if [produce_unified_lines] is false" =
@@ -782,13 +781,69 @@ let%test_module _ =
            ~split_long_lines:false
            ~produce_unified_lines:false
            ~output:Ascii
-           ~from_
-           ~to_
+           ~prev
+           ~next
            ());
       [%expect {|
       -1,1 +1,1
       -|Foo bar buzz
       +|Foo buzz |}]
+    ;;
+
+    let%expect_test "don't highlight empty newlines (ascii)" =
+      printf
+        "%s\n"
+        (patdiff
+           ~keep_ws:true
+           ~split_long_lines:false
+           ~produce_unified_lines:false
+           ~output:Ascii
+           ~prev:{ name = "old"; text = "" }
+           ~next:{ name = "new"; text = "\n\n\n" }
+           ());
+      [%expect {|
+        -1,0 +1,3
+        +|
+        +|
+        +| |}]
+    ;;
+
+    let%expect_test "don't highlight empty newlines (ansi)" =
+      printf
+        "%s\n"
+        (patdiff
+           ~keep_ws:true
+           ~split_long_lines:false
+           ~produce_unified_lines:false
+           ~output:Ansi
+           ~prev:{ name = "old"; text = "" }
+           ~next:{ name = "new"; text = "\n\n\n" }
+           ());
+      [%expect
+        {|
+        -1,0 +1,3
+        [0;1;32m+|[0m[0;32m[0m
+        [0;1;32m+|[0m[0;32m[0m
+        [0;1;32m+|[0m[0;32m[0m |}]
+    ;;
+
+    let%expect_test "do highlight empty newlines with some spaces (ansi)" =
+      printf
+        "%s\n"
+        (patdiff
+           ~keep_ws:true
+           ~split_long_lines:false
+           ~produce_unified_lines:false
+           ~output:Ansi
+           ~prev:{ name = "old"; text = "" }
+           ~next:{ name = "new"; text = "  \n  \n  \n" }
+           ());
+      [%expect
+        {|
+        -1,0 +1,3
+        [0;1;32m+|[0m[0;7;32m  [0m
+        [0;1;32m+|[0m[0;7;32m  [0m
+        [0;1;32m+|[0m[0;7;32m  [0m |}]
     ;;
 
     let%test "Ascii is not supported if [produce_unified_lines] is true" =
@@ -797,12 +852,46 @@ let%test_module _ =
           ~split_long_lines:false
           ~produce_unified_lines:true
           ~output:Ascii
-          ~from_
-          ~to_
+          ~prev
+          ~next
           ()
       with
       | exception _ -> true
       | (_ : string) -> false
+    ;;
+  end)
+;;
+
+let%test_module "python" =
+  (module struct
+    let prev = { name = "old.py"; text = "print(5)" }
+    let next = { name = "new.py"; text = "if True:\n    print(5)" }
+    let doesn't_contain_ansi_escapes s = not (String.contains s '')
+
+    let%test _ =
+      patdiff ~output:Ascii ~produce_unified_lines:false ~prev ~next ()
+      |> doesn't_contain_ansi_escapes
+    ;;
+
+    let%test _ =
+      patdiff ~output:Ascii ~produce_unified_lines:false ~keep_ws:false ~prev ~next ()
+      |> doesn't_contain_ansi_escapes
+    ;;
+
+    let%test _ =
+      patdiff ~output:Ascii ~produce_unified_lines:false ~keep_ws:true ~prev ~next ()
+      |> doesn't_contain_ansi_escapes
+    ;;
+
+    let%test _ =
+      patdiff
+        ~output:Ascii
+        ~produce_unified_lines:false
+        ~rules:(Patdiff_format.Rules.strip_styles Patdiff_format.Rules.default)
+        ~prev
+        ~next
+        ()
+      |> doesn't_contain_ansi_escapes
     ;;
   end)
 ;;
