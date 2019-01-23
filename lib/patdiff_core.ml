@@ -729,6 +729,14 @@ let patdiff
       ~next
       ()
   =
+  let keep_ws =
+    keep_ws
+    || Should_keep_whitespace.for_diff
+         ~file1:prev.name
+         ~file2:next.name
+         ~lines1:prev.text
+         ~lines2:next.text
+  in
   let hunks =
     diff
       ~context
@@ -866,7 +874,42 @@ let%test_module "python" =
   (module struct
     let prev = { name = "old.py"; text = "print(5)" }
     let next = { name = "new.py"; text = "if True:\n    print(5)" }
-    let doesn't_contain_ansi_escapes s = not (String.contains s '')
+    let doesn't_contain_ansi_escapes s = not (String.contains s '\027')
+
+    let%expect_test "Ansi output generates a single line diff" =
+      printf
+        "%s\n"
+        (patdiff
+           ~split_long_lines:false
+           ~produce_unified_lines:true
+           ~output:Ansi
+           ~prev
+           ~next
+           ());
+      [%expect
+        {|
+      -1,1 +1,2
+      [0;1;33m!|[0m[0;32mif True:[0m
+      [0;1;33m!|[0m[0;7;32m    [0mprint(5) |}]
+    ;;
+
+    let%expect_test "Ascii is supported if [produce_unified_lines] is false" =
+      printf
+        "%s\n"
+        (patdiff
+           ~split_long_lines:false
+           ~produce_unified_lines:false
+           ~output:Ascii
+           ~prev
+           ~next
+           ());
+      [%expect
+        {|
+      -1,1 +1,2
+      -|print(5)
+      +|if True:
+      +|    print(5) |}]
+    ;;
 
     let%test _ =
       patdiff ~output:Ascii ~produce_unified_lines:false ~prev ~next ()

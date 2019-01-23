@@ -3,15 +3,11 @@ open! Async
 open! Import
 open Patdiff_lib.Std.Private.Should_keep_whitespace
 
-let test file1 contents1 file2 contents2 =
-  let file1 = file1, String.strip contents1 in
-  let file2 = file2, String.strip contents2 in
-  let test (file1, contents1) (file2, contents2) =
-    for_diff
-      ~file1
-      ~contents1:(String.strip contents1)
-      ~file2
-      ~contents2:(String.strip contents2)
+let test file1 lines1 file2 lines2 =
+  let file1 = file1, String.strip lines1 in
+  let file2 = file2, String.strip lines2 in
+  let test (file1, lines1) (file2, lines2) =
+    for_diff ~file1 ~lines1:(String.strip lines1) ~file2 ~lines2:(String.strip lines2)
   in
   let should_keep_whitespace = test file1 file2 in
   require_equal [%here] (module Bool) should_keep_whitespace (test file2 file1);

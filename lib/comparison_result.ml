@@ -7,11 +7,11 @@ type t =
   | Hunks of Patdiff_hunks.t
 
 let update_config_infer_keep_ws config ~prev ~next =
-  let { Patdiff_core.name = file1; text = contents1 } = prev in
-  let { Patdiff_core.name = file2; text = contents2 } = next in
+  let { Patdiff_core.name = file1; text = lines1 } = prev in
+  let { Patdiff_core.name = file2; text = lines2 } = next in
   let keep_ws =
     config.Configuration.keep_ws
-    || Should_keep_whitespace.for_diff ~file1 ~file2 ~contents1 ~contents2
+    || Should_keep_whitespace.for_diff ~file1 ~file2 ~lines1 ~lines2
   in
   Configuration.override ~keep_ws config
 ;;
