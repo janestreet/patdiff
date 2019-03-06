@@ -217,7 +217,7 @@ module Location_style = struct
   type t =
     | Diff
     | Omake
-  [@@deriving bin_io, compare, enumerate, sexp]
+  [@@deriving bin_io, compare, enumerate, equal, sexp]
 
   let to_string = function
     | Diff -> "diff"
