@@ -68,7 +68,7 @@ else
     # process the output of patdiff to:
     # - not displaying the index line if the output of patdiff is empty
     # - change the style of the "--- ..." and "+++ ..." lines
-    patdiff -alt-old " $path_a" -alt-new " $path_b" "$old_file" "$new_file" | \
+    "${BASH_SOURCE%/*}/patdiff" -alt-old " $path_a" -alt-new " $path_b" "$old_file" "$new_file" | \
         sed "1,2 s/^/$m/" | sed "1 s/^/$m$index"$'\\\n'"/"
     # git expect non-zero only in case of error. Patdiff, just like
     # diff, returns 1 if the files are different
