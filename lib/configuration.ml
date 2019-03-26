@@ -152,8 +152,8 @@ module Annex = struct
   (* Simply a prefix or a suffix.  Might come with an associated style. *)
 
   type t =
-    { text : string sexp_option
-    ; style : Style.t list sexp_option
+    { text : string option [@sexp.option]
+    ; style : Style.t list option [@sexp.option]
     }
   [@@deriving sexp]
 
@@ -174,9 +174,9 @@ end
 
 module Rule = struct
   type t =
-    { prefix : Annex.t sexp_option
-    ; suffix : Annex.t sexp_option
-    ; style : Style.t list sexp_option
+    { prefix : Annex.t option [@sexp.option]
+    ; suffix : Annex.t option [@sexp.option]
+    ; style : Style.t list option [@sexp.option]
     }
   [@@deriving sexp]
 
@@ -229,10 +229,10 @@ end
 
 module Line_rule = struct
   type t =
-    { prefix : Annex.t sexp_option
-    ; suffix : Annex.t sexp_option
-    ; style : Style.t list sexp_option
-    ; word_same : Style.t list sexp_option
+    { prefix : Annex.t option [@sexp.option]
+    ; suffix : Annex.t option [@sexp.option]
+    ; style : Style.t list option [@sexp.option]
+    ; word_same : Style.t list option [@sexp.option]
     }
   [@@deriving sexp]
 
@@ -245,35 +245,35 @@ end
 
 module Config = struct
   type t =
-    { dont_produce_unified_lines : bool sexp_option
-    ; dont_overwrite_word_old_word_new : bool sexp_option
-    ; config_path : string sexp_option
-    ; context : int sexp_option
-    ; line_big_enough : int sexp_option
-    ; word_big_enough : int sexp_option
-    ; unrefined : bool sexp_option
-    ; keep_whitespace : bool sexp_option
-    ; split_long_lines : bool sexp_option
-    ; interleave : bool sexp_option
-    ; assume_text : bool sexp_option
-    ; quiet : bool sexp_option
-    ; shallow : bool sexp_option
-    ; double_check : bool sexp_option
-    ; mask_uniques : bool sexp_option
-    ; html : bool sexp_option
-    ; alt_old : string sexp_option
-    ; alt_new : string sexp_option
-    ; ext_cmp : string sexp_option
-    ; float_tolerance : Percent.t sexp_option
-    ; header_old : Header.t sexp_option
-    ; header_new : Header.t sexp_option
-    ; hunk : Hunk.t sexp_option
-    ; line_same : Line_rule.t sexp_option
-    ; line_old : Line_rule.t sexp_option
-    ; line_new : Line_rule.t sexp_option
-    ; line_unified : Line_rule.t sexp_option
-    ; word_old : Rule.t sexp_option
-    ; word_new : Rule.t sexp_option
+    { dont_produce_unified_lines : bool option [@sexp.option]
+    ; dont_overwrite_word_old_word_new : bool option [@sexp.option]
+    ; config_path : string option [@sexp.option]
+    ; context : int option [@sexp.option]
+    ; line_big_enough : int option [@sexp.option]
+    ; word_big_enough : int option [@sexp.option]
+    ; unrefined : bool option [@sexp.option]
+    ; keep_whitespace : bool option [@sexp.option]
+    ; split_long_lines : bool option [@sexp.option]
+    ; interleave : bool option [@sexp.option]
+    ; assume_text : bool option [@sexp.option]
+    ; quiet : bool option [@sexp.option]
+    ; shallow : bool option [@sexp.option]
+    ; double_check : bool option [@sexp.option]
+    ; mask_uniques : bool option [@sexp.option]
+    ; html : bool option [@sexp.option]
+    ; alt_old : string option [@sexp.option]
+    ; alt_new : string option [@sexp.option]
+    ; ext_cmp : string option [@sexp.option]
+    ; float_tolerance : Percent.t option [@sexp.option]
+    ; header_old : Header.t option [@sexp.option]
+    ; header_new : Header.t option [@sexp.option]
+    ; hunk : Hunk.t option [@sexp.option]
+    ; line_same : Line_rule.t option [@sexp.option]
+    ; line_old : Line_rule.t option [@sexp.option]
+    ; line_new : Line_rule.t option [@sexp.option]
+    ; line_unified : Line_rule.t option [@sexp.option]
+    ; word_old : Rule.t option [@sexp.option]
+    ; word_new : Rule.t option [@sexp.option]
     ; location_style : P.Format.Location_style.t
                          [@default P.Format.Location_style.Diff] [@sexp_drop_default.equal]
     ; warn_if_no_trailing_newline_in_both : bool
@@ -304,49 +304,49 @@ module Old_config = struct
     type t =
       { style_old : Style.t list
       ; style_new : Style.t list
-      ; prefix_old : Annex.t sexp_option
-      ; suffix_old : Annex.t sexp_option
-      ; prefix_new : Annex.t sexp_option
-      ; suffix_new : Annex.t sexp_option
+      ; prefix_old : Annex.t option [@sexp.option]
+      ; suffix_old : Annex.t option [@sexp.option]
+      ; prefix_new : Annex.t option [@sexp.option]
+      ; suffix_new : Annex.t option [@sexp.option]
       }
     [@@deriving sexp]
   end
 
   module Old_header = struct
     type t =
-      { style_old : Style.t list sexp_option
-      ; style_new : Style.t list sexp_option
-      ; prefix_old : Annex.t sexp_option
-      ; suffix_old : Annex.t sexp_option
-      ; prefix_new : Annex.t sexp_option
-      ; suffix_new : Annex.t sexp_option
+      { style_old : Style.t list option [@sexp.option]
+      ; style_new : Style.t list option [@sexp.option]
+      ; prefix_old : Annex.t option [@sexp.option]
+      ; suffix_old : Annex.t option [@sexp.option]
+      ; prefix_new : Annex.t option [@sexp.option]
+      ; suffix_new : Annex.t option [@sexp.option]
       }
     [@@deriving sexp]
   end
 
   type t =
-    { config_path : string sexp_option
-    ; context : int sexp_option
-    ; line_big_enough : int sexp_option
-    ; word_big_enough : int sexp_option
-    ; unrefined : bool sexp_option
-    ; external_compare : string sexp_option
-    ; float_tolerance : Percent.t sexp_option
-    ; keep_whitespace : bool sexp_option
-    ; split_long_lines : bool sexp_option
-    ; interleave : bool sexp_option
-    ; assume_text : bool sexp_option
-    ; shallow : bool sexp_option
-    ; quiet : bool sexp_option
-    ; double_check : bool sexp_option
-    ; hide_uniques : bool sexp_option
-    ; header : Old_header.t sexp_option
-    ; line_same : Style.t list sexp_option
-    ; line_same_prefix : Annex.t sexp_option
-    ; line_changed : Line_changed.t sexp_option
-    ; word_same : Word_same.t sexp_option
-    ; word_changed : Word_changed.t sexp_option
-    ; chunk : Hunk.t sexp_option
+    { config_path : string option [@sexp.option]
+    ; context : int option [@sexp.option]
+    ; line_big_enough : int option [@sexp.option]
+    ; word_big_enough : int option [@sexp.option]
+    ; unrefined : bool option [@sexp.option]
+    ; external_compare : string option [@sexp.option]
+    ; float_tolerance : Percent.t option [@sexp.option]
+    ; keep_whitespace : bool option [@sexp.option]
+    ; split_long_lines : bool option [@sexp.option]
+    ; interleave : bool option [@sexp.option]
+    ; assume_text : bool option [@sexp.option]
+    ; shallow : bool option [@sexp.option]
+    ; quiet : bool option [@sexp.option]
+    ; double_check : bool option [@sexp.option]
+    ; hide_uniques : bool option [@sexp.option]
+    ; header : Old_header.t option [@sexp.option]
+    ; line_same : Style.t list option [@sexp.option]
+    ; line_same_prefix : Annex.t option [@sexp.option]
+    ; line_changed : Line_changed.t option [@sexp.option]
+    ; word_same : Word_same.t option [@sexp.option]
+    ; word_changed : Word_changed.t option [@sexp.option]
+    ; chunk : Hunk.t option [@sexp.option]
     ; location_style : P.Format.Location_style.t
                          [@default P.Format.Location_style.Diff] [@sexp_drop_default.equal]
     ; warn_if_no_trailing_newline_in_both : bool
