@@ -1,4 +1,5 @@
 open Core
+open Poly
 open Import
 
 let lines_of_contents contents =

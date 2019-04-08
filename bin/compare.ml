@@ -1,4 +1,5 @@
 open Core
+open Poly
 module P = Patdiff_lib.Patdiff_core
 module Compare_core = Patdiff_lib.Compare_core
 module Configuration = Patdiff_lib.Configuration

@@ -1,4 +1,5 @@
 open! Core
+open Poly
 open! Import
 module Format = Patdiff_format
 module Output = Output_mode
