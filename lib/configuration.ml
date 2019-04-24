@@ -25,8 +25,8 @@ type t =
   ; new_alt : string option
   ; location_style : P.Format.Location_style.t
   ; warn_if_no_trailing_newline_in_both : bool
-                                            [@default warn_if_no_trailing_newline_in_both_default]
-                                            [@sexp_drop_default.equal]
+                                          [@default warn_if_no_trailing_newline_in_both_default]
+                                          [@sexp_drop_default.equal]
   }
 [@@deriving fields, sexp_of]
 
@@ -275,10 +275,10 @@ module Config = struct
     ; word_old : Rule.t option [@sexp.option]
     ; word_new : Rule.t option [@sexp.option]
     ; location_style : P.Format.Location_style.t
-                         [@default P.Format.Location_style.Diff] [@sexp_drop_default.equal]
+                       [@default P.Format.Location_style.Diff] [@sexp_drop_default.equal]
     ; warn_if_no_trailing_newline_in_both : bool
-                                              [@default warn_if_no_trailing_newline_in_both_default]
-                                              [@sexp_drop_default.equal]
+                                            [@default warn_if_no_trailing_newline_in_both_default]
+                                            [@sexp_drop_default.equal]
     }
   [@@deriving sexp]
 end
@@ -348,10 +348,10 @@ module Old_config = struct
     ; word_changed : Word_changed.t option [@sexp.option]
     ; chunk : Hunk.t option [@sexp.option]
     ; location_style : P.Format.Location_style.t
-                         [@default P.Format.Location_style.Diff] [@sexp_drop_default.equal]
+                       [@default P.Format.Location_style.Diff] [@sexp_drop_default.equal]
     ; warn_if_no_trailing_newline_in_both : bool
-                                              [@default warn_if_no_trailing_newline_in_both_default]
-                                              [@sexp_drop_default.equal]
+                                            [@default warn_if_no_trailing_newline_in_both_default]
+                                            [@sexp_drop_default.equal]
     }
   [@@deriving sexp]
 
