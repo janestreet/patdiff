@@ -1,5 +1,4 @@
 open Core
-open Poly
 module P = Patdiff_lib.Patdiff_core
 module Compare_core = Patdiff_lib.Compare_core
 module Configuration = Patdiff_lib.Configuration
@@ -124,13 +123,14 @@ let main' args =
   let file_or_dev_null f = if Sys.file_exists_exn f then f else "/dev/null" in
   let prev_file = file_or_dev_null args.A.prev_file in
   let next_file = file_or_dev_null args.A.next_file in
-  if prev_file = "/dev/null" && next_file = "/dev/null"
+  if String.equal prev_file "/dev/null" && String.equal next_file "/dev/null"
   then
     failwithf "Both files, %s and %s, do not exist" args.A.prev_file args.A.next_file ();
   let is_dir = Sys.is_directory_exn in
   let if_not_diffing_two_dirs () =
-    if args.A.include_ <> [] || args.A.exclude <> []
-    then failwith "Can only specify -include or -exclude when diffing two dirs"
+    match args with
+    | { include_ = []; exclude = []; _ } -> ()
+    | _ -> failwith "Can only specify -include or -exclude when diffing two dirs"
   in
   match is_dir prev_file, is_dir next_file with
   | true, false
@@ -142,7 +142,7 @@ let main' args =
     in
     (* Match file with its twin file in dir *)
     let module FO = Find_files.Options in
-    let filter (filename, _stats) = filename = file in
+    let filter (filename, _stats) = String.equal filename file in
     let options =
       { FO.min_depth = 1
       ; max_depth = Some 1
@@ -168,16 +168,16 @@ let main' args =
   | true, true ->
     (* Both are directories *)
     let file_filter =
-      if args.A.include_ = [] && args.A.exclude = []
-      then None
-      else
+      match args with
+      | { include_ = []; exclude = []; _ } -> None
+      | { include_; exclude; _ } ->
         Some
           (fun (s, stat) ->
              match stat.Unix.st_kind with
              | Unix.S_REG ->
-               List.for_all args.A.exclude ~f:(fun pat -> not (Pcre.pmatch s ~pat))
-               && (args.A.include_ = []
-                   || List.exists args.A.include_ ~f:(fun pat -> Pcre.pmatch s ~pat))
+               List.for_all exclude ~f:(fun pat -> not (Pcre.pmatch s ~pat))
+               && (List.is_empty include_
+                   || List.exists include_ ~f:(fun pat -> Pcre.pmatch s ~pat))
              | _ -> true)
     in
     Compare_core.diff_dirs ~prev_file ~next_file config ~file_filter
@@ -327,7 +327,9 @@ let command =
        flag_no_arg
          ~inverted:true
          "dont-produce-unified-lines"
-         ~doc:" Don't produce unified lines"
+         ~doc:
+           " Don't produce unified lines (this makes the diff unambiguous even if color \
+            is stripped)"
      and quiet_opt =
        flag_no_arg "quiet" ~doc:" Report only whether files differ, not the details"
      and shallow_opt =

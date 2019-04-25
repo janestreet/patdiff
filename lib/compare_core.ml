@@ -1,5 +1,4 @@
 open Core
-open Poly
 open Import
 
 let lines_of_contents contents =
@@ -235,9 +234,17 @@ let diff_strings
            ~location_style:config.location_style)
 ;;
 
-(* True if a file is a regular file *)
-let is_reg path = (Unix.stat path).Unix.st_kind = Unix.S_REG
-let is_dir path = (Unix.stat path).Unix.st_kind = Unix.S_DIR
+let is_reg path =
+  match Unix.stat path with
+  | { st_kind = S_REG; _ } -> true
+  | _ -> false
+;;
+
+let is_dir path =
+  match Unix.stat path with
+  | { st_kind = S_DIR; _ } -> true
+  | _ -> false
+;;
 
 let rec diff_dirs config ~prev_file ~next_file ~file_filter =
   let module C = Configuration in
@@ -287,9 +294,9 @@ let rec diff_dirs config ~prev_file ~next_file ~file_filter =
       then (
         exit_code := `Different;
         (* Print the diff if not -quiet *)
-        if config.C.quiet = false
-        then print hunks ~prev_file ~next_file ~config
-        else printf "Files %s and %s differ\n%!" prev_file next_file))
+        match config.C.quiet with
+        | false -> print hunks ~prev_file ~next_file ~config
+        | true -> printf "Files %s and %s differ\n%!" prev_file next_file))
     else if is_dir prev_file && is_dir next_file
     then
       if not config.C.shallow

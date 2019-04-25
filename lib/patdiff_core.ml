@@ -1,5 +1,4 @@
 open! Core
-open Poly
 open! Import
 module Format = Patdiff_format
 module Output = Output_mode
@@ -422,8 +421,10 @@ let split_for_readability rangelist =
              true))
     in
     if not split_was_executed then append_range range);
-  if !pending_ranges <> [] then ans := List.rev !pending_ranges :: !ans;
-  List.rev !ans
+  List.rev
+    (match !pending_ranges with
+     | [] -> !ans
+     | _ :: _ as ranges -> List.rev ranges :: !ans)
 ;;
 
 (* Refines the diff, splitting the lines into smaller arrays and diffing them, then
@@ -532,9 +533,9 @@ let refine
                        (* If there are token pairs left, that means we hit the max_len,
                           so add a break at this point *)
                        let new_accum =
-                         if new_tokenpairs <> []
-                         then `Break :: `Range (make_newline ()) :: new_accum
-                         else new_accum
+                         match new_tokenpairs with
+                         | _ :: _ -> `Break :: `Range (make_newline ()) :: new_accum
+                         | [] -> new_accum
                        in
                        take_ranges_until_exhausted new_len_so_far new_tokenpairs new_accum
                    in

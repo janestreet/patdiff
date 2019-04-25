@@ -26,8 +26,8 @@ let%expect_test "default" =
   let%bind () = patdiff ~prev ~next ~extra_flags:[] in
   [%expect
     {|
-    (fg:red)------ (+bold)prev
-    (fg:green)++++++ (+bold)next
+    (fg:red)------ (+bold)prev/file
+    (fg:green)++++++ (+bold)next/file
     (fg:black)@|(+bold)-1,7 +1,4(off) ============================================================
     (fg:black) |
     (fg:black bg:green)+|(fg:green)  assert (Int.( = ) (Set.length t.by_varying_usage) (Set.length t.by_constant_usage));
@@ -44,8 +44,8 @@ let%expect_test "-no-semantic-cleanup" =
   let%bind () = patdiff ~prev ~next ~extra_flags:[ "-no-semantic-cleanup" ] in
   [%expect
     {|
-    (fg:red)------ (+bold)prev
-    (fg:green)++++++ (+bold)next
+    (fg:red)------ (+bold)prev/file
+    (fg:green)++++++ (+bold)next/file
     (fg:black)@|(+bold)-1,7 +1,4(off) ============================================================
     (fg:black) |
     (fg:black bg:green)+|(fg:green)  assert (Int.( = ) (Set.length t.by_varying_usage) (Set.length t.by_constant_usage));
@@ -85,8 +85,8 @@ let%expect_test "with extra newlines" =
   let%bind () = patdiff ~prev ~next ~extra_flags:[] in
   [%expect
     {|
-    (fg:red)------ (+bold)prev
-    (fg:green)++++++ (+bold)next
+    (fg:red)------ (+bold)prev/file
+    (fg:green)++++++ (+bold)next/file
     (fg:black)@|(+bold)-1,8 +1,5(off) ============================================================
     (fg:black) |
     (fg:black) |(off)  assert (Int.( = ) (Set.length t.by_varying_usage) (Set.length t.by_constant_usage));

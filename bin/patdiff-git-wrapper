@@ -42,7 +42,7 @@ EOF
     path_a="a/$path"
     path_b="/dev/null"
     index="index ${old_hex:0:7}..0000000"
-elif [[ $old_mode = $new_mode ]]; then
+elif [[ $old_mode = "$new_mode" ]]; then
     path_a="a/$path"
     path_b="b/$new_path"
     index="index ${old_hex:0:7}..${new_hex:0:7} $new_mode"
@@ -73,5 +73,5 @@ else
     # git expect non-zero only in case of error. Patdiff, just like
     # diff, returns 1 if the files are different
     ret=${PIPESTATUS[0]}
-    [ $ret -le 1 ] || exit $ret
+    [ "$ret" -le 1 ] || exit "$ret"
 fi

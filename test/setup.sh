@@ -1,7 +1,11 @@
 #!/bin/bash
 
-export HERE=$(readlink -f $(dirname "$BASH_SOURCE"))
-export PATH="$(readlink -f $HERE/../bin/):$PATH"
+set -euo pipefail
+
+HERE=$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")
+export HERE
+PATH="$(readlink -f "$HERE/../bin/"):$PATH"
+export PATH
 
 function patdiff {
     patdiff.exe "$@"
@@ -9,7 +13,7 @@ function patdiff {
 export -f patdiff
 
 function visible_colors {
-    $HERE/../../ansicodes/bin/main.exe visualize -minimize
+    "$HERE/../../ansicodes/bin/main.exe" visualize -minimize
 }
 
 export -f visible_colors

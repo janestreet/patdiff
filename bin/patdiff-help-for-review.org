@@ -25,7 +25,9 @@
 :                                                before and after changes
 :   [-default]                                   Use the default configuration
 :                                                instead of ~/.patdiff
-:   [-dont-produce-unified-lines]                Don't produce unified lines
+:   [-dont-produce-unified-lines]                Don't produce unified lines (this
+:                                                makes the diff unambiguous even
+:                                                if color is stripped)
 :   [-double-check]                              If files seem identical, double
 :                                                check with cmp
 :   [-exclude REGEXP]                            exclude files matching this
