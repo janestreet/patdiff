@@ -27,6 +27,7 @@ val diff
 
 val remove_ws : string -> string
 
+
 (** [refine hunks] maps each [Range.Replace (prev, next)] in [hunks] to a diff of [prev]
     against [next]. *)
 val refine
@@ -43,7 +44,7 @@ val refine
 val explode
   :  string array
   -> keep_ws:bool
-  -> [`Newline of int * string option | `Word of string] array
+  -> [ `Newline of int * string option | `Word of string ] array
 
 (** Print a hunk list, usually from [diff] or [refine] *)
 val print
@@ -54,6 +55,7 @@ val print
   -> location_style:Format.Location_style.t
   -> string Patience_diff.Hunk.t list
   -> unit
+
 
 (** Output a hunk list, usually from [diff] or [refine], to a string *)
 val output_to_string

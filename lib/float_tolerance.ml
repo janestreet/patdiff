@@ -150,10 +150,8 @@ let recover_ranges xs ys a =
       in
       let acc =
         match matched, acc with
-        | true, []
-        | true, Second _ :: _ -> First [ i - 1, j - 1 ] :: acc
-        | false, []
-        | false, First _ :: _ ->
+        | true, [] | true, Second _ :: _ -> First [ i - 1, j - 1 ] :: acc
+        | false, [] | false, First _ :: _ ->
           Second
             (cons_minus_one i [] ~if_unequal_to:i', cons_minus_one j [] ~if_unequal_to:j')
           :: acc
@@ -228,8 +226,7 @@ end = struct
             match car, cadr with
             | Same car_lines, Same cadr_lines ->
               Skip (Same (Array.concat [ car_lines; cadr_lines ]), pos)
-            | Unified _, _
-            | _, Unified _ ->
+            | Unified _, _ | _, Unified _ ->
               raise_s
                 [%message
                   "Unexpected unified range."
@@ -245,8 +242,8 @@ end = struct
             | _, End ->
               raise_s [%message "Produced End in running step." (last : string Range.t)]
             | Same _, Start -> None
-            | (Prev _ | Next _ | Replace _), (Start | Middle)
-            | Same _, Middle -> Some (last, End))
+            | (Prev _ | Next _ | Replace _), (Start | Middle) | Same _, Middle ->
+              Some (last, End))
           ~finishing_step:(function
             | None -> Done
             | Some result -> Yield (result, None))

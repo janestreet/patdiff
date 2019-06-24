@@ -25,8 +25,7 @@ type t =
   ; new_alt : string option
   ; location_style : P.Format.Location_style.t
   ; warn_if_no_trailing_newline_in_both : bool
-                                          [@default warn_if_no_trailing_newline_in_both_default]
-                                          [@sexp_drop_default.equal]
+                                          [@default warn_if_no_trailing_newline_in_both_default] [@sexp_drop_default.equal]
   }
 [@@deriving fields, sexp_of]
 
@@ -405,7 +404,8 @@ module Old_config = struct
                 word_changed.Word_changed.style_old)
           ; Line_rule.prefix = Some line_changed.Line_changed.prefix_old
           ; word_same =
-              Option.map t.word_same ~f:(fun word_same -> word_same.Word_same.style_old)
+              Option.map t.word_same ~f:(fun word_same ->
+                word_same.Word_same.style_old)
           })
     ; line_new =
         Option.map t.line_changed ~f:(fun line_changed ->
@@ -415,7 +415,8 @@ module Old_config = struct
                 word_changed.Word_changed.style_new)
           ; Line_rule.prefix = Some line_changed.Line_changed.prefix_new
           ; word_same =
-              Option.map t.word_same ~f:(fun word_same -> word_same.Word_same.style_new)
+              Option.map t.word_same ~f:(fun word_same ->
+                word_same.Word_same.style_new)
           })
     ; line_unified = None
     ; word_old = None

@@ -14,7 +14,7 @@ let lines_of_contents contents =
 
 let%test_unit _ =
   let test contents ~expect =
-    [%test_result: string array * [`With_trailing_newline | `Missing_trailing_newline]]
+    [%test_result: string array * [ `With_trailing_newline | `Missing_trailing_newline ]]
       (lines_of_contents contents)
       ~expect
   in
@@ -51,12 +51,13 @@ let compare_lines config ~prev ~next =
         | Error (`Exit_non_zero 1) -> 1
         | Error _ -> failwithf "External compare %S failed!" prog ()
       in
-      let module P = Patience_diff.Make (struct
-                       type t = string [@@deriving sexp]
+      let module P =
+        Patience_diff.Make (struct
+          type t = string [@@deriving sexp]
 
-                       let hash = String.hash
-                       let compare = compare
-                     end)
+          let hash = String.hash
+          let compare = compare
+        end)
       in
       P.get_hunks ~transform ~context ~big_enough:line_big_enough ~prev ~next
   in

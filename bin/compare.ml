@@ -133,8 +133,7 @@ let main' args =
     | _ -> failwith "Can only specify -include or -exclude when diffing two dirs"
   in
   match is_dir prev_file, is_dir next_file with
-  | true, false
-  | false, true ->
+  | true, false | false, true ->
     if_not_diffing_two_dirs ();
     (* One is a directory, the other is a file *)
     let dir, file =
@@ -273,10 +272,11 @@ let command =
          | Some _, true ->
            (* unrefined is set more than once, but both values agree, so it's fine. *)
            Some true
-         | Some _, false
-         | None, true -> (* only set once *)
+         | Some _, false | None, true ->
+           (* only set once *)
            Some true
-         | None, false -> (* never set. *)
+         | None, false ->
+           (* never set. *)
            None
        in
        let ext_cmp_opt = Option.map ~f:Option.some ext_cmp in

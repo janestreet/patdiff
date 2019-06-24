@@ -161,7 +161,8 @@ let diff ~context ~line_big_enough ~keep_ws ~prev ~next =
 
 type word_or_newline =
   [ `Newline of int * string option (* (number of newlines, subsequent_whitespace) *)
-  | `Word of string ]
+  | `Word of string
+  ]
 [@@deriving sexp_of]
 
 (* Splits an array of lines into an array of pieces (`Newlines and R.Words) *)
@@ -193,7 +194,7 @@ let explode ar ~keep_ws =
     List.concat_map words ~f:(fun x ->
       match x with
       | hd :: tl ->
-        if keep_ws && not (String.is_empty hd) && is_ws hd
+        if keep_ws && (not (String.is_empty hd)) && is_ws hd
         then `Newline (1, Some hd) :: to_words tl
         else `Newline (1, None) :: `Word hd :: to_words tl
       | [] -> [ `Newline (1, None) ])
@@ -226,8 +227,7 @@ let explode ar ~keep_ws =
   let words =
     match words with
     | `Newline (i, opt) :: tl -> `Newline (i - 1, opt) :: tl
-    | `Word _ :: _
-    | [] ->
+    | `Word _ :: _ | [] ->
       raise_s
         [%message
           "Expected words to start with a `Newline." (words : word_or_newline list)]
@@ -327,8 +327,7 @@ let collapse ranges ~rule_same ~rule_old ~rule_new ~kind ~output =
   in
   List.iter ranges ~f;
   (match !line with
-   | []
-   | [ "" ] -> ()
+   | [] | [ "" ] -> ()
    | line ->
      let line = String.concat (List.rev line) in
      if is_ws line
@@ -372,8 +371,7 @@ let diff_pieces ~prev_pieces ~next_pieces ~keep_ws ~word_big_enough =
 let ranges_are_just_whitespace ranges =
   let module R = Patience_diff.Range in
   List.for_all ranges ~f:(function
-    | R.Prev piece_array
-    | R.Next piece_array ->
+    | R.Prev piece_array | R.Next piece_array ->
       Array.for_all piece_array ~f:(function
         | `Word s -> String.is_empty (remove_ws s)
         | `Newline _ -> true)
@@ -394,11 +392,9 @@ let split_for_readability rangelist =
       | R.Next _ | R.Prev _ | R.Replace _ | R.Unified _ -> false
       | R.Same seq ->
         let first_newline =
-          Array.find_mapi seq ~f:(fun i -> function
-            | `Word _, _
-            | _, `Word _
-            | `Newline (0, _), _
-            | _, `Newline (0, _) -> None
+          Array.find_mapi seq ~f:(fun i ->
+            function
+            | `Word _, _ | _, `Word _ | `Newline (0, _), _ | _, `Newline (0, _) -> None
             | `Newline first_nlA, `Newline first_nlB -> Some (i, first_nlA, first_nlB))
         in
         (match first_newline with
@@ -558,8 +554,7 @@ let refine
                          | `Range r -> r :: rangeaccum, rangelistaccum)
                    in
                    split_lines new_len_so_far rest rangeaccum rangelistaccum
-                 | R.Next tokens_arr
-                 | R.Prev tokens_arr ->
+                 | R.Next tokens_arr | R.Prev tokens_arr ->
                    let new_len_so_far = get_new_len_so_far ~len_so_far tokens_arr in
                    split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
                  | R.Replace (prev_arr, next_arr) ->
@@ -585,8 +580,7 @@ let refine
             List.for_all ranges ~f:(fun range ->
               match range with
               | Patience_diff.Range.Same _ -> true
-              | Patience_diff.Range.Prev a
-              | Patience_diff.Range.Next a ->
+              | Patience_diff.Range.Prev a | Patience_diff.Range.Next a ->
                 if keep_ws
                 then false
                 else
@@ -599,8 +593,8 @@ let refine
           let next_all_same = all_same sub_next in
           let produce_unified_lines =
             produce_unified_lines
-            && ((not (ranges_are_just_whitespace sub_prev) && next_all_same)
-                || (not (ranges_are_just_whitespace sub_next) && prev_all_same))
+            && (((not (ranges_are_just_whitespace sub_prev)) && next_all_same)
+                || ((not (ranges_are_just_whitespace sub_next)) && prev_all_same))
           in
           (* Collapse the pieces back into lines *)
           let prev_next_pairs =
@@ -656,15 +650,13 @@ let refine
                    (match produce_unified_lines, prev_all_same, next_all_same with
                     | true, true, false -> R.Unified next_ar
                     | true, false, true -> R.Unified prev_ar
-                    | false, _, _
-                    | _, false, false -> R.Replace (prev_ar, next_ar)
+                    | false, _, _ | _, false, false -> R.Replace (prev_ar, next_ar)
                     | _ -> assert false))
             in
             range))
-      | R.Next a
-        when not keep_ws && Array.for_all a ~f:is_ws -> [ R.Same (Array.zip_exn a a) ]
-      | R.Prev a
-        when not keep_ws && Array.for_all a ~f:is_ws -> []
+      | R.Next a when (not keep_ws) && Array.for_all a ~f:is_ws ->
+        [ R.Same (Array.zip_exn a a) ]
+      | R.Prev a when (not keep_ws) && Array.for_all a ~f:is_ws -> []
       | (R.Next _ | R.Prev _ | R.Same _ | R.Unified _) as range -> [ range ]
     in
     let refined_ranges = List.concat_map hunk.H.ranges ~f:aux in

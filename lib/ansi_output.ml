@@ -67,10 +67,8 @@ let codes_of_style : Patdiff_format.Style.t -> string = function
   | Blink -> "5"
   | Inverse -> "7"
   | Hide -> "8"
-  | Fg c
-  | Foreground c -> codes_of_foreground_color c
-  | Bg c
-  | Background c -> codes_of_background_color c
+  | Fg c | Foreground c -> codes_of_foreground_color c
+  | Bg c | Background c -> codes_of_background_color c
 ;;
 
 let apply_styles
@@ -102,7 +100,7 @@ let apply_styles
 module Rule = struct
   let apply text ~(rule : Patdiff_format.Rule.t) ~refined =
     let only_whitespace =
-      not (String.is_empty text) && String.for_all text ~f:Char.is_whitespace
+      (not (String.is_empty text)) && String.for_all text ~f:Char.is_whitespace
     in
     let text_style : Patdiff_format.Style.t list =
       if List.is_empty rule.styles
