@@ -3,7 +3,10 @@ open! Import
 
 type t =
   | Binary_same
-  | Binary_different of { prev_is_binary : bool; next_is_binary : bool }
+  | Binary_different of
+      { prev_is_binary : bool
+      ; next_is_binary : bool
+      }
   | Hunks of Patdiff_hunks.t
 
 let update_config_infer_keep_ws config ~prev ~next =

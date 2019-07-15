@@ -3,7 +3,10 @@ open! Import
 
 type t =
   | Binary_same
-  | Binary_different of { prev_is_binary : bool; next_is_binary : bool }
+  | Binary_different of
+      { prev_is_binary : bool
+      ; next_is_binary : bool
+      }
   | Hunks of Patdiff_hunks.t
 
 val create
