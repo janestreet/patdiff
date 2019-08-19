@@ -15,8 +15,10 @@
 : 
 : === flags ===
 : 
-:   [-alt-new NAME]                              Mask new filename with NAME
-:   [-alt-old NAME]                              Mask old filename with NAME
+:   [-alt-next NAME]                             Mask next filename with NAME
+:                                                (alias: -alt-new)
+:   [-alt-prev NAME]                             Mask prev filename with NAME
+:                                                (alias: -alt-old)
 :   [-ansi]                                      Output in ASCII with ANSI escape
 :                                                codes
 :   [-ascii]                                     Output in ASCII with no ANSI

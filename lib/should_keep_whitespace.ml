@@ -26,5 +26,5 @@ let for_diff =
 
 let for_diff_array =
   for_diff_internal ~first_line_of_lines:(fun lines ->
-    if Int.( = ) (Array.length lines) 0 then None else Some lines.(0))
+    if Array.is_empty lines then None else Some lines.(0))
 ;;

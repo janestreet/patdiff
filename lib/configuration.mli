@@ -20,8 +20,8 @@ type t = private
   ; quiet : bool
   ; double_check : bool
   ; mask_uniques : bool
-  ; old_alt : string option
-  ; new_alt : string option
+  ; prev_alt : string option
+  ; next_alt : string option
   ; location_style : Patdiff_core.Format.Location_style.t
   ; warn_if_no_trailing_newline_in_both : bool
   }
@@ -47,8 +47,8 @@ val override
   -> ?quiet:bool
   -> ?double_check:bool
   -> ?mask_uniques:bool
-  -> ?old_alt:string option
-  -> ?new_alt:string option
+  -> ?prev_alt:string option
+  -> ?next_alt:string option
   -> ?location_style:Patdiff_core.Format.Location_style.t
   -> ?warn_if_no_trailing_newline_in_both:bool
   -> t
@@ -59,13 +59,17 @@ val dark_bg : t Lazy.t
 val light_bg : t Lazy.t
 
 module Config : sig
-  type t [@@deriving sexp]
-end
+  module V1 : sig
+    type t
+  end
 
-module Old_config : sig
-  type t [@@deriving sexp]
+  module V0 : sig
+    type t
 
-  val to_new_config : t -> Config.t
+    val to_v1 : t -> V1.t
+  end
+
+  type t = V1.t [@@deriving sexp]
 end
 
 val parse : Config.t -> t
@@ -75,7 +79,9 @@ val parse : Config.t -> t
       fun default -> parse ([%of_sexp: Config.t] (Sexp.of_string default))
 
     ]}. *)
-val default : string
+val default : t Lazy.t
+
+val save_default : filename:string -> unit
 
 (** Reads a config from [filename], which by default is [~/.patdiff]. If [~filename:""] is
     passed or [filename] cannot be read, returns [default]. *)

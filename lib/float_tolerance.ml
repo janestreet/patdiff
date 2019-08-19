@@ -59,20 +59,17 @@ module String_with_floats = struct
   ;;
 
   include struct
-    open! Async
-    open! Expect_test_helpers
-
     let%expect_test _ =
       let prev = create "(dynamic (Ok ((price_range (-18.8305 39.1095)))))\n" in
       let next = create "(dynamic (Ok ((price_range (-18.772 38.988)))))\n" in
       print_s [%message (prev : t) (next : t)];
       [%expect
         {|
-        ((prev (
-           (floats (-18.8305 39.1095))
+        ((prev
+          ((floats (-18.8305 39.1095))
            (without_floats "(dynamic (Ok ((price_range ( )))))\n")))
-         (next (
-           (floats (-18.772 38.988))
+         (next
+          ((floats (-18.772 38.988))
            (without_floats "(dynamic (Ok ((price_range ( )))))\n")))) |}]
     ;;
 
@@ -86,11 +83,11 @@ module String_with_floats = struct
       print_s [%message (prev : t) (next : t)];
       [%expect
         {|
-        ((prev (
-           (floats (9 30 0 16 0 0))
+        ((prev
+          ((floats (9 30 0 16 0 0))
            (without_floats "(primary_exchange_core_session (:: ::))")))
-         (next (
-           (floats (9 30 0 15 59 0))
+         (next
+          ((floats (9 30 0 15 59 0))
            (without_floats "(primary_exchange_core_session (:: ::))")))) |}]
     ;;
   end
@@ -250,32 +247,18 @@ end = struct
     ;;
 
     include struct
-      open Async
-      open Expect_test_helpers
-
       let%expect_test _ =
         let test ranges = print_s [%sexp (f ranges : t Sequence.t)] in
         let same = Range.Same [| "same", "same" |] in
         let not_same = Range.Next [| "new" |] in
         test [ same; same ];
-        let%bind () = [%expect {| () |}] in
+        [%expect {| () |}];
         test [ same; not_same; same; same; not_same; same; same ];
-        let%bind () =
-          [%expect
-            {|
-        (((Same ((same same))) Start)
-         ((Next (new)) Middle)
-         ((Same (
-            (same same)
-            (same same)))
-          Middle)
-         ((Next (new)) Middle)
-         ((Same (
-            (same same)
-            (same same)))
-          End)) |}]
-        in
-        [%expect {| |}]
+        [%expect
+          {|
+        (((Same ((same same))) Start) ((Next (new)) Middle)
+         ((Same ((same same) (same same))) Middle) ((Next (new)) Middle)
+         ((Same ((same same) (same same))) End)) |}]
       ;;
     end
   end
@@ -339,9 +322,6 @@ end = struct
     ;;
 
     include struct
-      open Async
-      open Expect_test_helpers
-
       let%expect_test _ =
         let test ranges =
           print_s [%sexp (Merged_with_position.f ranges |> f ~context:1 : t Sequence.t)]
@@ -349,7 +329,7 @@ end = struct
         let same = Range.Same [| "same", "same" |] in
         let not_same = Range.Next [| "new" |] in
         test [ same; same ];
-        let%bind () = [%expect {| () |}] in
+        [%expect {| () |}];
         test
           [ same
           ; same
@@ -364,24 +344,12 @@ end = struct
           ; same
           ; same
           ];
-        let%bind () =
-          [%expect
-            {|
-        ((Drop 1)
-         (Keep (Same ((same same))))
-         (Keep (Next (new)))
-         (Keep (
-           Same (
-             (same same)
-             (same same))))
-         (Keep (Next (new)))
-         (Keep (Same ((same same))))
-         (Drop 1)
-         (Keep (Same ((same same))))
-         (Keep (Next (new)))
-         (Keep (Same ((same same))))) |}]
-        in
-        [%expect {| |}]
+        [%expect
+          {|
+        ((Drop 1) (Keep (Same ((same same)))) (Keep (Next (new)))
+         (Keep (Same ((same same) (same same)))) (Keep (Next (new)))
+         (Keep (Same ((same same)))) (Drop 1) (Keep (Same ((same same))))
+         (Keep (Next (new))) (Keep (Same ((same same))))) |}]
       ;;
     end
   end

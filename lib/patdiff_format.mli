@@ -74,8 +74,11 @@ module Style : sig
   include Comparable.S with type t := t
 end
 
+(** A rule consists of a styled prefix, a styled suffix, and a style. Rules
+    are applied to strings using functions defined in Output_ops. *)
 module Rule : sig
-  module Annex : sig
+  (** An affix is either a prefix or a suffix. *)
+  module Affix : sig
     type t = private
       { text : string
       ; styles : Style.t list
@@ -86,33 +89,38 @@ module Rule : sig
   end
 
   type t = private
-    { pre : Annex.t
-    ; suf : Annex.t
+    { pre : Affix.t
+    ; suf : Affix.t
     ; styles : Style.t list
-    ; name : string
     }
   [@@deriving sexp_of]
 
-  val create : ?pre:Annex.t -> ?suf:Annex.t -> Style.t list -> name:string -> t
-  val blank : name:string -> t
-  val unstyled_prefix : string -> name:string -> t
+  (** Rule creation: Most rules have a style, and maybe a prefix. For
+      instance, a line_next rule might have a bold "+" prefix and a green
+      style. *)
+  val create : ?pre:Affix.t -> ?suf:Affix.t -> Style.t list -> t
+
+  val blank : t
+  val unstyled_prefix : string -> t
   val strip_styles : t -> t
 end
 
+(** Rules are configured in the configuration file.
+    Default values are provided in Configuration. *)
 module Rules : sig
   type t =
     { line_same : Rule.t
-    ; line_old : Rule.t
-    ; line_new : Rule.t
+    ; line_prev : Rule.t
+    ; line_next : Rule.t
     ; line_unified : Rule.t
-    ; word_same_old : Rule.t
-    ; word_same_new : Rule.t
+    ; word_same_prev : Rule.t
+    ; word_same_next : Rule.t
     ; word_same_unified : Rule.t
-    ; word_old : Rule.t
-    ; word_new : Rule.t
+    ; word_prev : Rule.t
+    ; word_next : Rule.t
     ; hunk : Rule.t
-    ; header_old : Rule.t
-    ; header_new : Rule.t
+    ; header_prev : Rule.t
+    ; header_next : Rule.t
     }
   [@@deriving sexp_of]
 

@@ -95,12 +95,8 @@ module Style = struct
   include Comparable.Make (T)
 end
 
-(* A rule consists of a styled prefix, a styled suffix, and a style. Rules
-   are applied to strings using functions defined in Output_ops.
-*)
 module Rule = struct
-  (* An annex is either a prefix or a suffix. *)
-  module Annex = struct
+  module Affix = struct
     type t =
       { text : string
       ; styles : Style.t list
@@ -113,85 +109,69 @@ module Rule = struct
   end
 
   type t =
-    { pre : Annex.t
-    ; suf : Annex.t
+    { pre : Affix.t
+    ; suf : Affix.t
     ; styles : Style.t list
-    ; name : string
     }
   [@@deriving fields, sexp_of]
 
-  (* Rule creation: Most rules have a style, and maybe a prefix. For
-     instance, a line_new rule might have a bold "+" prefix and a green
-     style.
-  *)
-  let create ?(pre = Annex.blank) ?(suf = Annex.blank) styles ~name =
-    { pre; suf; styles; name }
-  ;;
-
+  let create ?(pre = Affix.blank) ?(suf = Affix.blank) styles = { pre; suf; styles }
   let blank = create []
-
-  let unstyled_prefix text ~name =
-    let rule = blank ~name in
-    { rule with pre = Annex.create text }
-  ;;
+  let unstyled_prefix text = { blank with pre = Affix.create text }
 
   let strip_styles t =
     let f f field = f (Field.get field t) in
     Fields.map
-      ~pre:(f Annex.strip_styles)
-      ~suf:(f Annex.strip_styles)
+      ~pre:(f Affix.strip_styles)
+      ~suf:(f Affix.strip_styles)
       ~styles:(f (const []))
-      ~name:(f Fn.id)
   ;;
 end
 
-(* Rules are configured in the configuration file.
-   Default values are provided in Configuration.
-*)
 module Rules = struct
   type t =
     { line_same : Rule.t
-    ; line_old : Rule.t
-    ; line_new : Rule.t
+    ; line_prev : Rule.t
+    ; line_next : Rule.t
     ; line_unified : Rule.t
-    ; word_same_old : Rule.t
-    ; word_same_new : Rule.t
+    ; word_same_prev : Rule.t
+    ; word_same_next : Rule.t
     ; word_same_unified : Rule.t
-    ; word_old : Rule.t
-    ; word_new : Rule.t
+    ; word_prev : Rule.t
+    ; word_next : Rule.t
     ; hunk : Rule.t
-    ; header_old : Rule.t
-    ; header_new : Rule.t
+    ; header_prev : Rule.t
+    ; header_next : Rule.t
     }
   [@@deriving fields, sexp_of]
 
-  let inner_line_change ~name text color =
+  let inner_line_change text color =
     let style = Style.[ Fg color ] in
-    let pre = Rule.Annex.create ~styles:Style.[ Bold; Fg color ] text in
-    Rule.create ~pre style ~name
+    let pre = Rule.Affix.create ~styles:Style.[ Bold; Fg color ] text in
+    Rule.create ~pre style
   ;;
 
   let line_unified =
-    let pre = Rule.Annex.create ~styles:Style.[ Bold; Fg Color.Yellow ] "!|" in
-    Rule.create ~pre [] ~name:"line_unified"
+    let pre = Rule.Affix.create ~styles:Style.[ Bold; Fg Color.Yellow ] "!|" in
+    Rule.create ~pre []
   ;;
 
-  let word_change ~name color = Rule.create Style.[ Fg color ] ~name
+  let word_change color = Rule.create Style.[ Fg color ]
 
   let default =
     let open Rule in
-    { line_same = unstyled_prefix ~name:"line_same" "  "
-    ; line_old = inner_line_change ~name:"line_old" "-|" Color.Red
-    ; line_new = inner_line_change ~name:"line_new" "+|" Color.Green
+    { line_same = unstyled_prefix "  "
+    ; line_prev = inner_line_change "-|" Color.Red
+    ; line_next = inner_line_change "+|" Color.Green
     ; line_unified
-    ; word_same_old = blank ~name:"word_same_old"
-    ; word_same_new = blank ~name:"word_same_new"
-    ; word_same_unified = blank ~name:"word_same_unified"
-    ; word_old = word_change ~name:"word_old" Color.Red
-    ; word_new = word_change ~name:"word_new" Color.Green
-    ; hunk = blank ~name:"hunk"
-    ; header_old = blank ~name:"hunk"
-    ; header_new = blank ~name:"hunk"
+    ; word_same_prev = blank
+    ; word_same_next = blank
+    ; word_same_unified = blank
+    ; word_prev = word_change Color.Red
+    ; word_next = word_change Color.Green
+    ; hunk = blank
+    ; header_prev = blank
+    ; header_next = blank
     }
   ;;
 
@@ -199,17 +179,17 @@ module Rules = struct
     let f field = Rule.strip_styles (Field.get field t) in
     Fields.map
       ~line_same:f
-      ~line_old:f
-      ~line_new:f
+      ~line_prev:f
+      ~line_next:f
       ~line_unified:f
-      ~word_same_old:f
-      ~word_same_new:f
+      ~word_same_prev:f
+      ~word_same_next:f
       ~word_same_unified:f
-      ~word_old:f
-      ~word_new:f
+      ~word_prev:f
+      ~word_next:f
       ~hunk:f
-      ~header_old:f
-      ~header_new:f
+      ~header_prev:f
+      ~header_next:f
   ;;
 end
 

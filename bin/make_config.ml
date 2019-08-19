@@ -2,12 +2,11 @@ open Core
 
 let doc = "FILE Write default configuration file"
 
-let main file =
-  let sample = Patdiff_lib.Configuration.default in
+let main filename =
   let delete =
-    if Sys.file_exists_exn file
+    if Sys.file_exists_exn filename
     then (
-      printf "%s already exists. Overwrite? (y/n) %!" file;
+      printf "%s already exists. Overwrite? (y/n) %!" filename;
       let resp = In_channel.input_line In_channel.stdin in
       let resp = Option.value ~default:"" resp in
       let resp = String.lowercase resp in
@@ -19,8 +18,8 @@ let main file =
   if delete
   then (
     try
-      Out_channel.with_file ~f:(fun oc -> Out_channel.output_string oc sample) file;
-      printf "Default configuration written to %s\n%!" file
+      Patdiff_lib.Configuration.save_default ~filename;
+      printf "Default configuration written to %s\n%!" filename
     with
     | e -> failwithf "Error: %s" (Exn.to_string e) ())
   else (

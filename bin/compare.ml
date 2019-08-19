@@ -35,8 +35,8 @@ module Args = struct
     ; config_opt : string option
     ; prev_file : string
     ; next_file : string
-    ; old_alt_opt : string option option
-    ; new_alt_opt : string option option
+    ; prev_alt_opt : string option option
+    ; next_alt_opt : string option option
     ; include_ : string list
     ; exclude : string list
     ; location_style : P.Format.Location_style.t option
@@ -59,8 +59,8 @@ let files_from_anons = function
       remove_at_exit := file :: !remove_at_exit;
       file, oc
     in
-    let prev_file, old_oc = temp_txt_file "patdiff_old_" in
-    let next_file, new_oc = temp_txt_file "patdiff_new_" in
+    let prev_file, prev_oc = temp_txt_file "patdiff_prev_" in
+    let next_file, next_oc = temp_txt_file "patdiff_next_" in
     let add_prefixes = [ "+"; ">" ] in
     let remove_prefixes = [ "-"; "<" ] in
     let begins_with line prefixes =
@@ -81,10 +81,10 @@ let files_from_anons = function
         Out_channel.newline oc)
     in
     In_channel.iter_lines In_channel.stdin ~f:(fun line ->
-      process line add_prefixes remove_prefixes old_oc;
-      process line remove_prefixes add_prefixes new_oc);
-    Out_channel.close old_oc;
-    Out_channel.close new_oc;
+      process line add_prefixes remove_prefixes prev_oc;
+      process line remove_prefixes add_prefixes next_oc);
+    Out_channel.close prev_oc;
+    Out_channel.close next_oc;
     prev_file, next_file
 ;;
 
@@ -108,24 +108,22 @@ let override config (args : Args.compare_flags) =
     ?quiet:args.quiet_opt
     ?double_check:args.double_check_opt
     ?mask_uniques:args.mask_uniques_opt
-    ?old_alt:args.old_alt_opt
-    ?new_alt:args.new_alt_opt
+    ?prev_alt:args.prev_alt_opt
+    ?next_alt:args.next_alt_opt
     ?location_style:args.location_style
     ?warn_if_no_trailing_newline_in_both:args.warn_if_no_trailing_newline_in_both
 ;;
 
-let main' args =
-  let module A = Args in
+let main' (args : Args.compare_flags) =
   (* Load config file if it exists, use default if not *)
-  let config = Configuration.get_config ?filename:args.A.config_opt () in
+  let config = Configuration.get_config ?filename:args.config_opt () in
   let config = override config args in
   (* 2012-06-28 mbac: /dev/null is used as a placeholder for deleted files. *)
   let file_or_dev_null f = if Sys.file_exists_exn f then f else "/dev/null" in
-  let prev_file = file_or_dev_null args.A.prev_file in
-  let next_file = file_or_dev_null args.A.next_file in
+  let prev_file = file_or_dev_null args.prev_file in
+  let next_file = file_or_dev_null args.next_file in
   if String.equal prev_file "/dev/null" && String.equal next_file "/dev/null"
-  then
-    failwithf "Both files, %s and %s, do not exist" args.A.prev_file args.A.next_file ();
+  then failwithf "Both files, %s and %s, do not exist" args.prev_file args.next_file ();
   let is_dir = Sys.is_directory_exn in
   let if_not_diffing_two_dirs () =
     match args with
@@ -140,30 +138,19 @@ let main' args =
       if is_dir prev_file then prev_file, next_file else next_file, prev_file
     in
     (* Match file with its twin file in dir *)
-    let module FO = Find_files.Options in
-    let filter (filename, _stats) = String.equal filename file in
-    let options =
-      { FO.min_depth = 1
-      ; max_depth = Some 1
-      ; follow_links = FO.default.FO.follow_links
-      ; on_open_errors = FO.default.FO.on_open_errors
-      ; on_stat_errors = FO.default.FO.on_stat_errors
-      ; filter = Some filter
-      ; skip_dir = FO.default.FO.skip_dir
-      ; relative_paths = false
-      }
+    let matches =
+      Sys.ls_dir dir
+      |> List.find_map ~f:(fun file' ->
+        let file' = dir ^/ file' in
+        if String.equal file file' then Some file' else None)
     in
-    let matches = Find_files.find_all ~options dir in
     (match matches with
-     | [ (matched_filename, _stats) ] ->
+     | Some matched_filename ->
        let prev_file, next_file =
          if is_dir prev_file then matched_filename, file else file, matched_filename
        in
        Compare_core.diff_files ~prev_file ~next_file config
-     | [] -> failwithf "File not found in %s: %s" dir file ()
-     | _ ->
-       (* This is impossible because max_depth is 1 *)
-       failwithf "Directory contains clones: %s" dir ())
+     | None -> failwithf "File not found in %s: %s" dir file ())
   | true, true ->
     (* Both are directories *)
     let file_filter =
@@ -349,16 +336,18 @@ let command =
          ~doc:
            "PERCENT Consider strings equal if only difference is floats changing within \
             PERCENT"
-     and old_alt_opt =
+     and prev_alt_opt =
        flag
-         "alt-old"
+         "alt-prev"
+         ~aliases:[ "alt-old" ]
          (optional (Arg_type.map Filename.arg_type ~f:Option.some))
-         ~doc:"NAME Mask old filename with NAME"
-     and new_alt_opt =
+         ~doc:"NAME Mask prev filename with NAME"
+     and next_alt_opt =
        flag
-         "alt-new"
+         "alt-next"
+         ~aliases:[ "alt-new" ]
          (optional (Arg_type.map Filename.arg_type ~f:Option.some))
-         ~doc:"NAME Mask new filename with NAME"
+         ~doc:"NAME Mask next filename with NAME"
      and make_config =
        flag "make-config" (optional Filename.arg_type) ~doc:Make_config.doc
      and include_ =
@@ -422,8 +411,8 @@ let command =
              ; mask_uniques_opt
              ; ext_cmp_opt
              ; float_tolerance_opt
-             ; old_alt_opt
-             ; new_alt_opt
+             ; prev_alt_opt
+             ; next_alt_opt
              ; include_
              ; exclude
              ; location_style
