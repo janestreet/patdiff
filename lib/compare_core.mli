@@ -8,8 +8,8 @@ val diff_files
 
 val diff_dirs
   :  Configuration.t
-  -> prev_file:string
-  -> next_file:string
+  -> prev_dir:string
+  -> next_dir:string
   -> file_filter:(string * Unix.stats -> bool) option
   -> [ `Different | `Same ]
 

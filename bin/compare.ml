@@ -166,7 +166,7 @@ let main' (args : Args.compare_flags) =
                    || List.exists include_ ~f:(fun pat -> Pcre.pmatch s ~pat))
              | _ -> true)
     in
-    Compare_core.diff_dirs ~prev_file ~next_file config ~file_filter
+    Compare_core.diff_dirs ~prev_dir:prev_file ~next_dir:next_file config ~file_filter
   | false, false ->
     (* Both are files *)
     if_not_diffing_two_dirs ();

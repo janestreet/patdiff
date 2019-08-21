@@ -40,27 +40,25 @@ Test recursive diff of directories.
 
 Test behavior of -alt-prev and -alt-next.
 
-
-
   $ patdiff.exe -default prev next -alt-prev a -alt-next b | visible_colors
-  Only in prev: this-goes-away
+  Only in a: this-goes-away
   (fg:red)------ (+bold)a
   (fg:green)++++++ (+bold)b
   (fg:black)@|(+bold)-1,1 +1,0(off) ============================================================
   (fg:black bg:red)-|(fg:red).
-  Only in next: this-appears
+  Only in b: this-appears
   (fg:red)------ (+bold)a
   (fg:green)++++++ (+bold)b
   (fg:black)@|(+bold)-1,0 +1,1(off) ============================================================
   (fg:black bg:green)+|(fg:green).
-  Files prev/foo and next/foo are not the same type
-  (fg:red)------ (+bold)a
-  (fg:green)++++++ (+bold)b
+  Files a/foo and b/foo are not the same type
+  (fg:red)------ (+bold)a/subdir/this-changes-in-subdir
+  (fg:green)++++++ (+bold)b/subdir/this-changes-in-subdir
   (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
   (fg:black bg:red)-|(fg:red)prev
   (fg:black bg:green)+|(fg:green)next
-  (fg:red)------ (+bold)a
-  (fg:green)++++++ (+bold)b
+  (fg:red)------ (+bold)a/this-changes
+  (fg:green)++++++ (+bold)b/this-changes
   (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
   (fg:black bg:red)-|(fg:red)prev
   (fg:black bg:green)+|(fg:green)next
