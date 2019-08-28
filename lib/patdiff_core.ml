@@ -648,7 +648,7 @@ let refine
   hunks
   |> List.map ~f:(fun hunk ->
     { hunk with ranges = List.concat_map hunk.ranges ~f:refine_range })
-  |> List.filter ~f:(Fn.non Patience_diff.Hunk.all_same)
+  |> List.filter ~f:(not << Patience_diff.Hunk.all_same)
 ;;
 
 let print ~prev_file ~next_file ~rules ~output ~location_style hunks =
