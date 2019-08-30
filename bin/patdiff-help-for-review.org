@@ -11,7 +11,7 @@
 : 
 :   patdiff.exe [FILE1 FILE2]
 : 
-:  Display documentation for the configuration file and other help
+: Display documentation for the configuration file and other help
 : 
 : === flags ===
 : 
@@ -32,7 +32,7 @@
 :                                                if color is stripped)
 :   [-double-check]                              If files seem identical, double
 :                                                check with cmp
-:   [-exclude REGEXP]                            exclude files matching this
+:   [-exclude REGEXP] ...                        exclude files matching this
 :                                                pattern when comparing two
 :                                                directories (overrides include
 :                                                patterns)
@@ -46,7 +46,7 @@
 :   [-html]                                      Output in HTML format instead of
 :                                                default (ASCII with ANSI escape
 :                                                codes)
-:   [-include REGEXP]                            include files matching this
+:   [-include REGEXP] ...                        include files matching this
 :                                                pattern when comparing two
 :                                                directories
 :   [-keep-whitespace]                           Consider whitespace when
