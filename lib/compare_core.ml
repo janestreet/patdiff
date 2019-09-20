@@ -286,8 +286,14 @@ let rec diff_dirs_internal
     Sys.ls_dir dir.real_name
     |> List.filter ~f:(fun x ->
       let x = dir.real_name ^/ x in
-      let stats = Unix.stat x in
-      file_filter (x, stats))
+      match Unix.stat x with
+      | exception Unix.Unix_error (ENOENT, _, _) ->
+        (* If the file disappeared during listing, let's pretend it didn't exist.
+           This is important when the file is [-exclude]d because we don't want to create
+           noise for excluded files, but it's also not too bad if the file is [-include]d
+        *)
+        false
+      | stats -> file_filter (x, stats))
     |> String.Set.of_list
   in
   let prev_set = set_of_dir prev_dir in

@@ -25,7 +25,7 @@ module String_with_floats = struct
   let float_regex =
     lazy
       (let open Re in
-       let delim = set {| ;:,(){}[]<>=+-*/|} in
+       let delim = set {| ;:,\|#&(){}[]<>~=+-*/|} in
        let prefix = group (alt [ start; char '$'; delim ]) in
        let float =
          group (seq [ opt (char '-'); rep1 digit; opt (seq [ char '.'; rep1 digit ]) ])

@@ -11,8 +11,8 @@ let pipe commands =
 ;;
 
 let links =
-  [ "../bin/patdiff.exe", `In_path_as, "patdiff"
-  ; "../../ansicodes/bin/main.exe", `In_path_as, "ansicodes"
+  [ "../../bin/patdiff.exe", `In_path_as, "patdiff"
+  ; "../../../ansicodes/bin/main.exe", `In_path_as, "ansicodes"
   ]
 ;;
 
