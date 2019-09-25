@@ -123,6 +123,10 @@ let needleman_wunsch xs ys ~equal =
   a
 ;;
 
+type partial_range_indexes =
+  | Matching of (int * int) list
+  | Nonmatching of int list * int list
+
 (* [recover_ranges a xs ys] does the traceback step of Needleman-Wunsch to find the
    lowest-scoring [Range.t list] that transforms [xs] into [ys]. *)
 let recover_ranges xs ys a =
@@ -136,7 +140,15 @@ let recover_ranges xs ys a =
   in
   let rec traceback a i j acc =
     if i <= 0 || j <= 0
-    then acc
+    then
+      if i <= 0 && j <= 0
+      then acc
+      else (
+        let is' = List.range 0 i in
+        let js' = List.range 0 j in
+        match acc with
+        | [] | Matching _ :: _ -> Nonmatching (is', js') :: acc
+        | Nonmatching (is, js) :: acc -> Nonmatching (is' @ is, js' @ js) :: acc)
     else (
       let i', j', matched =
         match smallest a.(i - 1).(j) a.(i - 1).(j - 1) a.(i).(j - 1) with
@@ -146,29 +158,46 @@ let recover_ranges xs ys a =
         | _ -> failwith "smallest only returns 0, 1, or 2."
       in
       let acc =
-        match matched, acc with
-        | true, [] | true, Second _ :: _ -> First [ i - 1, j - 1 ] :: acc
-        | false, [] | false, First _ :: _ ->
-          Second
-            (cons_minus_one i [] ~if_unequal_to:i', cons_minus_one j [] ~if_unequal_to:j')
-          :: acc
-        | true, First ijs :: acc -> First ((i - 1, j - 1) :: ijs) :: acc
-        | false, Second (is, js) :: acc ->
-          Second
-            (cons_minus_one i is ~if_unequal_to:i', cons_minus_one j js ~if_unequal_to:j')
-          :: acc
+        if matched
+        then (
+          match acc with
+          | [] | Nonmatching _ :: _ -> Matching [ i - 1, j - 1 ] :: acc
+          | Matching ijs :: acc -> Matching ((i - 1, j - 1) :: ijs) :: acc)
+        else (
+          match acc with
+          | [] | Matching _ :: _ ->
+            Nonmatching
+              ( cons_minus_one i [] ~if_unequal_to:i'
+              , cons_minus_one j [] ~if_unequal_to:j' )
+            :: acc
+          | Nonmatching (is, js) :: acc ->
+            Nonmatching
+              ( cons_minus_one i is ~if_unequal_to:i'
+              , cons_minus_one j js ~if_unequal_to:j' )
+            :: acc)
       in
       traceback a i' j' acc)
   in
   let elts_of_indices is xs = Array.of_list is |> Array.map ~f:(Array.get xs) in
   traceback a (Array.length xs) (Array.length ys) []
   |> List.map ~f:(function
-    | First ijs ->
+    | Matching ijs ->
       let xys = Array.of_list ijs |> Array.map ~f:(fun (i, j) -> xs.(i), ys.(j)) in
       Range.Same xys
-    | Second (is, []) -> Prev (elts_of_indices is xs)
-    | Second ([], js) -> Next (elts_of_indices js ys)
-    | Second (is, js) -> Replace (elts_of_indices is xs, elts_of_indices js ys))
+    | Nonmatching (is, []) -> Prev (elts_of_indices is xs)
+    | Nonmatching ([], js) -> Next (elts_of_indices js ys)
+    | Nonmatching (is, js) -> Replace (elts_of_indices is xs, elts_of_indices js ys))
+;;
+
+let%expect_test "recover_ranges" =
+  let prev = [| "a"; "b" |] in
+  let next = [| "z" |] in
+  let a = needleman_wunsch prev next ~equal:String.equal in
+  print_s ([%sexp_of: int array array] a);
+  [%expect {| ((0 1) (1 1) (2 2)) |}];
+  let ranges = recover_ranges prev next a in
+  print_s ([%sexp_of: string Range.t list] ranges);
+  [%expect {| ((Replace (a b) (z))) |}]
 ;;
 
 let do_tolerance ~equal hunks =

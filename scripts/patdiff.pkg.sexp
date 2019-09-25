@@ -3,7 +3,7 @@
    Simple (
      (major_number   121)
      (minor_number   04)
-     (release_number 02)))))
+     (release_number 300)))))
  (license     Proprietary)
  (group       "JS Core Utils")
  (build_arch  x86_64)
