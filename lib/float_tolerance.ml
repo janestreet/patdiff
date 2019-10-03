@@ -28,7 +28,13 @@ module String_with_floats = struct
        let delim = set {| ;:,\|#&(){}[]<>~=+-*/|} in
        let prefix = group (alt [ start; char '$'; delim ]) in
        let float =
-         group (seq [ opt (char '-'); rep1 digit; opt (seq [ char '.'; rep1 digit ]) ])
+         group
+           (seq
+              [ opt (char '-')
+              ; rep1 digit
+              ; opt (seq [ char '.'; opt (rep1 digit) ])
+              ; opt (seq [ set {|eE|}; opt (set {|+-|}); rep1 digit ])
+              ])
        in
        let suffix =
          let suffix_with_delim = alt [ stop; char '%'; delim ] in
@@ -59,6 +65,36 @@ module String_with_floats = struct
   ;;
 
   include struct
+    let%expect_test "trailing [.]" =
+      let t = create "(foo 12.)" in
+      print_s [%message (t : t)];
+      [%expect {| (t ((floats (12)) (without_floats "(foo )"))) |}]
+    ;;
+
+    let%expect_test "scientific notation" =
+      let t1 = create "(foo -12345678910.11)" in
+      let t2 = create "(foo -1.234567891011e10)" in
+      let t3 = create "(foo -1.234567891011e+10)" in
+      let t4 = create "(foo -1.234567891011E10)" in
+      let t5 = create "(foo -1.234567891011E+10)" in
+      let t6 = create "(foo -123456789101.1e-1)" in
+      let t7 = create "(foo -1234567891011.e-2)" in
+      let t8 = create "(foo -1234567891011e-2)" in
+      print_s
+        [%message
+          (t1 : t) (t2 : t) (t3 : t) (t4 : t) (t5 : t) (t6 : t) (t7 : t) (t8 : t)];
+      [%expect
+        {|
+        ((t1 ((floats (-12345678910.11)) (without_floats "(foo )")))
+         (t2 ((floats (-12345678910.11)) (without_floats "(foo )")))
+         (t3 ((floats (-12345678910.11)) (without_floats "(foo )")))
+         (t4 ((floats (-12345678910.11)) (without_floats "(foo )")))
+         (t5 ((floats (-12345678910.11)) (without_floats "(foo )")))
+         (t6 ((floats (-12345678910.11)) (without_floats "(foo )")))
+         (t7 ((floats (-12345678910.11)) (without_floats "(foo )")))
+         (t8 ((floats (-12345678910.11)) (without_floats "(foo )")))) |}]
+    ;;
+
     let%expect_test _ =
       let prev = create "(dynamic (Ok ((price_range (-18.8305 39.1095)))))\n" in
       let next = create "(dynamic (Ok ((price_range (-18.772 38.988)))))\n" in
