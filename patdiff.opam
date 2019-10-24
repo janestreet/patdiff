@@ -15,7 +15,7 @@ depends: [
   "core_kernel"
   "patience_diff"
   "ppx_jane"
-  "dune"          {build & >= "1.5.1"}
+  "dune"          {>= "1.5.1"}
   "pcre"
   "re"            {>= "1.8.0"}
 ]
