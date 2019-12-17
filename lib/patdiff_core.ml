@@ -128,7 +128,7 @@ let default_context = 16
 (* Default cutoff for line-level semantic cleanup.  Any match of [default_line_big_enough]
    or more will not be deleted, even if it's surrounded by large inserts and deletes.
    Raising this quantity can only decrease the number of matches, and lowering it
-   can only decrease the number of matches. *)
+   can only increase the number of matches. *)
 let default_line_big_enough = 3
 
 (* Analogous to above, but for word-level refinement *)
