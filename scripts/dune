@@ -4,3 +4,6 @@
  (deps (:first_dep ./build-rpm.sh) ../bin/patdiff.exe ./patdiff.pkg.sexp
   ../doc/changelog)
  (action (bash "%{first_dep} patdiff")))
+
+(alias (name DEFAULT) (deps (glob_files *.sh))
+ (action (bash "shellcheck -x *.sh")))
