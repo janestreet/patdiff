@@ -12,7 +12,7 @@ module Color : sig
       ; g : int
       ; b : int
       }
-    [@@deriving compare, sexp]
+    [@@deriving compare, quickcheck, sexp]
 
     val create_exn : r:int -> g:int -> b:int -> t
   end
@@ -45,7 +45,7 @@ module Color : sig
     | Bright_white
     | RGB6 of RGB6.t
     | Gray24 of Gray24.t
-  [@@deriving compare, sexp]
+  [@@deriving compare, quickcheck, sexp]
 
   include Comparable.S with type t := t
 
@@ -69,7 +69,7 @@ module Style : sig
     | Fg of Color.t
     | Background of Color.t
     | Bg of Color.t
-  [@@deriving compare, sexp]
+  [@@deriving compare, quickcheck, sexp]
 
   include Comparable.S with type t := t
 end
@@ -122,7 +122,7 @@ module Rules : sig
     ; header_prev : Rule.t
     ; header_next : Rule.t
     }
-  [@@deriving sexp_of]
+  [@@deriving compare, sexp_of]
 
   val default : t
   val strip_styles : t -> t
@@ -132,7 +132,7 @@ module Location_style : sig
   type t =
     | Diff
     | Omake
-  [@@deriving bin_io, compare, enumerate, equal, sexp]
+  [@@deriving bin_io, compare, quickcheck, enumerate, equal, sexp]
 
   include Stringable.S with type t := t
 

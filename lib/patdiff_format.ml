@@ -8,7 +8,7 @@ module Color = struct
       ; g : int
       ; b : int
       }
-    [@@deriving compare, sexp]
+    [@@deriving compare, quickcheck, sexp]
 
     val create_exn : r:int -> g:int -> b:int -> t
   end = struct
@@ -17,7 +17,7 @@ module Color = struct
       ; g : int
       ; b : int
       }
-    [@@deriving compare, sexp]
+    [@@deriving compare, quickcheck, sexp]
 
     let create_exn ~r ~g ~b =
       let check x = 0 <= x && x < 6 in
@@ -28,11 +28,11 @@ module Color = struct
   end
 
   module Gray24 : sig
-    type t = private { level : int } [@@deriving compare, sexp]
+    type t = private { level : int } [@@deriving compare, sexp, quickcheck]
 
     val create_exn : level:int -> t
   end = struct
-    type t = { level : int } [@@deriving compare, sexp]
+    type t = { level : int } [@@deriving compare, quickcheck, sexp]
 
     let create_exn ~level =
       if not (0 <= level && level < 24)
@@ -63,7 +63,7 @@ module Color = struct
       | Bright_white
       | RGB6 of RGB6.t
       | Gray24 of Gray24.t
-    [@@deriving compare, sexp]
+    [@@deriving compare, quickcheck, sexp]
   end
 
   include T
@@ -88,7 +88,7 @@ module Style = struct
       | Fg of Color.t
       | Background of Color.t
       | Bg of Color.t
-    [@@deriving compare, sexp]
+    [@@deriving compare, quickcheck, sexp]
   end
 
   include T
@@ -101,7 +101,7 @@ module Rule = struct
       { text : string
       ; styles : Style.t list
       }
-    [@@deriving fields, sexp_of]
+    [@@deriving compare, fields, sexp_of]
 
     let create ?(styles = []) text = { text; styles }
     let blank = create ""
@@ -113,7 +113,7 @@ module Rule = struct
     ; suf : Affix.t
     ; styles : Style.t list
     }
-  [@@deriving fields, sexp_of]
+  [@@deriving compare, fields, sexp_of]
 
   let create ?(pre = Affix.blank) ?(suf = Affix.blank) styles = { pre; suf; styles }
   let blank = create []
@@ -143,7 +143,7 @@ module Rules = struct
     ; header_prev : Rule.t
     ; header_next : Rule.t
     }
-  [@@deriving fields, sexp_of]
+  [@@deriving compare, fields, sexp_of]
 
   let inner_line_change text color =
     let style = Style.[ Fg color ] in
@@ -197,7 +197,7 @@ module Location_style = struct
   type t =
     | Diff
     | Omake
-  [@@deriving bin_io, compare, enumerate, equal, sexp]
+  [@@deriving bin_io, compare, quickcheck, enumerate, equal, sexp]
 
   let to_string = function
     | Diff -> "diff"

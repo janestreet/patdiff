@@ -5,7 +5,7 @@ type t =
   | Ansi
   | Ascii
   | Html
-[@@deriving sexp]
+[@@deriving compare, sexp]
 
 let implies_unrefined t =
   match t with

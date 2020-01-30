@@ -1,11 +1,11 @@
 open Core
-module P = Patdiff_core
+open Patdiff_core
 
 let warn_if_no_trailing_newline_in_both_default = true
 
 type t =
-  { output : P.Output.t
-  ; rules : P.Format.Rules.t
+  { output : Output.t
+  ; rules : Format.Rules.t
   ; ext_cmp : string option
   ; float_tolerance : Percent.t option
   ; produce_unified_lines : bool
@@ -23,11 +23,11 @@ type t =
   ; mask_uniques : bool
   ; prev_alt : string option
   ; next_alt : string option
-  ; location_style : P.Format.Location_style.t
+  ; location_style : Format.Location_style.t
   ; warn_if_no_trailing_newline_in_both : bool
                                           [@default warn_if_no_trailing_newline_in_both_default] [@sexp_drop_default.equal]
   }
-[@@deriving fields, sexp_of]
+[@@deriving compare, fields, sexp_of]
 
 let invariant t =
   Invariant.invariant [%here] t [%sexp_of: t] (fun () ->
@@ -35,7 +35,7 @@ let invariant t =
     Fields.iter
       ~output:
         (check (fun output ->
-           if P.Output.implies_unrefined output
+           if Output.implies_unrefined output
            then [%test_eq: bool] t.unrefined true ~message:"output implies unrefined"))
       ~rules:ignore
       ~ext_cmp:
@@ -113,7 +113,7 @@ let override
   let unrefined =
     Option.value ~default:t.unrefined unrefined
     || is_some ext_cmp
-    || P.Output.implies_unrefined output
+    || Output.implies_unrefined output
   in
   let t =
     let value value field = Option.value value ~default:(Field.get field t) in
@@ -144,16 +144,14 @@ let override
   t
 ;;
 
-module Style = P.Format.Style
-
 module Affix = struct
   (* Simply a prefix or a suffix.  Might come with an associated style. *)
 
   type t =
     { text : string option [@sexp.option]
-    ; style : Style.t list option [@sexp.option]
+    ; style : Format.Style.t list option [@sexp.option]
     }
-  [@@deriving sexp]
+  [@@deriving quickcheck, sexp]
 
   let blank = { text = None; style = None }
   let get_text t = Option.value t.text ~default:""
@@ -166,7 +164,7 @@ module Affix = struct
   let to_internal t ~min_width =
     let text = sprintf "%*s" min_width (get_text t) in
     let styles = Option.value ~default:[] t.style in
-    P.Format.Rule.Affix.create ~styles text
+    Format.Rule.Affix.create ~styles text
   ;;
 end
 
@@ -174,25 +172,25 @@ module Rule = struct
   type t =
     { prefix : Affix.t option [@sexp.option]
     ; suffix : Affix.t option [@sexp.option]
-    ; style : Style.t list option [@sexp.option]
+    ; style : Format.Style.t list option [@sexp.option]
     }
-  [@@deriving sexp]
+  [@@deriving quickcheck, sexp]
 
   let blank = { prefix = None; suffix = None; style = None }
 
   let to_internal t =
     let f = Affix.to_internal ~min_width:0 in
-    let default = P.Format.Rule.Affix.blank in
+    let default = Format.Rule.Affix.blank in
     let affix opt = Option.value_map ~default ~f opt in
     let pre = affix t.prefix in
     let suf = affix t.suffix in
     let style = Option.value ~default:[] t.style in
-    P.Format.Rule.create ~pre ~suf style
+    Format.Rule.create ~pre ~suf style
   ;;
 end
 
 module Hunk = struct
-  type t = Rule.t [@@deriving sexp]
+  type t = Rule.t [@@deriving quickcheck, sexp]
 
   let to_internal t =
     let get_affix a = Option.value a ~default:Affix.blank in
@@ -211,7 +209,7 @@ module Hunk = struct
 end
 
 module Header = struct
-  type t = Rule.t [@@deriving sexp]
+  type t = Rule.t [@@deriving quickcheck, sexp]
 
   let to_internal t ~default =
     let get_affix a = Option.value a ~default:Affix.blank in
@@ -228,19 +226,19 @@ module Line_rule = struct
   type t =
     { prefix : Affix.t option [@sexp.option]
     ; suffix : Affix.t option [@sexp.option]
-    ; style : Style.t list option [@sexp.option]
-    ; word_same : Style.t list option [@sexp.option]
+    ; style : Format.Style.t list option [@sexp.option]
+    ; word_same : Format.Style.t list option [@sexp.option]
     }
-  [@@deriving sexp]
+  [@@deriving sexp, quickcheck]
 
   let default = { prefix = None; suffix = None; style = None; word_same = None }
 end
 
 module Output = struct
-  type t = P.Output.t [@@deriving sexp]
+  type t = Output.t [@@deriving sexp]
 end
 
-module Config = struct
+module On_disk = struct
   module V1 = struct
     type t =
       { dont_produce_unified_lines : bool option [@sexp.option]
@@ -272,13 +270,13 @@ module Config = struct
       ; line_unified : Line_rule.t option [@sexp.option]
       ; word_old : Rule.t option [@sexp.option]
       ; word_new : Rule.t option [@sexp.option]
-      ; location_style : P.Format.Location_style.t
-                         [@default P.Format.Location_style.Diff] [@sexp_drop_default.equal]
+      ; location_style : Format.Location_style.t
+                         [@default Format.Location_style.Diff] [@sexp_drop_default.equal]
       ; warn_if_no_trailing_newline_in_both : bool
                                               [@default warn_if_no_trailing_newline_in_both_default]
                                               [@sexp_drop_default.equal]
       }
-    [@@deriving sexp]
+    [@@deriving quickcheck, sexp]
   end
 
   module V0 = struct
@@ -292,16 +290,16 @@ module Config = struct
 
     module Word_same = struct
       type t =
-        { style_old : Style.t list
-        ; style_new : Style.t list
+        { style_old : Format.Style.t list
+        ; style_new : Format.Style.t list
         }
       [@@deriving sexp]
     end
 
     module Word_changed = struct
       type t =
-        { style_old : Style.t list
-        ; style_new : Style.t list
+        { style_old : Format.Style.t list
+        ; style_new : Format.Style.t list
         ; prefix_old : Affix.t option [@sexp.option]
         ; suffix_old : Affix.t option [@sexp.option]
         ; prefix_new : Affix.t option [@sexp.option]
@@ -312,8 +310,8 @@ module Config = struct
 
     module Old_header = struct
       type t =
-        { style_old : Style.t list option [@sexp.option]
-        ; style_new : Style.t list option [@sexp.option]
+        { style_old : Format.Style.t list option [@sexp.option]
+        ; style_new : Format.Style.t list option [@sexp.option]
         ; prefix_old : Affix.t option [@sexp.option]
         ; suffix_old : Affix.t option [@sexp.option]
         ; prefix_new : Affix.t option [@sexp.option]
@@ -339,14 +337,14 @@ module Config = struct
       ; double_check : bool option [@sexp.option]
       ; hide_uniques : bool option [@sexp.option]
       ; header : Old_header.t option [@sexp.option]
-      ; line_same : Style.t list option [@sexp.option]
+      ; line_same : Format.Style.t list option [@sexp.option]
       ; line_same_prefix : Affix.t option [@sexp.option]
       ; line_changed : Line_changed.t option [@sexp.option]
       ; word_same : Word_same.t option [@sexp.option]
       ; word_changed : Word_changed.t option [@sexp.option]
       ; chunk : Hunk.t option [@sexp.option]
-      ; location_style : P.Format.Location_style.t
-                         [@default P.Format.Location_style.Diff] [@sexp_drop_default.equal]
+      ; location_style : Format.Location_style.t
+                         [@default Format.Location_style.Diff] [@sexp_drop_default.equal]
       ; warn_if_no_trailing_newline_in_both : bool
                                               [@default warn_if_no_trailing_newline_in_both_default]
                                               [@sexp_drop_default.equal]
@@ -438,128 +436,124 @@ module Config = struct
        | exception as_v0_exn ->
          raise_s
            [%message
-             "Patdiff_lib.Configuration.Config.t_of_sexp: invalid config"
+             "Patdiff_lib.Configuration.On_disk.t_of_sexp: invalid config"
                (as_v1_exn : exn)
                (as_v0_exn : exn)])
   ;;
 end
 
-let parse (config : Config.t) =
-  let c = config in
-  let value = Option.value in
-  (**** Command Line Arguments ****)
-  let context = value ~default:(-1) c.context in
-  let line_big_enough = value ~default:3 c.line_big_enough in
-  let word_big_enough = value ~default:7 c.word_big_enough in
-  let unrefined = value ~default:false c.unrefined in
-  let produce_unified_lines = not (value ~default:false c.dont_produce_unified_lines) in
-  let overwrite_word_old_word_new =
-    not (value ~default:false c.dont_overwrite_word_old_word_new)
-  in
-  let keep_ws = value ~default:false c.keep_whitespace in
-  let interleave = value ~default:true c.interleave in
-  let assume_text = value ~default:false c.assume_text in
-  let split_long_lines = value ~default:false c.split_long_lines in
-  let shallow = value ~default:false c.shallow in
-  let quiet = value ~default:false c.quiet in
-  let double_check = value ~default:false c.double_check in
-  let mask_uniques = value ~default:false c.mask_uniques in
-  let ext_cmp = c.ext_cmp in
-  let float_tolerance = c.float_tolerance in
-  let alt_prev = c.alt_old in
-  let alt_next = c.alt_new in
-  let location_style = c.location_style in
-  (**** Output Type ****)
-  let output =
-    let html = Option.value c.html ~default:false in
-    if html then P.Output.Html else P.Output.Ansi
-  in
-  (**** Styling Rules ****)
-  (* Words *)
-  let create_word_same line_opt =
-    let line = value line_opt ~default:Line_rule.default in
-    P.Format.Rule.create (value ~default:[] line.word_same)
-  in
-  let word_same_prev = create_word_same c.line_old in
-  let word_same_next = create_word_same c.line_new in
-  let word_same_unified = create_word_same c.line_unified in
+let parse
+      ({ dont_produce_unified_lines
+       ; dont_overwrite_word_old_word_new
+       ; config_path =
+           _
+       ; context
+       ; line_big_enough
+       ; word_big_enough
+       ; unrefined
+       ; keep_whitespace
+       ; split_long_lines
+       ; interleave
+       ; assume_text
+       ; quiet
+       ; shallow
+       ; double_check
+       ; mask_uniques
+       ; html
+       ; alt_old
+       ; alt_new
+       ; ext_cmp
+       ; float_tolerance
+       ; header_old
+       ; header_new
+       ; hunk
+       ; line_same
+       ; line_old
+       ; line_new
+       ; line_unified
+       ; word_old
+       ; word_new
+       ; location_style
+       ; warn_if_no_trailing_newline_in_both
+       } :
+         On_disk.t)
+  =
+  let default_true = Option.value ~default:true in
+  let default_false = Option.value ~default:false in
+  let default_rule = Option.value ~default:Line_rule.default in
   (* Lines *)
-  let default = Line_rule.default in
-  let line_same = value ~default c.line_same in
-  let line_prev = value ~default c.line_old in
-  let line_next = value ~default c.line_new in
-  let line_unified = value ~default c.line_unified in
-  (* Words *)
-  let create_word ~(line_rule : Line_rule.t) opt =
-    if overwrite_word_old_word_new
-    then Rule.to_internal { Rule.blank with style = line_rule.style }
-    else Rule.to_internal (value opt ~default:Rule.blank)
-  in
-  let word_prev = create_word ~line_rule:line_prev c.word_old in
-  let word_next = create_word ~line_rule:line_next c.word_new in
+  let line_same = default_rule line_same in
+  let line_prev = default_rule line_old in
+  let line_next = default_rule line_new in
+  let line_unified = default_rule line_unified in
   (* Padding for prefixes: They should all be the same length. *)
-  let len = Affix.length in
-  let same_len = len line_same.prefix in
-  let prev_len = len line_prev.prefix in
-  let next_len = len line_next.prefix in
-  let uni_len = len line_unified.prefix in
-  let min_width = max (max (max prev_len next_len) same_len) uni_len in
-  let pad a = Affix.to_internal ~min_width (value ~default:Affix.blank a) in
-  let same_prefix = pad line_same.prefix in
-  let prev_prefix = pad line_prev.prefix in
-  let next_prefix = pad line_next.prefix in
-  let unified_prefix = pad line_unified.prefix in
-  (* Construct the rules *)
-  let create style ~pre = P.Format.Rule.create (value ~default:[] style) ~pre in
-  let line_same = create line_same.style ~pre:same_prefix in
-  let line_prev = create line_prev.style ~pre:prev_prefix in
-  let line_next = create line_next.style ~pre:next_prefix in
-  let line_unified = create line_unified.style ~pre:unified_prefix in
+  let min_width =
+    [ line_same; line_prev; line_next; line_unified ]
+    |> List.map ~f:(fun line -> Affix.length line.prefix)
+    |> List.max_elt ~compare:Int.compare
+    |> Option.value_exn
+  in
+  let create_line (line : Line_rule.t) =
+    Format.Rule.create
+      (Option.value ~default:[] line.style)
+      ~pre:(Affix.to_internal ~min_width (Option.value ~default:Affix.blank line.prefix))
+  in
+  (* Words *)
+  let create_word_same (line : Line_rule.t) =
+    Format.Rule.create (Option.value ~default:[] line.word_same)
+  in
+  let create_word ~(line_rule : Line_rule.t) opt =
+    let rule =
+      if default_false dont_overwrite_word_old_word_new
+      then Option.value ~default:Rule.blank opt
+      else { Rule.blank with style = line_rule.style }
+    in
+    Rule.to_internal rule
+  in
   (* Header *)
-  let get_header h_opt = value h_opt ~default:Rule.blank in
-  let create h_opt default = Header.to_internal (get_header h_opt) ~default in
-  let header_prev = create c.header_old "---" in
-  let header_next = create c.header_new "+++" in
-  (* Chunks *)
-  let hunk = Hunk.to_internal (Option.value c.hunk ~default:Rule.blank) in
+  let create_header h_opt prefix =
+    Header.to_internal (Option.value ~default:Rule.blank h_opt) ~default:prefix
+  in
   (* Final *)
-  let rules =
-    { P.Format.Rules.line_same
-    ; line_prev
-    ; line_next
-    ; line_unified
-    ; word_same_prev
-    ; word_same_next
-    ; word_same_unified
-    ; word_prev
-    ; word_next
-    ; hunk
-    ; header_prev
-    ; header_next
+  let t =
+    { rules =
+        { Format.Rules.line_same = create_line line_same
+        ; line_prev = create_line line_prev
+        ; line_next = create_line line_next
+        ; line_unified = create_line line_unified
+        ; word_same_prev = create_word_same line_prev
+        ; word_same_next = create_word_same line_next
+        ; word_same_unified = create_word_same line_unified
+        ; word_prev = create_word ~line_rule:line_prev word_old
+        ; word_next = create_word ~line_rule:line_next word_new
+        ; hunk = Hunk.to_internal (Option.value hunk ~default:Rule.blank)
+        ; header_prev = create_header header_old "---"
+        ; header_next = create_header header_new "+++"
+        }
+    ; output = (if default_false html then Html else Ansi)
+    ; context = Option.value ~default:(-1) context
+    ; word_big_enough = Option.value ~default:7 word_big_enough
+    ; line_big_enough = Option.value ~default:3 line_big_enough
+    ; unrefined = default_false unrefined
+    ; produce_unified_lines = not (default_false dont_produce_unified_lines)
+    ; ext_cmp
+    ; float_tolerance
+    ; keep_ws = default_false keep_whitespace
+    ; split_long_lines = default_false split_long_lines
+    ; interleave = default_true interleave
+    ; assume_text = default_false assume_text
+    ; shallow = default_false shallow
+    ; quiet = default_false quiet
+    ; double_check = default_false double_check
+    ; mask_uniques = default_false mask_uniques
+    ; prev_alt = alt_old
+    ; next_alt = alt_new
+    ; location_style
+    ; warn_if_no_trailing_newline_in_both
     }
   in
-  { rules
-  ; output
-  ; context
-  ; word_big_enough
-  ; line_big_enough
-  ; unrefined
-  ; produce_unified_lines
-  ; ext_cmp
-  ; float_tolerance
-  ; keep_ws
-  ; split_long_lines
-  ; interleave
-  ; assume_text
-  ; shallow
-  ; quiet
-  ; double_check
-  ; mask_uniques
-  ; prev_alt = alt_prev
-  ; next_alt = alt_next
-  ; location_style
-  ; warn_if_no_trailing_newline_in_both = c.warn_if_no_trailing_newline_in_both
-  }
+  invariant t;
+  t
 ;;
 
 let dark_bg =
@@ -583,7 +577,7 @@ let dark_bg =
    (style (Bold (Fg blue)))))
  )|}
      in
-     parse (Config.V0.t_of_sexp sexp |> Config.V0.to_v1))
+     parse (On_disk.V0.t_of_sexp sexp |> On_disk.V0.to_v1))
 ;;
 
 let light_bg =
@@ -602,7 +596,7 @@ let light_bg =
                 (style_new ((bg yellow) bold))))
  )|}
      in
-     parse (Config.V0.t_of_sexp sexp |> Config.V0.to_v1))
+     parse (On_disk.V0.t_of_sexp sexp |> On_disk.V0.to_v1))
 ;;
 
 let%test_module _ =
@@ -621,11 +615,11 @@ let load_sexp_conv f conv = Result.try_with (fun () -> Sexp.load_sexp_conv_exn f
 
 let rec load_exn' ~set config_file =
   let config =
-    match load_sexp_conv config_file Config.V1.t_of_sexp with
+    match load_sexp_conv config_file On_disk.V1.t_of_sexp with
     | Ok c -> c
     | Error exn ->
       let as_old_config =
-        Result.map (load_sexp_conv config_file Config.V0.t_of_sexp) ~f:Config.V0.to_v1
+        Result.map (load_sexp_conv config_file On_disk.V0.t_of_sexp) ~f:On_disk.V0.to_v1
       in
       (match as_old_config with
        | Error _another_exn -> raise exn
@@ -634,7 +628,7 @@ let rec load_exn' ~set config_file =
           match Sys.file_exists new_file with
           | `Yes | `Unknown -> ()
           | `No ->
-            (try Sexp.save_hum new_file (Config.V1.sexp_of_t c) with
+            (try Sexp.save_hum new_file (On_disk.V1.sexp_of_t c) with
              | _ -> ()));
          c)
   in
@@ -694,10 +688,10 @@ let default_string =
    (suffix ((text " ============================================================") (style ())))
    (style (bold))))
 )|}
-    Patdiff_core.default_context
+    default_context
 ;;
 
-let default = lazy (parse ([%of_sexp: Config.t] (Sexp.of_string default_string)))
+let default = lazy (parse ([%of_sexp: On_disk.t] (Sexp.of_string default_string)))
 
 let get_config ?filename () =
   (* Load config file if it exists, use default if not *)

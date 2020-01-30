@@ -58,7 +58,7 @@ val load : ?quiet_errors:bool -> string -> t option
 val dark_bg : t Lazy.t
 val light_bg : t Lazy.t
 
-module Config : sig
+module On_disk : sig
   module V1 : sig
     type t
   end
@@ -72,11 +72,11 @@ module Config : sig
   type t = V1.t [@@deriving sexp]
 end
 
-val parse : Config.t -> t
+val parse : On_disk.t -> t
 
 (** A default config, suitable for writing to [~/.patdiff] or passing to {[
 
-      fun default -> parse ([%of_sexp: Config.t] (Sexp.of_string default))
+      fun default -> parse ([%of_sexp: On_disk.t] (Sexp.of_string default))
 
     ]}. *)
 val default : t Lazy.t

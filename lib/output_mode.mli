@@ -6,6 +6,6 @@ type t =
   | Ansi
   | Ascii
   | Html
-[@@deriving sexp]
+[@@deriving compare, sexp]
 
 val implies_unrefined : t -> bool
