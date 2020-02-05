@@ -55,13 +55,9 @@ let invariant t =
       ~keep_ws:ignore
       ~interleave:ignore
       ~assume_text:ignore
-      ~split_long_lines:ignore
-      ~context:
-        (check (fun context ->
-           [%test_pred: int]
-             Int.is_non_negative
-             context
-             ~message:"context cannot be negative"))
+      ~split_long_lines:
+        ignore
+      ~context:ignore
       ~line_big_enough:
         (check (fun line_big_enough ->
            [%test_pred: int]
