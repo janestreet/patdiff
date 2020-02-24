@@ -2,8 +2,8 @@
  (version_release (Manual (
    Simple (
      (major_number   122)
-     (minor_number   06)
-     (release_number 33)))))
+     (minor_number   09)
+     (release_number 132)))))
  (license     Proprietary)
  (group       "JS Core Utils")
  (build_arch  x86_64)
