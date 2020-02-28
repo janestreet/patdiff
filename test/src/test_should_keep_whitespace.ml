@@ -1,7 +1,7 @@
 open! Core
 open! Async
 open! Import
-open Patdiff_lib.Std.Private.Should_keep_whitespace
+open Patdiff_lib.Private.Should_keep_whitespace
 
 let test file1 lines1 file2 lines2 =
   let file1 = file1, String.strip lines1 in
