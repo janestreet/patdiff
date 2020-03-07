@@ -1,0 +1,4 @@
+(library (name patdiff) (public_name patdiff)
+ (libraries core_kernel.composition_infix core patdiff_kernel patience_diff
+  re)
+ (preprocess (pps ppx_jane)))

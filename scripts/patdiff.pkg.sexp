@@ -18,7 +18,7 @@
    (File (
      (file_name                patdiff)
      (installation_directory   /usr/bin)
-     (build_file_name          patdiff.exe)
+     (build_file_name          main.exe)
      (build_artifact_directory "../bin")
      (owner                    root)
      (group                    root)

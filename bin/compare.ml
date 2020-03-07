@@ -1,7 +1,8 @@
 open Core
-module P = Patdiff_lib.Patdiff_core
-module Compare_core = Patdiff_lib.Compare_core
-module Configuration = Patdiff_lib.Configuration
+module Compare_core = Patdiff.Compare_core
+module Configuration = Patdiff.Configuration
+module Format = Patdiff.Format
+module Output = Patdiff.Output
 
 let summary =
   {|Compare two files (or process a diff read in on stdin) using the
@@ -28,7 +29,7 @@ module Args = struct
     ; quiet_opt : bool option
     ; double_check_opt : bool option
     ; mask_uniques_opt : bool option
-    ; output : P.Output.t option
+    ; output : Output.t option
     ; context_opt : int option
     ; line_big_enough_opt : int option
     ; word_big_enough_opt : int option
@@ -39,7 +40,7 @@ module Args = struct
     ; next_alt_opt : string option option
     ; include_ : string list
     ; exclude : string list
-    ; location_style : P.Format.Location_style.t option
+    ; location_style : Format.Location_style.t option
     ; warn_if_no_trailing_newline_in_both : bool option
     }
 
@@ -287,7 +288,7 @@ let command =
        choose_one
          [ map
              ~f:(function
-               | true -> Some (Some P.Output.Html)
+               | true -> Some (Some Output.Html)
                | _ -> None)
              (flag
                 "html"
@@ -297,7 +298,7 @@ let command =
                    codes)")
          ; map
              ~f:(function
-               | true -> Some (Some P.Output.Ascii)
+               | true -> Some (Some Output.Ascii)
                | _ -> None)
              (flag
                 "ascii"
@@ -305,7 +306,7 @@ let command =
                 ~doc:" Output in ASCII with no ANSI escape codes (implies -unrefined)")
          ; map
              ~f:(function
-               | true -> Some (Some P.Output.Ansi)
+               | true -> Some (Some Output.Ansi)
                | _ -> None)
              (flag "ansi" no_arg ~doc:" Output in ASCII with ANSI escape codes")
          ]
@@ -366,9 +367,9 @@ let command =
      and location_style =
        flag
          "location-style"
-         (optional (Arg_type.create P.Format.Location_style.of_string))
+         (optional (Arg_type.create Format.Location_style.of_string))
          ~doc:
-           P.Format.Location_style.(
+           Format.Location_style.(
              sprintf
                "<%s> how to format location information in hunk headers"
                (String.concat ~sep:"|" (List.map all ~f:to_string)))
