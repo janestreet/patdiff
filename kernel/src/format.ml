@@ -207,7 +207,7 @@ module Location_style = struct
   let of_string = function
     | "diff" -> Diff
     | "omake" -> Omake
-    | other -> failwiths "invalid location style" other [%sexp_of: string]
+    | other -> failwiths ~here:[%here] "invalid location style" other [%sexp_of: string]
   ;;
 
   let omake_style_error_message_start ~file ~line =
