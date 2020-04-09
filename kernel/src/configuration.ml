@@ -101,7 +101,6 @@ let invariant t =
 let create_exn
       ~output
       ~rules
-      ~ext_cmp
       ~float_tolerance
       ~produce_unified_lines
       ~unrefined
@@ -124,7 +123,7 @@ let create_exn
   let t =
     { output
     ; rules
-    ; ext_cmp
+    ; ext_cmp = None
     ; float_tolerance
     ; produce_unified_lines
     ; unrefined
@@ -149,7 +148,7 @@ let create_exn
   t
 ;;
 
-let override
+let override_internal
       ?output
       ?rules
       ?ext_cmp
@@ -207,6 +206,54 @@ let override
   in
   invariant t;
   t
+;;
+
+let override
+      ?output
+      ?rules
+      ?float_tolerance
+      ?produce_unified_lines
+      ?unrefined
+      ?keep_ws
+      ?split_long_lines
+      ?interleave
+      ?assume_text
+      ?context
+      ?line_big_enough
+      ?word_big_enough
+      ?shallow
+      ?quiet
+      ?double_check
+      ?mask_uniques
+      ?prev_alt
+      ?next_alt
+      ?location_style
+      ?warn_if_no_trailing_newline_in_both
+      t
+  =
+  override_internal
+    ?output
+    ?rules
+    ~ext_cmp:None
+    ?float_tolerance
+    ?produce_unified_lines
+    ?unrefined
+    ?keep_ws
+    ?split_long_lines
+    ?interleave
+    ?assume_text
+    ?context
+    ?line_big_enough
+    ?word_big_enough
+    ?shallow
+    ?quiet
+    ?double_check
+    ?mask_uniques
+    ?prev_alt
+    ?next_alt
+    ?location_style
+    ?warn_if_no_trailing_newline_in_both
+    t
 ;;
 
 let default =
@@ -270,3 +317,10 @@ let default =
   ; warn_if_no_trailing_newline_in_both = warn_if_no_trailing_newline_in_both_default
   }
 ;;
+
+module Private = struct
+  let with_ext_cmp t ~ext_cmp ~notify =
+    if is_some ext_cmp then notify ();
+    { t with ext_cmp }
+  ;;
+end

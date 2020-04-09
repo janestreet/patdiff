@@ -91,28 +91,36 @@ let files_from_anons = function
 
 (* Override default/config file options with command line arguments *)
 let override config (args : Args.compare_flags) =
-  Configuration.override
-    config
-    ?output:args.output
-    ?unrefined:args.unrefined_opt
-    ?produce_unified_lines:args.produce_unified_lines_opt
-    ?ext_cmp:args.ext_cmp_opt
-    ?float_tolerance:args.float_tolerance_opt
-    ?keep_ws:args.keep_ws_opt
-    ?split_long_lines:args.split_long_lines_opt
-    ?interleave:args.interleave_opt
-    ?assume_text:args.assume_text_opt
-    ?context:args.context_opt
-    ?line_big_enough:args.line_big_enough_opt
-    ?word_big_enough:args.word_big_enough_opt
-    ?shallow:args.shallow_opt
-    ?quiet:args.quiet_opt
-    ?double_check:args.double_check_opt
-    ?mask_uniques:args.mask_uniques_opt
-    ?prev_alt:args.prev_alt_opt
-    ?next_alt:args.next_alt_opt
-    ?location_style:args.location_style
-    ?warn_if_no_trailing_newline_in_both:args.warn_if_no_trailing_newline_in_both
+  let config =
+    Configuration.override
+      config
+      ?output:args.output
+      ?unrefined:args.unrefined_opt
+      ?produce_unified_lines:args.produce_unified_lines_opt
+      ?float_tolerance:args.float_tolerance_opt
+      ?keep_ws:args.keep_ws_opt
+      ?split_long_lines:args.split_long_lines_opt
+      ?interleave:args.interleave_opt
+      ?assume_text:args.assume_text_opt
+      ?context:args.context_opt
+      ?line_big_enough:args.line_big_enough_opt
+      ?word_big_enough:args.word_big_enough_opt
+      ?shallow:args.shallow_opt
+      ?quiet:args.quiet_opt
+      ?double_check:args.double_check_opt
+      ?mask_uniques:args.mask_uniques_opt
+      ?prev_alt:args.prev_alt_opt
+      ?next_alt:args.next_alt_opt
+      ?location_style:args.location_style
+      ?warn_if_no_trailing_newline_in_both:args.warn_if_no_trailing_newline_in_both
+  in
+  match args.ext_cmp_opt with
+  | None -> config
+  | Some ext_cmp ->
+    (Configuration.Private.with_ext_cmp [@alert "-deprecated"])
+      config
+      ~ext_cmp
+      ~notify:ignore
 ;;
 
 let main' (args : Args.compare_flags) =
