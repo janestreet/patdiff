@@ -10,9 +10,12 @@ include Private.Make (struct
     ;;
 
     let console_width () =
-      let open Or_error.Let_syntax in
-      let%bind get_size = Linux_ext.get_terminal_size in
-      let%map _, width = Or_error.try_with (fun () -> get_size `Controlling) in
-      width
+      if am_running_test
+      then Ok 80
+      else
+        let open Or_error.Let_syntax in
+        let%bind get_size = Linux_ext.get_terminal_size in
+        let%map _, width = Or_error.try_with (fun () -> get_size `Controlling) in
+        width
     ;;
   end)
