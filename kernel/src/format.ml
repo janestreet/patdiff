@@ -197,16 +197,19 @@ module Location_style = struct
   type t =
     | Diff
     | Omake
+    | None
   [@@deriving bin_io, compare, quickcheck, enumerate, equal, sexp]
 
   let to_string = function
     | Diff -> "diff"
     | Omake -> "omake"
+    | None -> "none"
   ;;
 
   let of_string = function
     | "diff" -> Diff
     | "omake" -> Omake
+    | "none" -> None
     | other -> failwiths ~here:[%here] "invalid location style" other [%sexp_of: string]
   ;;
 
@@ -236,5 +239,6 @@ module Location_style = struct
             | Prev _ | Next _ | Replace _ | Unified _ -> r.return init))
       in
       omake_style_error_message_start ~file:prev_filename ~line:prev_start
+    | None -> rule ""
   ;;
 end

@@ -132,6 +132,7 @@ module Location_style : sig
   type t =
     | Diff
     | Omake
+    | None
   [@@deriving bin_io, compare, quickcheck, enumerate, equal, sexp]
 
   include Stringable.S with type t := t
