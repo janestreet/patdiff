@@ -4,4 +4,4 @@
 (install (section bin) (files (main.exe as patdiff) patdiff-git-wrapper))
 
 (alias (name DEFAULT) (deps (glob_files patdiff-git-wrapper))
- (action (bash "shellcheck -x patdiff-git-wrapper")))
+ (action (bash "%{bin:shellcheck} -x patdiff-git-wrapper")))
