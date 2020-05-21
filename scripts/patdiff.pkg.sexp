@@ -2,7 +2,7 @@
  (version_release (Manual (
    Simple (
      (major_number   122)
-     (minor_number   18)
+     (minor_number   22)
      (release_number 42)))))
  (license     Proprietary)
  (group       "JS Core Utils")
