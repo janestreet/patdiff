@@ -42,6 +42,7 @@ let compare_lines (config : Configuration.t) ~prev ~next =
         ~big_enough:line_big_enough
         ~prev
         ~next
+        ()
     | Some prog ->
       let compare x y =
         let cmd = sprintf "%s %S %S" prog x y in
@@ -58,7 +59,7 @@ let compare_lines (config : Configuration.t) ~prev ~next =
           let compare = compare
         end)
       in
-      P.get_hunks ~transform ~context ~big_enough:line_big_enough ~prev ~next
+      P.get_hunks ~transform ~context ~big_enough:line_big_enough ~prev ~next ()
   in
   let hunks =
     match config.float_tolerance with

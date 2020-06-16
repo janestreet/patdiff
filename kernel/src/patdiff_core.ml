@@ -138,6 +138,7 @@ module Make (Output_impls : Output_impls) = struct
       ~big_enough:line_big_enough
       ~prev
       ~next
+      ()
   ;;
 
   type word_or_newline =
@@ -345,6 +346,7 @@ module Make (Output_impls : Output_impls) = struct
       ~big_enough:word_big_enough
       ~prev:prev_pieces
       ~next:next_pieces
+      ()
   ;;
 
   let ranges_are_just_whitespace (ranges : _ Patience_diff.Range.t list) =
