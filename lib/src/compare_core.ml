@@ -33,33 +33,13 @@ let compare_lines (config : Configuration.t) ~prev ~next =
   let line_big_enough = config.line_big_enough in
   let hunks =
     let transform = if keep_ws then Fn.id else Patdiff_core.remove_ws in
-    (* Use external compare program? *)
-    match config.ext_cmp with
-    | None ->
-      Patience_diff.String.get_hunks
-        ~transform
-        ~context
-        ~big_enough:line_big_enough
-        ~prev
-        ~next
-        ()
-    | Some prog ->
-      let compare x y =
-        let cmd = sprintf "%s %S %S" prog x y in
-        match Unix.system cmd with
-        | Ok () -> 0
-        | Error (`Exit_non_zero 1) -> 1
-        | Error _ -> failwithf "External compare %S failed!" prog ()
-      in
-      let module P =
-        Patience_diff.Make (struct
-          type t = string [@@deriving sexp]
-
-          let hash = String.hash
-          let compare = compare
-        end)
-      in
-      P.get_hunks ~transform ~context ~big_enough:line_big_enough ~prev ~next ()
+    Patience_diff.String.get_hunks
+      ~transform
+      ~context
+      ~big_enough:line_big_enough
+      ~prev
+      ~next
+      ()
   in
   let hunks =
     match config.float_tolerance with

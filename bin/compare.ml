@@ -19,7 +19,6 @@ module Args = struct
   type compare_flags =
     { unrefined_opt : bool option
     ; produce_unified_lines_opt : bool option
-    ; ext_cmp_opt : string option option
     ; float_tolerance_opt : Percent.t option option
     ; keep_ws_opt : bool option
     ; interleave_opt : bool option
@@ -91,36 +90,27 @@ let files_from_anons = function
 
 (* Override default/config file options with command line arguments *)
 let override config (args : Args.compare_flags) =
-  let config =
-    Configuration.override
-      config
-      ?output:args.output
-      ?unrefined:args.unrefined_opt
-      ?produce_unified_lines:args.produce_unified_lines_opt
-      ?float_tolerance:args.float_tolerance_opt
-      ?keep_ws:args.keep_ws_opt
-      ?split_long_lines:args.split_long_lines_opt
-      ?interleave:args.interleave_opt
-      ?assume_text:args.assume_text_opt
-      ?context:args.context_opt
-      ?line_big_enough:args.line_big_enough_opt
-      ?word_big_enough:args.word_big_enough_opt
-      ?shallow:args.shallow_opt
-      ?quiet:args.quiet_opt
-      ?double_check:args.double_check_opt
-      ?mask_uniques:args.mask_uniques_opt
-      ?prev_alt:args.prev_alt_opt
-      ?next_alt:args.next_alt_opt
-      ?location_style:args.location_style
-      ?warn_if_no_trailing_newline_in_both:args.warn_if_no_trailing_newline_in_both
-  in
-  match args.ext_cmp_opt with
-  | None -> config
-  | Some ext_cmp ->
-    (Configuration.Private.with_ext_cmp [@alert "-deprecated"])
-      config
-      ~ext_cmp
-      ~notify:ignore
+  Configuration.override
+    config
+    ?output:args.output
+    ?unrefined:args.unrefined_opt
+    ?produce_unified_lines:args.produce_unified_lines_opt
+    ?float_tolerance:args.float_tolerance_opt
+    ?keep_ws:args.keep_ws_opt
+    ?split_long_lines:args.split_long_lines_opt
+    ?interleave:args.interleave_opt
+    ?assume_text:args.assume_text_opt
+    ?context:args.context_opt
+    ?line_big_enough:args.line_big_enough_opt
+    ?word_big_enough:args.word_big_enough_opt
+    ?shallow:args.shallow_opt
+    ?quiet:args.quiet_opt
+    ?double_check:args.double_check_opt
+    ?mask_uniques:args.mask_uniques_opt
+    ?prev_alt:args.prev_alt_opt
+    ?next_alt:args.next_alt_opt
+    ?location_style:args.location_style
+    ?warn_if_no_trailing_newline_in_both:args.warn_if_no_trailing_newline_in_both
 ;;
 
 let main' (args : Args.compare_flags) =
@@ -254,29 +244,8 @@ let command =
          | _, false -> value
        in
        f "line-big-enough" line_big_enough, f "word-big-enough" word_big_enough
-     and ext_cmp_opt, unrefined_opt =
-       let%map ext_cmp =
-         flag
-           "ext-cmp"
-           (optional Filename.arg_type)
-           ~doc:"FILE Use external string comparison program (implies -unrefined)"
-       and unrefined =
-         flag "unrefined" no_arg ~doc:" Don't highlight word differences between lines"
-       in
-       let unrefined_opt =
-         match ext_cmp, unrefined with
-         | Some _, true ->
-           (* unrefined is set more than once, but both values agree, so it's fine. *)
-           Some true
-         | Some _, false | None, true ->
-           (* only set once *)
-           Some true
-         | None, false ->
-           (* never set. *)
-           None
-       in
-       let ext_cmp_opt = Option.map ~f:Option.some ext_cmp in
-       ext_cmp_opt, unrefined_opt
+     and unrefined_opt =
+       flag_no_arg "unrefined" ~doc:" Don't highlight word differences between lines"
      and keep_ws_opt =
        flag_no_arg "keep-whitespace" ~doc:" Consider whitespace when comparing lines"
      and split_long_lines_opt =
@@ -418,7 +387,6 @@ let command =
              ; shallow_opt
              ; double_check_opt
              ; mask_uniques_opt
-             ; ext_cmp_opt
              ; float_tolerance_opt
              ; prev_alt_opt
              ; next_alt_opt
