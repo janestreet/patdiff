@@ -4,10 +4,7 @@ open Import
 
 let diff prev next tolerance message =
   printf !"====== %{Sexp} ======\n" message;
-  patdiff
-    ~extra_flags:[ "-float-tol"; Percent.to_string tolerance; "-ascii" ]
-    ~prev
-    ~next
+  patdiff ~extra_flags:[ "-float-tol"; Percent.to_string tolerance; "-ascii" ] ~prev ~next
 ;;
 
 let test prev next =

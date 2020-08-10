@@ -233,8 +233,7 @@ module Location_style = struct
       (* Print line number of first difference, skipping past context lines. *)
       let prev_start =
         with_return (fun r ->
-          List.fold hunk.ranges ~init:hunk.prev_start ~f:(fun init ->
-            function
+          List.fold hunk.ranges ~init:hunk.prev_start ~f:(fun init -> function
             | Same s -> init + Array.length s
             | Prev _ | Next _ | Replace _ | Unified _ -> r.return init))
       in

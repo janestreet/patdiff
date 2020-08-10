@@ -239,8 +239,7 @@ module On_disk = struct
               Line_rule.style = t.line_same
             ; prefix = t.line_same_prefix
             ; word_same =
-                Option.map t.word_same ~f:(fun word_same ->
-                  word_same.Word_same.style_old)
+                Option.map t.word_same ~f:(fun word_same -> word_same.Word_same.style_old)
             }
       ; line_old =
           Option.map t.line_changed ~f:(fun line_changed ->
@@ -538,9 +537,7 @@ let default_string =
 ;;
 
 let%test_unit "default Config.t sexp matches default Configuration.t" =
-  let default_from_disk =
-    parse ([%of_sexp: On_disk.t] (Sexp.of_string default_string))
-  in
+  let default_from_disk = parse ([%of_sexp: On_disk.t] (Sexp.of_string default_string)) in
   [%test_eq: t] default default_from_disk
 ;;
 

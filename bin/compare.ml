@@ -197,10 +197,7 @@ let command =
     ~readme:(fun () -> Readme.doc)
     (let%map_open config_opt =
        let%map default =
-         flag
-           "default"
-           no_arg
-           ~doc:" Use the default configuration instead of ~/.patdiff"
+         flag "default" no_arg ~doc:" Use the default configuration instead of ~/.patdiff"
        and file =
          flag
            "file"

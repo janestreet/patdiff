@@ -37,8 +37,7 @@ module Make (Mtime : Mtime) = struct
           | Bold -> "<span style=\"font-weight:bold\">" :: s, "</span>" :: e
           | Reset -> s, e
           | Foreground c | Fg c ->
-            ( sprintf "<span style=\"color:%s\">" (string_of_color c) :: s
-            , "</span>" :: e )
+            sprintf "<span style=\"color:%s\">" (string_of_color c) :: s, "</span>" :: e
           | Background c | Bg c ->
             ( sprintf "<span style=\"background-color:%s\">" (string_of_color c) :: s
             , "</span>" :: e )
