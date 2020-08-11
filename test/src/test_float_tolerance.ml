@@ -45,7 +45,8 @@ let%expect_test _ =
      | bar
     -| bax
      | baz
-    ("Unclean exit" (Exit_non_zero 1)) |}]
+    ("Unclean exit" (Exit_non_zero 1)) |}];
+  return ()
 ;;
 
 let%expect_test _ =
@@ -138,5 +139,6 @@ let%expect_test _ =
      | (strawberries (are_red Surprisingly_not_always))
      | (tamarind ())
      | (ugli_fruits 32s))
-    ("Unclean exit" (Exit_non_zero 1)) |}]
+    ("Unclean exit" (Exit_non_zero 1)) |}];
+  return ()
 ;;
