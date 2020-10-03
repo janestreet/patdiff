@@ -62,11 +62,11 @@ write a sample config with the `-make-config` flag.
 A simple [wrapper][patdiff-git-wrapper] is provided for using patdiff
 as git's "external diff" tool.  You can enable it with:
 
-    export GIT_EXTERNAL_DIFF=$(where patdiff-git-wrapper.sh)
+    export GIT_EXTERNAL_DIFF=$(command -v patdiff-git-wrapper)
 
 or
 
-    git config --global diff.external $(where patdiff-git-wrapper.sh)
+    git config --global diff.external $(command -v patdiff-git-wrapper)
 
 [patdiff-git-wrapper]: https://github.com/janestreet/patdiff/blob/master/bin/patdiff-git-wrapper
 
