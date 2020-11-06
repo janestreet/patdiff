@@ -2,9 +2,9 @@ open! Core
 open! Async
 open! Import
 
-(* The patdiff devs don't review the patdiff-git-wrapper script. This test is to warn them
-   of obvious mistakes, like silently changing the calling convention without updating the
-   script. It does not cover all the code paths that git might exercise. *)
+(* This test is to warn of obvious mistakes, like silently changing the calling convention
+   without updating the script. It does not cover all the code paths that git might
+   exercise. *)
 
 let links = ("../../bin/patdiff-git-wrapper", `In_path_as, "patdiff-git-wrapper") :: links
 
