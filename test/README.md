@@ -1,8 +1,4 @@
----
-title: Patdiff test directory layout
-uuid: f4043791-b602-3b04-6282-ff80a2cc215f
-parent: ../README.md
----
+# Patdiff test directory layout
 
 patdiff tests are separated into two directories, `src` and
 `feedback`.
