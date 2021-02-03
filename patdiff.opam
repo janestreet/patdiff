@@ -13,11 +13,12 @@ depends: [
   "ocaml" {>= "4.08.0"}
   "core"
   "core_kernel"
+  "expect_test_helpers_core"
   "patience_diff"
   "ppx_jane"
-  "dune"          {>= "2.0.0"}
+  "dune"                     {>= "2.0.0"}
   "pcre"
-  "re"            {>= "1.8.0"}
+  "re"                       {>= "1.8.0"}
 ]
 synopsis: "File Diff using the Patience Diff algorithm"
 description: "
