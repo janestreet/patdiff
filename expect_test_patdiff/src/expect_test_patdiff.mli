@@ -4,17 +4,41 @@ open! Core_kernel
     string to the second string. Produces a multi-line ASCII diff. If specified,
     [~context] overrides the default number of lines of context for each hunk. [keep_ws]
     overrides the default behavior for whether to consider whitespace in diffs. *)
-val patdiff : ?context:int -> ?keep_ws:bool -> string -> string -> string
+val patdiff
+  :  ?location_style:Patdiff_kernel.Format.Location_style.t
+  -> ?context:int
+  -> ?keep_ws:bool
+  -> string
+  -> string
+  -> string
 
 (** Like [patdiff], but for s-expressions.  Formats the s-expressions the same way as
     [print_s] from [Expect_test_helpers_base], then calls [patdiff]. *)
-val patdiff_s : ?context:int -> ?keep_ws:bool -> Sexp.t -> Sexp.t -> string
+val patdiff_s
+  :  ?location_style:Patdiff_kernel.Format.Location_style.t
+  -> ?context:int
+  -> ?keep_ws:bool
+  -> Sexp.t
+  -> Sexp.t
+  -> string
 
 (** Like [patdiff], but prints the result to stdout. *)
-val print_patdiff : ?context:int -> ?keep_ws:bool -> string -> string -> unit
+val print_patdiff
+  :  ?location_style:Patdiff_kernel.Format.Location_style.t
+  -> ?context:int
+  -> ?keep_ws:bool
+  -> string
+  -> string
+  -> unit
 
 (** Like [patdiff_s], but prints the result to stdout. *)
-val print_patdiff_s : ?context:int -> ?keep_ws:bool -> Sexp.t -> Sexp.t -> unit
+val print_patdiff_s
+  :  ?location_style:Patdiff_kernel.Format.Location_style.t
+  -> ?context:int
+  -> ?keep_ws:bool
+  -> Sexp.t
+  -> Sexp.t
+  -> unit
 
 (** Produces a stateful function that prints the diff between the previous string and the
     current one.
@@ -25,7 +49,8 @@ val print_patdiff_s : ?context:int -> ?keep_ws:bool -> Sexp.t -> Sexp.t -> unit
     If the initial string is [None]: Prints the entirety of the first string passed to the callback.
 *)
 val diff_printer
-  :  ?context:int
+  :  ?location_style:Patdiff_kernel.Format.Location_style.t
+  -> ?context:int
   -> ?keep_ws:bool
   -> string option
   -> (string -> unit) Staged.t
@@ -39,7 +64,8 @@ val diff_printer
     If the initial sexp is [None]: Prints the entirety of the first sexp passed to the callback.
 *)
 val diff_printer_s
-  :  ?context:int
+  :  ?location_style:Patdiff_kernel.Format.Location_style.t
+  -> ?context:int
   -> ?keep_ws:bool
   -> Sexp.t option
   -> (Sexp.t -> unit) Staged.t
