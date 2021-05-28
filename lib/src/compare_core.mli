@@ -1,5 +1,6 @@
 open! Core
 open! Import
+module Unix := Core_unix
 
 include module type of struct
   include Patdiff_kernel.Compare_core

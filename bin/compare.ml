@@ -1,4 +1,5 @@
 open Core
+module Unix = Core_unix
 module Compare_core = Patdiff.Compare_core
 module Configuration = Patdiff.Configuration
 module Format = Patdiff.Format
@@ -55,7 +56,7 @@ let files_from_anons = function
   | None ->
     (* read from stdin *)
     let temp_txt_file prefix =
-      let file, oc = Filename.open_temp_file prefix ".txt" in
+      let file, oc = Filename_unix.open_temp_file prefix ".txt" in
       remove_at_exit := file :: !remove_at_exit;
       file, oc
     in
@@ -201,7 +202,7 @@ let command =
        and file =
          flag
            "file"
-           (optional Filename.arg_type)
+           (optional Filename_unix.arg_type)
            ~doc:"FILE Use FILE as configuration file instead of ~/.patdiff"
        in
        match file, default with
@@ -315,16 +316,16 @@ let command =
        flag
          "alt-prev"
          ~aliases:[ "alt-old" ]
-         (optional (Arg_type.map Filename.arg_type ~f:Option.some))
+         (optional (Arg_type.map Filename_unix.arg_type ~f:Option.some))
          ~doc:"NAME Mask prev filename with NAME"
      and next_alt_opt =
        flag
          "alt-next"
          ~aliases:[ "alt-new" ]
-         (optional (Arg_type.map Filename.arg_type ~f:Option.some))
+         (optional (Arg_type.map Filename_unix.arg_type ~f:Option.some))
          ~doc:"NAME Mask next filename with NAME"
      and make_config =
-       flag "make-config" (optional Filename.arg_type) ~doc:Make_config.doc
+       flag "make-config" (optional Filename_unix.arg_type) ~doc:Make_config.doc
      and include_ =
        flag
          "include"
@@ -357,7 +358,9 @@ let command =
                constitute a diff (default: read from config, or %b)"
               Configuration.warn_if_no_trailing_newline_in_both_default)
      and files =
-       anon (maybe (t2 ("FILE1" %: Filename.arg_type) ("FILE2" %: Filename.arg_type)))
+       anon
+         (maybe
+            (t2 ("FILE1" %: Filename_unix.arg_type) ("FILE2" %: Filename_unix.arg_type)))
      in
      fun () ->
        let args =

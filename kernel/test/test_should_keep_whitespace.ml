@@ -52,3 +52,19 @@ echo foo
 |};
   [%expect {| (should_keep_whitespace false) |}]
 ;;
+
+let%expect_test "f#" =
+  test1
+    "fsharp.fs"
+    {|
+// Learn more about F# at http://fsharp.org
+
+open System
+
+[<EntryPoint>]
+let main argv =
+    printfn "Hello World from F#!"
+    0 // return an integer exit code
+|};
+  [%expect {| (should_keep_whitespace true) |}]
+;;
