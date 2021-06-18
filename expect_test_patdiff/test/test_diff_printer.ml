@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 open! Expect_test_helpers_base
 
 let map = List.init 20 ~f:(fun i -> i + 1, (i + 1) * 100) |> Int.Map.of_alist_exn

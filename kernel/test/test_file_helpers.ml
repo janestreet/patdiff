@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 open! Import
 open Patdiff_kernel.File_helpers
 

@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 open! Import
 open Patdiff_kernel.Should_keep_whitespace
 

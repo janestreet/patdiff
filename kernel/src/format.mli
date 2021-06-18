@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 open! Import
 
 (** Patdiff_format is the home of all the internal representations of the formatting

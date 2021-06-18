@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 open! Import
 module Range = Patience_diff.Range
 module Hunk = Patience_diff.Hunk

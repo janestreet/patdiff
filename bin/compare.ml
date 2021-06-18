@@ -119,12 +119,12 @@ let main' (args : Args.compare_flags) =
   let config = Configuration.get_config ?filename:args.config_opt () in
   let config = override config args in
   (* 2012-06-28 mbac: /dev/null is used as a placeholder for deleted files. *)
-  let file_or_dev_null f = if Sys.file_exists_exn f then f else "/dev/null" in
+  let file_or_dev_null f = if Sys_unix.file_exists_exn f then f else "/dev/null" in
   let prev_file = file_or_dev_null args.prev_file in
   let next_file = file_or_dev_null args.next_file in
   if String.equal prev_file "/dev/null" && String.equal next_file "/dev/null"
   then failwithf "Both files, %s and %s, do not exist" args.prev_file args.next_file ();
-  let is_dir = Sys.is_directory_exn in
+  let is_dir = Sys_unix.is_directory_exn in
   let if_not_diffing_two_dirs () =
     match args with
     | { include_ = []; exclude = []; _ } -> ()
@@ -139,7 +139,7 @@ let main' (args : Args.compare_flags) =
     in
     (* Match file with its twin file in dir *)
     let matches =
-      Sys.ls_dir dir
+      Sys_unix.ls_dir dir
       |> List.find_map ~f:(fun file' ->
         let file' = dir ^/ file' in
         if String.equal file file' then Some file' else None)

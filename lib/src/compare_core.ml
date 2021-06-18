@@ -105,7 +105,7 @@ let rec diff_dirs_internal (config : Configuration.t) ~prev_dir ~next_dir ~file_
       | None -> Fn.const true
       | Some file_filter -> file_filter
     in
-    Sys.ls_dir (File_name.real_name_exn dir)
+    Sys_unix.ls_dir (File_name.real_name_exn dir)
     |> List.filter ~f:(fun x ->
       let x = File_name.real_name_exn dir ^/ x in
       match Unix.stat x with

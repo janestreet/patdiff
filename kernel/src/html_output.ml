@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 open! Import
 include Html_output_intf
 
@@ -84,7 +84,7 @@ module Make (Mtime : Mtime) = struct
     let print_line file rule =
       let get_time file =
         match Mtime.mtime file with
-        | Ok time -> Time.to_string time
+        | Ok time -> Time.to_string_utc time
         | Error _ -> ""
       in
       let time = get_time file in

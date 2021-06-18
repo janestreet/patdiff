@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 open! Import
 
 let looks_like_python_filename = String.is_suffix ~suffix:".py"

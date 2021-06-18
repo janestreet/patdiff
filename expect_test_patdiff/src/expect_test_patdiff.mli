@@ -1,4 +1,4 @@
-open! Core_kernel
+open! Core
 
 (** Runs the patdiff algorithm on its inputs to compute the diff to go from the first
     string to the second string. Produces a multi-line ASCII diff. If specified,

@@ -470,7 +470,7 @@ let rec load_exn' ~set config_file =
        | Error _another_exn -> raise exn
        | Ok c ->
          (let new_file = config_file ^ ".new" in
-          match Sys.file_exists new_file with
+          match Sys_unix.file_exists new_file with
           | `Yes | `Unknown -> ()
           | `No ->
             (try Sexp.save_hum new_file (On_disk.V1.sexp_of_t c) with
@@ -551,7 +551,7 @@ let get_config ?filename () =
       (* ~/.patdiff exists *)
       Option.bind (Sys.getenv "HOME") ~f:(fun home ->
         let f = home ^/ ".patdiff" in
-        match Sys.file_exists f with
+        match Sys_unix.file_exists f with
         | `Yes -> Some f
         | `No | `Unknown -> None)
   in
