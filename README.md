@@ -26,7 +26,7 @@ And of course all the usual features:
 opam install patdiff
 ```
 
-See <a href="https://ocaml.janestreet.com/ocaml-core/latest/doc/patdiff/index.html" target="_blank">
+See <a href="https://github.com/janestreet/patdiff/blob/master/patdiff.opam" target="_blank">
 here</a> for Patdiff's opam package file.
 ## Compiling from source
 

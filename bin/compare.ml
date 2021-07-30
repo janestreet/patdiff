@@ -49,15 +49,15 @@ module Args = struct
     | Make_config of string
 end
 
-let remove_at_exit = ref []
-
 let files_from_anons = function
   | Some (prev_file, next_file) -> prev_file, next_file
   | None ->
     (* read from stdin *)
     let temp_txt_file prefix =
       let file, oc = Filename_unix.open_temp_file prefix ".txt" in
-      remove_at_exit := file :: !remove_at_exit;
+      at_exit (fun () ->
+        try Unix.unlink file with
+        | _ -> ());
       file, oc
     in
     let prev_file, prev_oc = temp_txt_file "patdiff_prev_" in
@@ -114,7 +114,7 @@ let override config (args : Args.compare_flags) =
     ?warn_if_no_trailing_newline_in_both:args.warn_if_no_trailing_newline_in_both
 ;;
 
-let main' (args : Args.compare_flags) =
+let compare_main (args : Args.compare_flags) =
   (* Load config file if it exists, use default if not *)
   let config = Configuration.get_config ?filename:args.config_opt () in
   let config = override config args in
@@ -177,13 +177,10 @@ let main arg =
   match arg with
   | Args.Make_config file -> Make_config.main file
   | Args.Compare compare_args ->
-    let res = main' compare_args in
-    List.iter !remove_at_exit ~f:(fun file ->
-      try Unix.unlink file with
-      | _ -> ());
-    (match res with
-     | `Same -> exit 0
-     | `Different -> exit 1)
+    exit
+      (match compare_main compare_args with
+       | `Same -> 0
+       | `Different -> 1)
 ;;
 
 let command =
@@ -191,22 +188,24 @@ let command =
     let open Command.Param in
     map ~f:(fun b -> if b then Some (not inverted) else None) (flag name no_arg ~doc)
   in
-  let specified_more_than_once s = failwithf "%s specified more than once" s () in
-  let open Command.Let_syntax in
   Command.basic
     ~summary
     ~readme:(fun () -> Readme.doc)
-    (let%map_open config_opt =
-       let%map default =
+    (let%map_open.Command config_opt =
+       let%map.Command default, default_arg_name =
          flag "default" no_arg ~doc:" Use the default configuration instead of ~/.patdiff"
-       and file =
+         |> and_arg_name
+       and file, file_arg_name =
          flag
            "file"
            (optional Filename_unix.arg_type)
            ~doc:"FILE Use FILE as configuration file instead of ~/.patdiff"
+         |> and_arg_name
        in
        match file, default with
-       | Some _, true -> specified_more_than_once "config"
+       | Some _, true ->
+         failwith
+           [%string "Cannot pass both [%{default_arg_name}] and [%{file_arg_name}]"]
        | None, true -> Some ""
        | _, false -> file
      and context_opt =
@@ -215,18 +214,20 @@ let command =
          (optional int)
          ~doc:"NUM Show lines of unchanged context before and after changes"
      and line_big_enough_opt, word_big_enough_opt =
-       let%map line_big_enough =
+       let%map.Command line_big_enough =
          flag
            "line-big-enough"
            (optional int)
            ~doc:
              "NUM Limit line-level semantic cleanup to the matches of length less than \
               NUM lines"
-       and no_semantic_cleanup =
+         |> and_arg_name
+       and no_semantic_cleanup, no_semantic_cleanup_arg_name =
          flag
            "no-semantic-cleanup"
            no_arg
            ~doc:" Don't do any semantic cleanup; let small, spurious matches survive"
+         |> and_arg_name
        and word_big_enough =
          flag
            "word-big-enough"
@@ -234,14 +235,19 @@ let command =
            ~doc:
              "NUM Limit word-level semantic cleanup to the matches of length less than \
               NUM words"
+         |> and_arg_name
        in
-       let f name value =
+       let check_conflict_with_no_semantic_cleanup (value, arg_name) =
          match value, no_semantic_cleanup with
-         | Some _, true -> specified_more_than_once name
+         | Some _, true ->
+           failwith
+             [%string
+               "Cannot pass both [%{arg_name}] and [%{no_semantic_cleanup_arg_name}]"]
          | None, true -> Some 1
          | _, false -> value
        in
-       f "line-big-enough" line_big_enough, f "word-big-enough" word_big_enough
+       ( check_conflict_with_no_semantic_cleanup line_big_enough
+       , check_conflict_with_no_semantic_cleanup word_big_enough )
      and unrefined_opt =
        flag_no_arg "unrefined" ~doc:" Don't highlight word differences between lines"
      and keep_ws_opt =
