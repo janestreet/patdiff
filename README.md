@@ -26,8 +26,8 @@ And of course all the usual features:
 opam install patdiff
 ```
 
-See [here](https://github.com/janestreet/patdiff/blob/master/patdiff.opam){:target="_blank"} for Patdiff's opam package file.
-
+See <a href="https://ocaml.janestreet.com/ocaml-core/latest/doc/patdiff/index.html" target="_blank">
+here</a> for Patdiff's opam package file.
 ## Compiling from source
 
 To build patdiff for local development, install its dependencies:
@@ -73,4 +73,4 @@ or
 ## Documentation
 
 More docs, including detailed API docs, are available
-[here](https://ocaml.janestreet.com/ocaml-core/latest/doc/patdiff/index.html){:target="_blank"}.
+<a href="https://ocaml.janestreet.com/ocaml-core/latest/doc/patdiff/index.html" target="_blank">here</a>.
