@@ -17,8 +17,8 @@ let fsharp_suffixes =
   let non_base_suffixes = "iylx" in
   let base = ".fs" in
   base
-  ::
-  List.map (String.to_list non_base_suffixes) ~f:(fun char -> base ^ Char.to_string char)
+  :: List.map (String.to_list non_base_suffixes) ~f:(fun char ->
+    base ^ Char.to_string char)
 ;;
 
 let%expect_test "fsharp_suffixes" =
