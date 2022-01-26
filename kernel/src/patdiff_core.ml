@@ -21,7 +21,7 @@ let is_ws = Re.execp ws_rex_anchored
 let words_rex =
   let open Re in
   let delim = set {|"{}[]#,.;()_|} in
-  let punct = rep1 (set {|=`+-/!@$%^&*:|}) in
+  let punct = rep1 (set {|=`+-/!@$%^&*:|<>|}) in
   let space = rep1 space in
   (* We don't want to split up ANSI color sequences, so let's make sure they get through
      intact. *)
