@@ -133,6 +133,7 @@ module Location_style : sig
     | Diff
     | Omake
     | None
+    | Separator
   [@@deriving bin_io, compare, quickcheck, enumerate, equal, sexp]
 
   include Stringable.S with type t := t

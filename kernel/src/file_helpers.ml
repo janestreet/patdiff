@@ -45,7 +45,7 @@ let binary_different_message
       ~next_is_binary
   =
   match config.location_style with
-  | Diff | None ->
+  | Diff | None | Separator ->
     sprintf
       !"Files %{File_name#hum}%s and %{File_name#hum}%s differ"
       prev_file
