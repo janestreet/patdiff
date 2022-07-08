@@ -2,7 +2,7 @@ open! Core
 open! Import
 
 module type Mtime = sig
-  val mtime : File_name.t -> Time.t Or_error.t
+  val mtime : File_name.t -> Time_float.t Or_error.t
 end
 
 module type Html_output = sig

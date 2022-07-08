@@ -5,10 +5,10 @@ open Patdiff_kernel
 let patdiff ?location_style ?context ?keep_ws string1 string2 =
   Patdiff_core.Without_unix.patdiff (* turns off ANSI codes for color *)
     ?location_style
-    ~output:
-      Ascii (* without color, cannot produce the "!|" lines that mix add/keep/remove *)
-    ~produce_unified_lines:
-      false (* line splitting produces confusing output in ASCII format *)
+    ~output:Ascii
+    (* without color, cannot produce the "!|" lines that mix add/keep/remove *)
+    ~produce_unified_lines:false
+    (* line splitting produces confusing output in ASCII format *)
     ~split_long_lines:false
     ?context
     ?keep_ws

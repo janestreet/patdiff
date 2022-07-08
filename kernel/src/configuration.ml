@@ -61,8 +61,7 @@ let invariant t =
       ~keep_ws:ignore
       ~interleave:ignore
       ~assume_text:ignore
-      ~split_long_lines:
-        ignore
+      ~split_long_lines:ignore
       ~context:ignore
       ~line_big_enough:
         (check (fun line_big_enough ->
