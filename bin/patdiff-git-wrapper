@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Simple wrapper to use patdiff with git, as external diff tool
 # You may enable it with
