@@ -10,16 +10,7 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
     let keep_ws = config.keep_ws in
     let split_long_lines = config.split_long_lines in
     let line_big_enough = config.line_big_enough in
-    let hunks =
-      let transform = if keep_ws then Fn.id else Patdiff_core.remove_ws in
-      Patience_diff.String.get_hunks
-        ~transform
-        ~context
-        ~big_enough:line_big_enough
-        ~prev
-        ~next
-        ()
-    in
+    let hunks = Patdiff_core_arg.diff ~context ~line_big_enough ~keep_ws ~prev ~next in
     let hunks =
       match config.float_tolerance with
       | None -> hunks

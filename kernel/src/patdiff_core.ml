@@ -123,12 +123,134 @@ module Make (Output_impls : Output_impls) = struct
     ;;
   end
 
+  let indentation line =
+    let rec loop line len i n =
+      if i >= len
+      then n, i
+      else (
+        match line.[i] with
+        | ' ' -> loop line len (i + 1) (n + 1)
+        (* tabs count for 4 spaces *)
+        | '\t' -> loop line len (i + 1) (n + 4)
+        | _ -> n, i)
+    in
+    loop line (String.length line) 0 0
+  ;;
+
+  let score_line (side : [ `left | `right ]) line1 line2 : int =
+    let i1, start_of_1 = indentation line1 in
+    let i2, start_of_2 = indentation line2 in
+    (* Order of priority is roughly:
+       1. low indentation for second line
+       2. lower indentation for second line than first
+       3. bonus points for certain patterns at the (non-whitespace) start of the line
+
+       But it isn’t priority, we just add things. So a failure case may cause us to pick a
+       boundary like this:
+       {v
+               (some subfield)))
+        ------------- BOUNDARY ----------------
+          (other_field .))
+         ((new entry)
+          ....)
+       v}
+       instead of between other_field and new entry.
+
+       We try to counteract that for the case where the line below the boundary starts
+       with e.g. ‘;;’ by removing the ‘decreasing indentation bonus’ in that case.
+       Plausibly we could do something by taking into account the count of closing parens
+       minus opening parens.
+
+       A secondary issue is that [line1] or [line2] may be entirely whitespace which can
+       be misleading (e.g. editors will typically remove indentation from pure-whitespace
+       lines) and cause us to miss good information (e.g. for an added function we would
+       like to have bonus points for the boundaries being just before ‘let ...’ and just
+       after ‘;;’ but typically there is some whitespace added to be put before/after the
+       function instead and that is what we score) *)
+    let some_lines_are_blank = String.length line1 = 0 || String.length line2 = 0 in
+    let base_score =
+      let i2 = if some_lines_are_blank then max i1 i2 else i2 in
+      max (-90) (90 - (i2 * 2))
+    in
+    let decreasing_indentation_bonus =
+      if some_lines_are_blank
+      then 0
+      else
+        (if i1 = i2
+        (* This funky thing hopefully us to prefer a diff like ‘end [ module ... end ]’
+           to one like ‘[ end module ... ] end’, where [] marks the boundary of the
+           diff. *)
+         then (
+           match side with
+           | `left -> 1
+           | `right -> 0)
+         else i1 - i2)
+        |> Int.clamp_exn ~min:(-2) ~max:3
+    in
+    let bonus_for_chars =
+      (* [bonus n line sides str] returns [n] if a bonus score applies, or 0 otherwise.
+
+         [line] can be [`above] or [`below].  [sides] can be [`left], [`right], or [`any].
+
+         The bonus score applies if [str] is found at the beginning of the line
+         immediately [`above] or [`below] the boundary of the inserted/deleted region.
+
+         If [sides] is [`left] or [`right], the bonus score only applies to that boundary
+         of the diff region.
+
+         So for example, [bonus 5 `above `any "</"] would add a bonus score of 5 if either
+         boundary is immediately before a closing XML tag. *)
+      let bonus n line sides str =
+        let line, i =
+          match line with
+          | `above -> line1, start_of_1
+          | `below -> line2, start_of_2
+        in
+        match sides, side with
+        | `any, _ | `left, `left | `right, `right ->
+          if String.is_substring_at line ~substring:str ~pos:i then n else 0
+        | _ -> 0
+      in
+      bonus 1 `below `any "((" (* start of record bonus *)
+      + bonus 3 `below `any "("
+      + bonus 1 `above `right "}"
+      + bonus (-1) `below `any "}"
+      + bonus 1 `below `any "{"
+      (* XML. Big bonus here as we prefer to break between </ and < despite equal
+         indentation. *)
+      + bonus 5 `above `any "</"
+      + bonus (-4) `below `left "</" (* discount for starting diff on a </...> *)
+      + bonus 3 `below `any "<"
+      + bonus 2 `below `any "*" (* heading *)
+      + bonus 1 `below `any "-" (* bullet point *)
+      + bonus 3 `above `right ";;"
+      + bonus 1 `above `left ";;"
+      + bonus 4 `below `left "let"
+      + bonus (-1) `below `left "let%"
+      + bonus 2 `below `left "let%test"
+      + bonus 2 `below `left "let%expect"
+      + bonus 2 `below `right "let"
+      + bonus 1 `above `any "in"
+      + bonus 4 `below `left "module"
+      + bonus 3 `above `right "end"
+      (* In these cases, we typically get decreasing indentation but we want the ending
+         token (e.g. ;;) above the boundaries *)
+      + bonus (min (-1) (-decreasing_indentation_bonus)) `below `any ";;"
+      + bonus (min (-1) (-decreasing_indentation_bonus)) `below `any "end"
+      (* starting on a blank line gives bonus *)
+      + if start_of_2 >= String.length line2 then 2 else 0
+    in
+    base_score + decreasing_indentation_bonus + bonus_for_chars
+  ;;
+
   let diff ~context ~line_big_enough ~keep_ws ~prev ~next =
     let transform = if keep_ws then Fn.id else remove_ws in
     Patience_diff.String.get_hunks
       ~transform
       ~context
       ~big_enough:line_big_enough
+      ~max_slide:100
+      ~score:score_line
       ~prev
       ~next
       ()
@@ -337,6 +459,7 @@ module Make (Output_impls : Output_impls) = struct
       ~transform
       ~context
       ~big_enough:word_big_enough
+      ~max_slide:0
       ~prev:prev_pieces
       ~next:next_pieces
       ()

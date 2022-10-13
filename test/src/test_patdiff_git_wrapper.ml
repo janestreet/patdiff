@@ -12,6 +12,9 @@ let%expect_test "patdiff-git-wrapper" =
   within_temp_dir ~links (fun () ->
     (* Set up repo with a dirty working directory. *)
     let%bind () = run "git" [ "init"; "-q" ] in
+    (* As we don't pass [--global] to [git config], this git config applies only to this repo *)
+    let%bind () = run "git" [ "config"; "user.email"; "nobody@localhost" ] in
+    let%bind () = run "git" [ "config"; "user.name"; "nobody" ] in
     let%bind () = Writer.save "foo" ~contents:"foo bar baz\n" in
     let%bind () = run "git" [ "add"; "foo" ] in
     let%bind () = run "git" [ "commit"; "-a"; "-m"; "z"; "-q" ] in
