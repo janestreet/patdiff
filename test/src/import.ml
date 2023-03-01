@@ -21,9 +21,10 @@ let patdiff_dir ~extra_flags ~prev ~next =
   within_temp_dir ~links (fun () ->
     let%bind () =
       Deferred.List.iter
+        ~how:`Sequential
         [ "prev", prev; "next", next ]
         ~f:(fun (prefix, xs) ->
-          Deferred.List.iter xs ~f:(fun (path, contents) ->
+          Deferred.List.iter ~how:`Sequential xs ~f:(fun (path, contents) ->
             let path = prefix ^/ path in
             let%bind () = Unix.mkdir ~p:() (Filename.dirname path) in
             Writer.save path ~contents))

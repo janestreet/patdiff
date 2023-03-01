@@ -284,7 +284,7 @@ end = struct
           ~running_step:(fun (car, pos) cadr ->
             match car, cadr with
             | Same car_lines, Same cadr_lines ->
-              Skip (Same (Array.concat [ car_lines; cadr_lines ]), pos)
+              Skip { state = Same (Array.concat [ car_lines; cadr_lines ]), pos }
             | Unified _, _ | _, Unified _ ->
               raise_s
                 [%message
@@ -293,7 +293,8 @@ end = struct
                     (cadr : string Range.t)]
             | (Prev _ | Next _ | Replace _), (Prev _ | Next _ | Replace _)
             | Same _, (Prev _ | Next _ | Replace _)
-            | (Prev _ | Next _ | Replace _), Same _ -> Yield ((car, pos), (cadr, Middle)))
+            | (Prev _ | Next _ | Replace _), Same _ ->
+              Yield { value = car, pos; state = cadr, Middle })
           ~inner_finished:(fun (last, pos) ->
             match last, pos with
             | Unified _, _ ->
@@ -305,7 +306,7 @@ end = struct
               Some (last, End))
           ~finishing_step:(function
             | None -> Done
-            | Some result -> Yield (result, None))
+            | Some result -> Yield { value = result; state = None })
     ;;
 
     include struct
@@ -445,7 +446,7 @@ end = struct
         ~init:{ prev_start; next_start; ranges = [] }
         ~running_step:(fun t drop_or_keep ->
           match (drop_or_keep : Drop_or_keep.t) with
-          | Keep range -> Skip { t with ranges = range :: t.ranges }
+          | Keep range -> Skip { state = { t with ranges = range :: t.ranges } }
           | Drop n ->
             let hunk = to_hunk t in
             let t =
@@ -454,11 +455,13 @@ end = struct
               ; ranges = []
               }
             in
-            if List.is_empty (Hunk.ranges hunk) then Skip t else Yield (hunk, t))
+            if List.is_empty (Hunk.ranges hunk)
+            then Skip { state = t }
+            else Yield { value = hunk; state = t })
         ~inner_finished:(fun t -> if List.is_empty t.ranges then None else Some t)
         ~finishing_step:(function
           | None -> Done
-          | Some t -> Yield (to_hunk t, None))
+          | Some t -> Yield { value = to_hunk t; state = None })
     ;;
   end
 
