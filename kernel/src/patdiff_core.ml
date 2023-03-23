@@ -488,8 +488,7 @@ module Make (Output_impls : Output_impls) = struct
         | Same seq ->
           let first_newline =
             Array.find_mapi seq ~f:(fun i -> function
-              | `Word _, _ | _, `Word _ | `Newline (0, _), _ | _, `Newline (0, _) ->
-                None
+              | `Word _, _ | _, `Word _ | `Newline (0, _), _ | _, `Newline (0, _) -> None
               | `Newline first_nlA, `Newline first_nlB -> Some (i, first_nlA, first_nlB))
           in
           (match first_newline with
@@ -505,8 +504,7 @@ module Make (Output_impls : Output_impls) = struct
                pending_ranges := [];
                let suf = Array.sub seq ~pos:i ~len:(Array.length seq - i) in
                let decr_first (x, y) = x - 1, y in
-               suf.(0)
-               <- `Newline (decr_first first_nlA), `Newline (decr_first first_nlB);
+               suf.(0) <- `Newline (decr_first first_nlA), `Newline (decr_first first_nlB);
                append_range (Same suf);
                true))
       in

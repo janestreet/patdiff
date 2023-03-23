@@ -249,8 +249,7 @@ module On_disk = struct
                   word_changed.Word_changed.style_old)
             ; Line_rule.prefix = Some line_changed.Line_changed.prefix_old
             ; word_same =
-                Option.map t.word_same ~f:(fun word_same ->
-                  word_same.Word_same.style_old)
+                Option.map t.word_same ~f:(fun word_same -> word_same.Word_same.style_old)
             })
       ; line_new =
           Option.map t.line_changed ~f:(fun line_changed ->
@@ -260,8 +259,7 @@ module On_disk = struct
                   word_changed.Word_changed.style_new)
             ; Line_rule.prefix = Some line_changed.Line_changed.prefix_new
             ; word_same =
-                Option.map t.word_same ~f:(fun word_same ->
-                  word_same.Word_same.style_new)
+                Option.map t.word_same ~f:(fun word_same -> word_same.Word_same.style_new)
             })
       ; line_unified = None
       ; word_old = None

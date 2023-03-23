@@ -62,3 +62,17 @@ Test behavior of -alt-prev and -alt-next.
   (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
   (fg:black bg:red)-|(fg:red)prev
   (fg:black bg:green)+|(fg:green)next
+
+  $ rm -r prev; rm -r next
+  $ mkdir dir
+  $ echo x > dir/f
+  $ echo y > f
+
+  $ patdiff f dir/ |& grep Failure
+    (Failure "dir/ is a directory, while f is a file")
+
+  $ patdiff dir/f dir |& grep Failure
+    (Failure "dir is a directory, while dir/f is a file")
+
+  $ patdiff missing dir |& grep Failure
+    (Failure "dir is a directory, while missing does not exist")

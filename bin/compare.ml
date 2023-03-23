@@ -118,12 +118,12 @@ let compare_main (args : Args.compare_flags) =
   (* Load config file if it exists, use default if not *)
   let config = Configuration.get_config ?filename:args.config_opt () in
   let config = override config args in
-  (* 2012-06-28 mbac: /dev/null is used as a placeholder for deleted files. *)
-  let file_or_dev_null f = if Sys_unix.file_exists_exn f then f else "/dev/null" in
-  let prev_file = file_or_dev_null args.prev_file in
-  let next_file = file_or_dev_null args.next_file in
-  if String.equal prev_file "/dev/null" && String.equal next_file "/dev/null"
-  then failwithf "Both files, %s and %s, do not exist" args.prev_file args.next_file ();
+  let prev_file = args.prev_file in
+  let next_file = args.next_file in
+  let prev_exists = Sys_unix.file_exists_exn prev_file in
+  let next_exists = Sys_unix.file_exists_exn next_file in
+  if (not prev_exists) && not next_exists
+  then failwithf "Both files, %s and %s, do not exist" prev_file next_file ();
   let is_dir = Sys_unix.is_directory_exn in
   let if_not_diffing_two_dirs () =
     match args with
@@ -132,25 +132,13 @@ let compare_main (args : Args.compare_flags) =
   in
   match is_dir prev_file, is_dir next_file with
   | true, false | false, true ->
-    if_not_diffing_two_dirs ();
-    (* One is a directory, the other is a file *)
+    (* One is a directory, the other is a file or missing *)
     let dir, file =
       if is_dir prev_file then prev_file, next_file else next_file, prev_file
     in
-    (* Match file with its twin file in dir *)
-    let matches =
-      Sys_unix.ls_dir dir
-      |> List.find_map ~f:(fun file' ->
-        let file' = dir ^/ file' in
-        if String.equal file file' then Some file' else None)
-    in
-    (match matches with
-     | Some matched_filename ->
-       let prev_file, next_file =
-         if is_dir prev_file then matched_filename, file else file, matched_filename
-       in
-       Compare_core.diff_files ~prev_file ~next_file config
-     | None -> failwithf "File not found in %s: %s" dir file ())
+    if not (Sys_unix.file_exists_exn file)
+    then failwithf "%s is a directory, while %s does not exist" dir file ()
+    else failwithf "%s is a directory, while %s is a file" dir file ()
   | true, true ->
     (* Both are directories *)
     let file_filter =
@@ -170,6 +158,8 @@ let compare_main (args : Args.compare_flags) =
   | false, false ->
     (* Both are files *)
     if_not_diffing_two_dirs ();
+    let prev_file = if prev_exists then prev_file else "/dev/null" in
+    let next_file = if next_exists then next_file else "/dev/null" in
     Compare_core.diff_files ~prev_file ~next_file config
 ;;
 
