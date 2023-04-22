@@ -18,7 +18,6 @@ depends: [
   "patience_diff"
   "ppx_jane"
   "dune"                     {>= "2.0.0"}
-  "pcre"
   "re"                       {>= "1.8.0"}
 ]
 synopsis: "File Diff using the Patience Diff algorithm"
