@@ -4,6 +4,7 @@ module Compare_core = Patdiff.Compare_core
 module Configuration = Patdiff.Configuration
 module Format = Patdiff.Format
 module Output = Patdiff.Output
+module Pcre = Re.Pcre
 
 let summary =
   {|Compare two files (or process a diff read in on stdin) using the
@@ -141,6 +142,7 @@ let compare_main (args : Args.compare_flags) =
     else failwithf "%s is a directory, while %s is a file" dir file ()
   | true, true ->
     (* Both are directories *)
+    let memo_rex = Memo.general (fun pat -> Pcre.regexp pat) in
     let file_filter =
       match args with
       | { include_ = []; exclude = []; _ } -> None
@@ -149,9 +151,9 @@ let compare_main (args : Args.compare_flags) =
           (fun (s, stat) ->
              match stat.Unix.st_kind with
              | Unix.S_REG ->
-               List.for_all exclude ~f:(fun pat -> not (Pcre.pmatch s ~pat))
+               List.for_all exclude ~f:(fun pat -> not (Pcre.pmatch s ~rex:(memo_rex pat)))
                && (List.is_empty include_
-                   || List.exists include_ ~f:(fun pat -> Pcre.pmatch s ~pat))
+                   || List.exists include_ ~f:(fun pat -> Pcre.pmatch s ~rex:(memo_rex pat)))
              | _ -> true)
     in
     Compare_core.diff_dirs ~prev_dir:prev_file ~next_dir:next_file config ~file_filter
