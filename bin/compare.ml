@@ -39,8 +39,8 @@ module Args = struct
     ; next_file : string
     ; prev_alt_opt : string option option
     ; next_alt_opt : string option option
-    ; include_ : string list
-    ; exclude : string list
+    ; include_ : Re.re list
+    ; exclude : Re.re list
     ; location_style : Format.Location_style.t option
     ; warn_if_no_trailing_newline_in_both : bool option
     }
@@ -142,7 +142,6 @@ let compare_main (args : Args.compare_flags) =
     else failwithf "%s is a directory, while %s is a file" dir file ()
   | true, true ->
     (* Both are directories *)
-    let memo_rex = Memo.general (fun pat -> Pcre.regexp pat) in
     let file_filter =
       match args with
       | { include_ = []; exclude = []; _ } -> None
@@ -151,9 +150,9 @@ let compare_main (args : Args.compare_flags) =
           (fun (s, stat) ->
              match stat.Unix.st_kind with
              | Unix.S_REG ->
-               List.for_all exclude ~f:(fun pat -> not (Pcre.pmatch s ~rex:(memo_rex pat)))
+               List.for_all exclude ~f:(fun rex -> not (Pcre.pmatch s ~rex))
                && (List.is_empty include_
-                   || List.exists include_ ~f:(fun pat -> Pcre.pmatch s ~rex:(memo_rex pat)))
+                   || List.exists include_ ~f:(fun rex -> Pcre.pmatch s ~rex))
              | _ -> true)
     in
     Compare_core.diff_dirs ~prev_dir:prev_file ~next_dir:next_file config ~file_filter
@@ -327,12 +326,12 @@ let command =
      and include_ =
        flag
          "include"
-         (listed string)
+         (listed (Arg_type.map string ~f:Pcre.regexp))
          ~doc:"REGEXP include files matching this pattern when comparing two directories"
      and exclude =
        flag
          "exclude"
-         (listed string)
+         (listed (Arg_type.map string ~f:Pcre.regexp))
          ~doc:
            "REGEXP exclude files matching this pattern when comparing two directories \
             (overrides include patterns)"
