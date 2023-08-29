@@ -5,4 +5,4 @@ type t =
   { name : string
   ; text : string
   }
-[@@deriving fields]
+[@@deriving fields ~getters ~iterators:create]

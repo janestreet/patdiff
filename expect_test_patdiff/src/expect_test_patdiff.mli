@@ -8,6 +8,7 @@ val patdiff
   :  ?location_style:Patdiff_kernel.Format.Location_style.t
   -> ?context:int
   -> ?keep_ws:bool
+  -> ?float_tolerance:Percent.t
   -> string
   -> string
   -> string
@@ -18,6 +19,7 @@ val patdiff_s
   :  ?location_style:Patdiff_kernel.Format.Location_style.t
   -> ?context:int
   -> ?keep_ws:bool
+  -> ?float_tolerance:Percent.t
   -> Sexp.t
   -> Sexp.t
   -> string
@@ -27,6 +29,7 @@ val print_patdiff
   :  ?location_style:Patdiff_kernel.Format.Location_style.t
   -> ?context:int
   -> ?keep_ws:bool
+  -> ?float_tolerance:Percent.t
   -> string
   -> string
   -> unit
@@ -36,6 +39,7 @@ val print_patdiff_s
   :  ?location_style:Patdiff_kernel.Format.Location_style.t
   -> ?context:int
   -> ?keep_ws:bool
+  -> ?float_tolerance:Percent.t
   -> Sexp.t
   -> Sexp.t
   -> unit
@@ -52,6 +56,7 @@ val diff_printer
   :  ?location_style:Patdiff_kernel.Format.Location_style.t
   -> ?context:int
   -> ?keep_ws:bool
+  -> ?float_tolerance:Percent.t
   -> string option
   -> (string -> unit) Staged.t
 
@@ -67,5 +72,6 @@ val diff_printer_s
   :  ?location_style:Patdiff_kernel.Format.Location_style.t
   -> ?context:int
   -> ?keep_ws:bool
+  -> ?float_tolerance:Percent.t
   -> Sexp.t option
   -> (Sexp.t -> unit) Staged.t

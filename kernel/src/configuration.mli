@@ -46,7 +46,7 @@ type t = private
   ; location_style : Format.Location_style.t
   ; warn_if_no_trailing_newline_in_both : bool
   }
-[@@deriving compare, fields, sexp_of]
+[@@deriving compare, fields ~getters, sexp_of]
 
 include Invariant.S with type t := t
 

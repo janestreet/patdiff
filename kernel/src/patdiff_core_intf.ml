@@ -59,6 +59,7 @@ module type S = sig
     -> unit
 
 
+
   (** Runs the equivalent of the command line version of patdiff on two given contents
       [prev] and [next].  Uses [Patience_diff.String]. *)
   val patdiff
@@ -71,6 +72,7 @@ module type S = sig
     -> ?print_global_header:bool
     -> ?location_style:Format.Location_style.t
     -> ?interleave:bool
+    -> ?float_tolerance:Percent.t
     -> ?line_big_enough:int
     -> ?word_big_enough:int
     -> prev:Diff_input.t

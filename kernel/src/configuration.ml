@@ -44,7 +44,7 @@ type t =
   ; warn_if_no_trailing_newline_in_both : bool
                                           [@default warn_if_no_trailing_newline_in_both_default] [@sexp_drop_default.equal]
   }
-[@@deriving compare, fields, sexp_of]
+[@@deriving compare, fields ~iterators:(iter, map), sexp_of]
 
 let invariant t =
   Invariant.invariant [%here] t [%sexp_of: t] (fun () ->

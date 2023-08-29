@@ -797,6 +797,7 @@ module Make (Output_impls : Output_impls) = struct
         ?print_global_header
         ?(location_style = Format.Location_style.Diff)
         ?(interleave = true)
+        ?float_tolerance
         ?(line_big_enough = Configuration.default_line_big_enough)
         ?(word_big_enough = Configuration.default_word_big_enough)
         ~(prev : Diff_input.t)
@@ -819,6 +820,11 @@ module Make (Output_impls : Output_impls) = struct
            ~split_long_lines
            ~interleave
            ~word_big_enough
+    in
+    let hunks =
+      match float_tolerance with
+      | None -> hunks
+      | Some tolerance -> Float_tolerance.apply hunks tolerance ~context
     in
     output_to_string
       ?print_global_header

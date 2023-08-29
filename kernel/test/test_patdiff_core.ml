@@ -108,6 +108,35 @@ let%test_module _ =
       | exception _ -> true
       | (_ : string) -> false
     ;;
+
+    let%expect_test "float tolerance works as expected" =
+      [ None, "1.0", "1.00000000000001"
+      ; None, "1.0", "1.0"
+      ; Some 0.01, "1.0", "1.005"
+      ; Some 0.01, "1.0", "1.015"
+      ]
+      |> List.iter ~f:(fun (mult_float_tolerance, old_text, new_text) ->
+        print_endline
+          (Patdiff_core.patdiff
+             ?float_tolerance:(Option.map mult_float_tolerance ~f:Percent.of_mult)
+             ~produce_unified_lines:false
+             ~output:Ascii
+             ~prev:{ name = "old"; text = old_text }
+             ~next:{ name = "new"; text = new_text }
+             ()));
+      [%expect
+        {|
+        -1,1 +1,1
+
+        -|1.0
+        +|1.00000000000001
+
+
+        -1,2 +1,2
+
+        -|1.0
+        +|1.015 |}]
+    ;;
   end)
 ;;
 

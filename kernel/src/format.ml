@@ -101,7 +101,7 @@ module Rule = struct
       { text : string
       ; styles : Style.t list
       }
-    [@@deriving compare, fields, sexp_of]
+    [@@deriving compare, sexp_of]
 
     let create ?(styles = []) text = { text; styles }
     let blank = create ""
@@ -113,7 +113,7 @@ module Rule = struct
     ; suf : Affix.t
     ; styles : Style.t list
     }
-  [@@deriving compare, fields, sexp_of]
+  [@@deriving compare, fields ~iterators:map, sexp_of]
 
   let create ?(pre = Affix.blank) ?(suf = Affix.blank) styles = { pre; suf; styles }
   let blank = create []
@@ -143,7 +143,7 @@ module Rules = struct
     ; header_prev : Rule.t
     ; header_next : Rule.t
     }
-  [@@deriving compare, fields, sexp_of]
+  [@@deriving compare, fields ~iterators:map, sexp_of]
 
   let inner_line_change text color =
     let style = Style.[ Fg color ] in
