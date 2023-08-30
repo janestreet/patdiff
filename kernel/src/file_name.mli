@@ -8,7 +8,7 @@ type t =
       { real_name : string
       ; alt_name : string option
       }
-  (** A name corresponding to a real file on disk.  [alt_name] is used to display
+      (** A name corresponding to a real file on disk.  [alt_name] is used to display
       the file name and for file extension heuristics. *)
   | Fake of string (** A name not necessarily corresponding to a real file. *)
 [@@deriving compare, equal]

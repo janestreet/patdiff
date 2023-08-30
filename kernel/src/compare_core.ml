@@ -40,10 +40,10 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
   ;;
 
   let diff_strings
-        ?print_global_header
-        (config : Configuration.t)
-        ~(prev : Diff_input.t)
-        ~(next : Diff_input.t)
+    ?print_global_header
+    (config : Configuration.t)
+    ~(prev : Diff_input.t)
+    ~(next : Diff_input.t)
     =
     let lines { Diff_input.name = _; text } = String.split_lines text |> Array.of_list in
     let hunks =
@@ -52,7 +52,7 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
         ~prev
         ~next
         ~compare_assuming_text:(fun config ~prev ~next ->
-          compare_lines config ~prev:(lines prev) ~next:(lines next))
+        compare_lines config ~prev:(lines prev) ~next:(lines next))
     in
     if Comparison_result.has_no_diff hunks
     then `Same

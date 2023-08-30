@@ -58,8 +58,6 @@ module type S = sig
     -> Hunks.t
     -> unit
 
-
-
   (** Runs the equivalent of the command line version of patdiff on two given contents
       [prev] and [next].  Uses [Patience_diff.String]. *)
   val patdiff

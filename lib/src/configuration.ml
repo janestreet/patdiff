@@ -110,7 +110,7 @@ module On_disk = struct
       ; double_check : bool option [@sexp.option]
       ; mask_uniques : bool option [@sexp.option]
       ; output : [ `ascii | `html | `ansi | `unrefined of [ `ansi | `html ] ]
-                 [@default `ansi] [@sexp_drop_default.equal]
+           [@default `ansi] [@sexp_drop_default.equal]
       ; alt_old : string option [@sexp.option]
       ; alt_new : string option [@sexp.option]
       ; header_old : Header.t option [@sexp.option]
@@ -123,10 +123,10 @@ module On_disk = struct
       ; word_old : Rule.t option [@sexp.option]
       ; word_new : Rule.t option [@sexp.option]
       ; location_style : Format.Location_style.t
-                         [@default Format.Location_style.Diff] [@sexp_drop_default.equal]
+           [@default Format.Location_style.Diff] [@sexp_drop_default.equal]
       ; warn_if_no_trailing_newline_in_both : bool
-                                              [@default warn_if_no_trailing_newline_in_both_default]
-                                              [@sexp_drop_default.equal]
+           [@default warn_if_no_trailing_newline_in_both_default]
+           [@sexp_drop_default.equal]
       }
     [@@deriving quickcheck, sexp]
   end
@@ -161,44 +161,44 @@ module On_disk = struct
       ; word_old : Rule.t option [@sexp.option]
       ; word_new : Rule.t option [@sexp.option]
       ; location_style : Format.Location_style.t
-                         [@default Format.Location_style.Diff] [@sexp_drop_default.equal]
+           [@default Format.Location_style.Diff] [@sexp_drop_default.equal]
       ; warn_if_no_trailing_newline_in_both : bool
-                                              [@default warn_if_no_trailing_newline_in_both_default]
-                                              [@sexp_drop_default.equal]
+           [@default warn_if_no_trailing_newline_in_both_default]
+           [@sexp_drop_default.equal]
       }
     [@@deriving quickcheck, sexp]
 
     let to_v2
-          { dont_produce_unified_lines
-          ; dont_overwrite_word_old_word_new
-          ; config_path
-          ; context
-          ; line_big_enough
-          ; word_big_enough
-          ; unrefined
-          ; keep_whitespace
-          ; split_long_lines
-          ; interleave
-          ; assume_text
-          ; quiet
-          ; shallow
-          ; double_check
-          ; mask_uniques
-          ; html
-          ; alt_old
-          ; alt_new
-          ; header_old
-          ; header_new
-          ; hunk
-          ; line_same
-          ; line_old
-          ; line_new
-          ; line_unified
-          ; word_old
-          ; word_new
-          ; location_style
-          ; warn_if_no_trailing_newline_in_both
-          }
+      { dont_produce_unified_lines
+      ; dont_overwrite_word_old_word_new
+      ; config_path
+      ; context
+      ; line_big_enough
+      ; word_big_enough
+      ; unrefined
+      ; keep_whitespace
+      ; split_long_lines
+      ; interleave
+      ; assume_text
+      ; quiet
+      ; shallow
+      ; double_check
+      ; mask_uniques
+      ; html
+      ; alt_old
+      ; alt_new
+      ; header_old
+      ; header_new
+      ; hunk
+      ; line_same
+      ; line_old
+      ; line_new
+      ; line_unified
+      ; word_old
+      ; word_new
+      ; location_style
+      ; warn_if_no_trailing_newline_in_both
+      }
       =
       { V2.dont_produce_unified_lines
       ; dont_overwrite_word_old_word_new
@@ -302,10 +302,10 @@ module On_disk = struct
       ; word_changed : Word_changed.t option [@sexp.option]
       ; chunk : Hunk.t option [@sexp.option]
       ; location_style : Format.Location_style.t
-                         [@default Format.Location_style.Diff] [@sexp_drop_default.equal]
+           [@default Format.Location_style.Diff] [@sexp_drop_default.equal]
       ; warn_if_no_trailing_newline_in_both : bool
-                                              [@default warn_if_no_trailing_newline_in_both_default]
-                                              [@sexp_drop_default.equal]
+           [@default warn_if_no_trailing_newline_in_both_default]
+           [@sexp_drop_default.equal]
       }
     [@@deriving sexp]
 
@@ -400,37 +400,36 @@ module On_disk = struct
 end
 
 let parse
-      ({ dont_produce_unified_lines
-       ; dont_overwrite_word_old_word_new
-       ; config_path =
-           _
-       ; context
-       ; line_big_enough
-       ; word_big_enough
-       ; keep_whitespace
-       ; split_long_lines
-       ; interleave
-       ; assume_text
-       ; quiet
-       ; shallow
-       ; double_check
-       ; mask_uniques
-       ; output
-       ; alt_old
-       ; alt_new
-       ; header_old
-       ; header_new
-       ; hunk
-       ; line_same
-       ; line_old
-       ; line_new
-       ; line_unified
-       ; word_old
-       ; word_new
-       ; location_style
-       ; warn_if_no_trailing_newline_in_both
-       } :
-         On_disk.t)
+  ({ dont_produce_unified_lines
+   ; dont_overwrite_word_old_word_new
+   ; config_path = _
+   ; context
+   ; line_big_enough
+   ; word_big_enough
+   ; keep_whitespace
+   ; split_long_lines
+   ; interleave
+   ; assume_text
+   ; quiet
+   ; shallow
+   ; double_check
+   ; mask_uniques
+   ; output
+   ; alt_old
+   ; alt_new
+   ; header_old
+   ; header_new
+   ; hunk
+   ; line_same
+   ; line_old
+   ; line_new
+   ; line_unified
+   ; word_old
+   ; word_new
+   ; location_style
+   ; warn_if_no_trailing_newline_in_both
+   } :
+    On_disk.t)
   =
   let default_true = Option.value ~default:true in
   let default_false = Option.value ~default:false in

@@ -124,12 +124,12 @@ let print_header ~(rules : Format.Rules.t) ~file_names:(prev_file, next_file) ~p
 ;;
 
 let print
-      ~print_global_header
-      ~file_names:((prev_file, _) as file_names)
-      ~(rules : Format.Rules.t)
-      ~print
-      ~location_style
-      hunks
+  ~print_global_header
+  ~file_names:((prev_file, _) as file_names)
+  ~(rules : Format.Rules.t)
+  ~print
+  ~location_style
+  hunks
   =
   let f_hunk_break hunk =
     Format.Location_style.sprint

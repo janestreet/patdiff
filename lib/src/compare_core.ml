@@ -42,7 +42,7 @@ let print hunks ~file_names ~(config : Configuration.t) =
         printf "There are no differences except those filtered by your settings\n%!"
       | Error _ -> ()))
   else if (* Only print if -quiet is not set *)
-    not config.quiet
+          not config.quiet
   then (
     let output = config.output in
     let rules = config.rules in
@@ -107,15 +107,15 @@ let rec diff_dirs_internal (config : Configuration.t) ~prev_dir ~next_dir ~file_
     in
     Sys_unix.ls_dir (File_name.real_name_exn dir)
     |> List.filter ~f:(fun x ->
-      let x = File_name.real_name_exn dir ^/ x in
-      match Unix.stat x with
-      | exception Unix.Unix_error (ENOENT, _, _) ->
-        (* If the file disappeared during listing, let's pretend it didn't exist.
+         let x = File_name.real_name_exn dir ^/ x in
+         match Unix.stat x with
+         | exception Unix.Unix_error (ENOENT, _, _) ->
+           (* If the file disappeared during listing, let's pretend it didn't exist.
            This is important when the file is [-exclude]d because we don't want to create
            noise for excluded files, but it's also not too bad if the file is [-include]d
         *)
-        false
-      | stats -> file_filter (x, stats))
+           false
+         | stats -> file_filter (x, stats))
     |> String.Set.of_list
   in
   let prev_set = set_of_dir prev_dir in

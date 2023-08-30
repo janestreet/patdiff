@@ -42,7 +42,7 @@ type t =
   ; next_alt : string option
   ; location_style : Format.Location_style.t
   ; warn_if_no_trailing_newline_in_both : bool
-                                          [@default warn_if_no_trailing_newline_in_both_default] [@sexp_drop_default.equal]
+       [@default warn_if_no_trailing_newline_in_both_default] [@sexp_drop_default.equal]
   }
 [@@deriving compare, fields ~iterators:(iter, map), sexp_of]
 
@@ -86,26 +86,26 @@ let invariant t =
 ;;
 
 let create_exn
-      ~output
-      ~rules
-      ~float_tolerance
-      ~produce_unified_lines
-      ~unrefined
-      ~keep_ws
-      ~split_long_lines
-      ~interleave
-      ~assume_text
-      ~context
-      ~line_big_enough
-      ~word_big_enough
-      ~shallow
-      ~quiet
-      ~double_check
-      ~mask_uniques
-      ~prev_alt
-      ~next_alt
-      ~location_style
-      ~warn_if_no_trailing_newline_in_both
+  ~output
+  ~rules
+  ~float_tolerance
+  ~produce_unified_lines
+  ~unrefined
+  ~keep_ws
+  ~split_long_lines
+  ~interleave
+  ~assume_text
+  ~context
+  ~line_big_enough
+  ~word_big_enough
+  ~shallow
+  ~quiet
+  ~double_check
+  ~mask_uniques
+  ~prev_alt
+  ~next_alt
+  ~location_style
+  ~warn_if_no_trailing_newline_in_both
   =
   let t =
     { output
@@ -135,27 +135,27 @@ let create_exn
 ;;
 
 let override
-      ?output
-      ?rules
-      ?float_tolerance
-      ?produce_unified_lines
-      ?unrefined
-      ?keep_ws
-      ?split_long_lines
-      ?interleave
-      ?assume_text
-      ?context
-      ?line_big_enough
-      ?word_big_enough
-      ?shallow
-      ?quiet
-      ?double_check
-      ?mask_uniques
-      ?prev_alt
-      ?next_alt
-      ?location_style
-      ?warn_if_no_trailing_newline_in_both
-      t
+  ?output
+  ?rules
+  ?float_tolerance
+  ?produce_unified_lines
+  ?unrefined
+  ?keep_ws
+  ?split_long_lines
+  ?interleave
+  ?assume_text
+  ?context
+  ?line_big_enough
+  ?word_big_enough
+  ?shallow
+  ?quiet
+  ?double_check
+  ?mask_uniques
+  ?prev_alt
+  ?next_alt
+  ?location_style
+  ?warn_if_no_trailing_newline_in_both
+  t
   =
   let output = Option.value ~default:t.output output in
   let unrefined =

@@ -116,14 +116,14 @@ let%test_module _ =
       ; Some 0.01, "1.0", "1.015"
       ]
       |> List.iter ~f:(fun (mult_float_tolerance, old_text, new_text) ->
-        print_endline
-          (Patdiff_core.patdiff
-             ?float_tolerance:(Option.map mult_float_tolerance ~f:Percent.of_mult)
-             ~produce_unified_lines:false
-             ~output:Ascii
-             ~prev:{ name = "old"; text = old_text }
-             ~next:{ name = "new"; text = new_text }
-             ()));
+           print_endline
+             (Patdiff_core.patdiff
+                ?float_tolerance:(Option.map mult_float_tolerance ~f:Percent.of_mult)
+                ~produce_unified_lines:false
+                ~output:Ascii
+                ~prev:{ name = "old"; text = old_text }
+                ~next:{ name = "new"; text = new_text }
+                ()));
       [%expect
         {|
         -1,1 +1,1

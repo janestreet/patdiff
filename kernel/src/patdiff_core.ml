@@ -41,12 +41,12 @@ let split s ~keep_ws =
   else
     Re.split_full words_rex s
     |> List.filter_map ~f:(fun token ->
-      let string =
-        match token with
-        | `Delim d -> Re.Group.get d 0
-        | `Text t -> t
-      in
-      if String.is_empty string then None else Some string)
+         let string =
+           match token with
+           | `Delim d -> Re.Group.get d 0
+           | `Text t -> t
+         in
+         if String.is_empty string then None else Some string)
 ;;
 
 (* This function ensures that the tokens passed to Patience diff do not include
@@ -177,7 +177,7 @@ module Make (Output_impls : Output_impls) = struct
       then 0
       else
         (if i1 = i2
-        (* This funky thing hopefully us to prefer a diff like ‘end [ module ... end ]’
+            (* This funky thing hopefully us to prefer a diff like ‘end [ module ... end ]’
            to one like ‘[ end module ... ] end’, where [] marks the boundary of the
            diff. *)
          then (
@@ -286,7 +286,7 @@ module Make (Output_impls : Output_impls) = struct
        possible, but it's not a great abstraction, so some consecutive whitespace does not
        get collapsed.
 
-    *)
+     *)
     let words =
       List.concat_map words ~f:(fun x ->
         match x with
@@ -357,7 +357,7 @@ module Make (Output_impls : Output_impls) = struct
     (*
      * Finish the current segment by applying the appropriate format
      * and popping it on to the end of the current line
-    *)
+     *)
     let finish_segment () =
       let rule =
         match !flag with
@@ -372,7 +372,7 @@ module Make (Output_impls : Output_impls) = struct
     (*
      * Finish the current segment, apply the reset rule to the line,
      * and pop the finished line onto the return array
-    *)
+     *)
     let newline i =
       for _ = 1 to i do
         finish_segment ();
@@ -411,7 +411,7 @@ module Make (Output_impls : Output_impls) = struct
       in
       (* Iterate through the elements of the range, appending each `Word to
        * segment and calling newline on each `Newline
-      *)
+       *)
       Array.iter ar ~f:(function
         | `Newline (i, None) -> newline i
         | `Newline (i, Some s) ->
@@ -518,14 +518,14 @@ module Make (Output_impls : Output_impls) = struct
   (* Refines the diff, splitting the lines into smaller arrays and diffing them, then
      collapsing them back into their initial lines after applying a format. *)
   let refine
-        ~(rules : Format.Rules.t)
-        ~produce_unified_lines
-        ~output
-        ~keep_ws
-        ~split_long_lines
-        ~interleave
-        ~word_big_enough
-        (hunks : string Patience_diff.Hunk.t list)
+    ~(rules : Format.Rules.t)
+    ~produce_unified_lines
+    ~output
+    ~keep_ws
+    ~split_long_lines
+    ~interleave
+    ~word_big_enough
+    (hunks : string Patience_diff.Hunk.t list)
     =
     let rule_prev = rules.word_prev in
     let rule_next = rules.word_next in
@@ -639,9 +639,9 @@ module Make (Output_impls : Output_impls) = struct
                        new_ranges
                        ~init:(rangeaccum, rangelistaccum)
                        ~f:(fun (rangeaccum, rangelistaccum) r ->
-                         match r with
-                         | `Break -> [], List.rev rangeaccum :: rangelistaccum
-                         | `Range r -> r :: rangeaccum, rangelistaccum)
+                       match r with
+                       | `Break -> [], List.rev rangeaccum :: rangelistaccum
+                       | `Range r -> r :: rangeaccum, rangelistaccum)
                    in
                    split_lines new_len_so_far rest rangeaccum rangelistaccum
                  | Next tokens_arr | Prev tokens_arr ->
@@ -747,7 +747,7 @@ module Make (Output_impls : Output_impls) = struct
     in
     hunks
     |> List.map ~f:(fun hunk ->
-      { hunk with ranges = List.concat_map hunk.ranges ~f:refine_range })
+         { hunk with ranges = List.concat_map hunk.ranges ~f:refine_range })
     |> List.filter ~f:(not << Patience_diff.Hunk.all_same)
   ;;
 
@@ -763,12 +763,12 @@ module Make (Output_impls : Output_impls) = struct
   ;;
 
   let output_to_string
-        ?(print_global_header = false)
-        ~file_names
-        ~rules
-        ~output
-        ~location_style
-        hunks
+    ?(print_global_header = false)
+    ~file_names
+    ~rules
+    ~output
+    ~location_style
+    hunks
     =
     let buf = Queue.create () in
     Output_ops.print
@@ -788,21 +788,21 @@ module Make (Output_impls : Output_impls) = struct
   ;;
 
   let patdiff
-        ?(context = Configuration.default_context)
-        ?(keep_ws = false)
-        ?(rules = Format.Rules.default)
-        ?(output = Output.Ansi)
-        ?(produce_unified_lines = true)
-        ?(split_long_lines = true)
-        ?print_global_header
-        ?(location_style = Format.Location_style.Diff)
-        ?(interleave = true)
-        ?float_tolerance
-        ?(line_big_enough = Configuration.default_line_big_enough)
-        ?(word_big_enough = Configuration.default_word_big_enough)
-        ~(prev : Diff_input.t)
-        ~(next : Diff_input.t)
-        ()
+    ?(context = Configuration.default_context)
+    ?(keep_ws = false)
+    ?(rules = Format.Rules.default)
+    ?(output = Output.Ansi)
+    ?(produce_unified_lines = true)
+    ?(split_long_lines = true)
+    ?print_global_header
+    ?(location_style = Format.Location_style.Diff)
+    ?(interleave = true)
+    ?float_tolerance
+    ?(line_big_enough = Configuration.default_line_big_enough)
+    ?(word_big_enough = Configuration.default_word_big_enough)
+    ~(prev : Diff_input.t)
+    ~(next : Diff_input.t)
+    ()
     =
     let keep_ws = keep_ws || Should_keep_whitespace.for_diff ~prev ~next in
     let hunks =
@@ -837,14 +837,14 @@ module Make (Output_impls : Output_impls) = struct
 end
 
 module Without_unix = Make (struct
-    let console_width () = Ok 80
+  let console_width () = Ok 80
 
-    let implementation : Output.t -> (module Output.S) = function
-      | Ansi -> (module Ansi_output)
-      | Ascii -> (module Ascii_output)
-      | Html -> (module Html_output.Without_mtime)
-    ;;
-  end)
+  let implementation : Output.t -> (module Output.S) = function
+    | Ansi -> (module Ansi_output)
+    | Ascii -> (module Ascii_output)
+    | Html -> (module Html_output.Without_mtime)
+  ;;
+end)
 
 module Private = struct
   module Make = Make

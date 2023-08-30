@@ -17,10 +17,10 @@ let update_config_infer_keep_ws config ~prev ~next =
 ;;
 
 let create
-      (config : Configuration.t)
-      ~(prev : Diff_input.t)
-      ~(next : Diff_input.t)
-      ~compare_assuming_text
+  (config : Configuration.t)
+  ~(prev : Diff_input.t)
+  ~(next : Diff_input.t)
+  ~compare_assuming_text
   =
   let prev_is_binary, next_is_binary =
     match config.assume_text with

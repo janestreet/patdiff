@@ -21,10 +21,10 @@ let lines_of_contents contents =
 ;;
 
 let warn_if_no_trailing_newline
-      ~warn_if_no_trailing_newline_in_both
-      ~warn
-      ~prev:(prev_file_newline, prev_file)
-      ~next:(next_file_newline, next_file)
+  ~warn_if_no_trailing_newline_in_both
+  ~warn
+  ~prev:(prev_file_newline, prev_file)
+  ~next:(next_file_newline, next_file)
   =
   match prev_file_newline, next_file_newline with
   | `With_trailing_newline, `With_trailing_newline -> ()
@@ -38,11 +38,11 @@ let warn_if_no_trailing_newline
 ;;
 
 let binary_different_message
-      ~(config : Configuration.t)
-      ~prev_file
-      ~prev_is_binary
-      ~next_file
-      ~next_is_binary
+  ~(config : Configuration.t)
+  ~prev_file
+  ~prev_is_binary
+  ~next_file
+  ~next_is_binary
   =
   match config.location_style with
   | Diff | None | Separator ->

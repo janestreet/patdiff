@@ -7,9 +7,9 @@ let patdiff ?location_style ?context ?keep_ws ?float_tolerance string1 string2 =
     ?location_style
     ?float_tolerance
     ~output:Ascii
-    (* without color, cannot produce the "!|" lines that mix add/keep/remove *)
+      (* without color, cannot produce the "!|" lines that mix add/keep/remove *)
     ~produce_unified_lines:false
-    (* line splitting produces confusing output in ASCII format *)
+      (* line splitting produces confusing output in ASCII format *)
     ~split_long_lines:false
     ?context
     ?keep_ws

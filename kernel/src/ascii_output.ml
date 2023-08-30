@@ -1,7 +1,6 @@
 open! Core
 open! Import
 
-
 module Rule = struct
   let apply s ~rule ~refined:_ =
     Ansi_output.Rule.apply s ~rule:(Format.Rule.strip_styles rule) ~refined:false

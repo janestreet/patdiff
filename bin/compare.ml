@@ -148,12 +148,12 @@ let compare_main (args : Args.compare_flags) =
       | { include_; exclude; _ } ->
         Some
           (fun (s, stat) ->
-             match stat.Unix.st_kind with
-             | Unix.S_REG ->
-               List.for_all exclude ~f:(fun rex -> not (Pcre.pmatch s ~rex))
-               && (List.is_empty include_
-                   || List.exists include_ ~f:(fun rex -> Pcre.pmatch s ~rex))
-             | _ -> true)
+            match stat.Unix.st_kind with
+            | Unix.S_REG ->
+              List.for_all exclude ~f:(fun rex -> not (Pcre.pmatch s ~rex))
+              && (List.is_empty include_
+                  || List.exists include_ ~f:(fun rex -> Pcre.pmatch s ~rex))
+            | _ -> true)
     in
     Compare_core.diff_dirs ~prev_dir:prev_file ~next_dir:next_file config ~file_filter
   | false, false ->
@@ -397,4 +397,3 @@ let command =
        in
        main args)
 ;;
-

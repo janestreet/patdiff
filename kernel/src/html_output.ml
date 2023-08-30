@@ -95,12 +95,12 @@ module Make (Mtime : Mtime) = struct
   ;;
 
   let print
-        ~print_global_header
-        ~file_names:((prev_file, _) as file_names)
-        ~(rules : Format.Rules.t)
-        ~print
-        ~location_style
-        hunks
+    ~print_global_header
+    ~file_names:((prev_file, _) as file_names)
+    ~(rules : Format.Rules.t)
+    ~print
+    ~location_style
+    hunks
     =
     print "<pre style=\"font-family:consolas,monospace\">";
     if print_global_header then print_header ~rules ~file_names ~print;
@@ -129,8 +129,8 @@ module Make (Mtime : Mtime) = struct
 end
 
 module Without_mtime = Make (struct
-    let mtime _ = Or_error.error_string "Mtime implementation not available"
-  end)
+  let mtime _ = Or_error.error_string "Mtime implementation not available"
+end)
 
 module Private = struct
   module Make = Make

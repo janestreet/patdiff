@@ -13,6 +13,5 @@ module Hunks = Hunks
 module Import = Import
 module Is_binary = Is_binary
 module Output = Output
-
 module Patdiff_core = Patdiff_core
 module Should_keep_whitespace = Should_keep_whitespace
