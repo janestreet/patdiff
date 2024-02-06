@@ -1,4 +1,6 @@
-(library (name expect_test_patdiff_tests)
+(library
+ (name expect_test_patdiff_tests)
  (libraries core expect_test_helpers_core.expect_test_helpers_base
-  expect_test_patdiff)
- (preprocess (pps ppx_jane)))
+   expect_test_patdiff)
+ (preprocess
+  (pps ppx_jane)))
