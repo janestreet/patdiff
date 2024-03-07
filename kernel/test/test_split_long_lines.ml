@@ -39,3 +39,57 @@ let%expect_test "refine does not raise with ~split_long_lines:true and no contro
           ("good bye"))
         (Same ((world world))))))) |}]
 ;;
+
+let print_patdiff prev next =
+  print_endline
+    (Patdiff_core.patdiff
+       ~produce_unified_lines:false
+       ~output:Ascii
+       ~prev:{ name = "old"; text = prev }
+       ~next:{ name = "new"; text = next }
+       ())
+;;
+
+let%expect_test "extra empty lines are not added" =
+  print_patdiff "hello world" "hello";
+  [%expect {|
+    -1,1 +1,1
+    -|hello world
+    +|hello |}];
+  print_patdiff "hello world" "world";
+  [%expect {|
+    -1,1 +1,1
+    -|hello world
+    +|world |}];
+  print_patdiff "hello world" "";
+  [%expect {|
+    -1,1 +1,0
+    -|hello world |}]
+;;
+
+let%expect_test "extra empty lines are not added for consecutive long lines" =
+  let prev =
+    String.strip
+      [%string
+        {|
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 0000000000000000000000000000000000000000
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb 1111111111111111111111111111111111111111
+|}]
+  in
+  let next =
+    String.strip
+      [%string
+        {|
+aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+|}]
+  in
+  print_patdiff prev next;
+  [%expect
+    {|
+    -1,2 +1,2
+    -|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 0000000000000000000000000000000000000000
+    -|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb 1111111111111111111111111111111111111111
+    +|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    +|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb |}]
+;;

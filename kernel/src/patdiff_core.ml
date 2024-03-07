@@ -588,18 +588,19 @@ module Make (Output_impls : Output_impls) = struct
                      Patience_diff.Range.Same (Array.of_list tokenpairs)
                    in
                    (* Keep taking tokens until we exceed max_len or hit a newline.
-                      Returns (new len_so_far, new range, remaining tokens)*)
+                      Returns (new len_so_far, new range, remaining tokens, hit newline)
+                   *)
                    let rec take_until_max len_so_far tokenpairs accum =
                      match tokenpairs with
-                     | [] -> len_so_far, range_of_tokens (List.rev accum), []
+                     | [] -> len_so_far, range_of_tokens (List.rev accum), [], false
                      | ((token, _) as tokenpair) :: rest ->
                        (match token with
                         | `Newline _ ->
-                          0, range_of_tokens (List.rev (tokenpair :: accum)), rest
+                          0, range_of_tokens (List.rev (tokenpair :: accum)), rest, true
                         | `Word word ->
                           let wordlen = String.length word in
                           if wordlen + len_so_far > max_len && len_so_far > 0
-                          then 0, range_of_tokens (List.rev accum), tokenpairs
+                          then 0, range_of_tokens (List.rev accum), tokenpairs, false
                           else
                             take_until_max (wordlen + len_so_far) rest (tokenpair :: accum))
                    in
@@ -612,7 +613,7 @@ module Make (Output_impls : Output_impls) = struct
                      match tokenpairs with
                      | [] -> len_so_far, List.rev accum
                      | _ ->
-                       let new_len_so_far, new_range, new_tokenpairs =
+                       let new_len_so_far, new_range, new_tokenpairs, hit_newline =
                          take_until_max len_so_far tokenpairs []
                        in
                        let new_accum = `Range new_range :: accum in
@@ -620,8 +621,9 @@ module Make (Output_impls : Output_impls) = struct
                           so add a break at this point *)
                        let new_accum =
                          match new_tokenpairs with
-                         | _ :: _ -> `Break :: `Range (make_newline ()) :: new_accum
-                         | [] -> new_accum
+                         | _ :: _ when not hit_newline ->
+                           `Break :: `Range (make_newline ()) :: new_accum
+                         | _ -> new_accum
                        in
                        take_ranges_until_exhausted new_len_so_far new_tokenpairs new_accum
                    in
