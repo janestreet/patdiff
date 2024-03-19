@@ -31,6 +31,7 @@ type t = private
   ; produce_unified_lines : bool
   ; unrefined : bool
   ; keep_ws : bool
+  ; find_moves : bool
   ; split_long_lines : bool
   ; interleave : bool
   ; assume_text : bool
@@ -58,6 +59,7 @@ val create_exn
   -> produce_unified_lines:bool
   -> unrefined:bool
   -> keep_ws:bool
+  -> find_moves:bool
   -> split_long_lines:bool
   -> interleave:bool
   -> assume_text:bool
@@ -81,6 +83,7 @@ val override
   -> ?produce_unified_lines:bool
   -> ?unrefined:bool
   -> ?keep_ws:bool
+  -> ?find_moves:bool
   -> ?split_long_lines:bool
   -> ?interleave:bool
   -> ?assume_text:bool

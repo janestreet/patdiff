@@ -116,11 +116,17 @@ module Rules : sig
     ; word_same_prev : Rule.t
     ; word_same_next : Rule.t
     ; word_same_unified : Rule.t
+    ; word_same_unified_in_move : Rule.t
     ; word_prev : Rule.t
     ; word_next : Rule.t
     ; hunk : Rule.t
     ; header_prev : Rule.t
     ; header_next : Rule.t
+    ; moved_from_prev : Rule.t
+    ; moved_to_next : Rule.t
+    ; removed_in_move : Rule.t
+    ; added_in_move : Rule.t
+    ; line_unified_in_move : Rule.t
     }
   [@@deriving compare, sexp_of]
 

@@ -18,9 +18,11 @@ let%test_module _ =
            ~prev
            ~next
            ());
-      [%expect {|
-      -1,1 +1,1
-      [0;1;33m!|[0mFoo[0;31m bar[0m buzz |}]
+      [%expect
+        {|
+        -1,1 +1,1
+        [0;1;33m!|[0mFoo[0;31m bar[0m buzz
+        |}]
     ;;
 
     let%expect_test "Ascii is supported if [produce_unified_lines] is false" =
@@ -34,9 +36,10 @@ let%test_module _ =
            ~next
            ());
       [%expect {|
-      -1,1 +1,1
-      -|Foo bar buzz
-      +|Foo buzz |}]
+        -1,1 +1,1
+        -|Foo bar buzz
+        +|Foo buzz
+        |}]
     ;;
 
     let%expect_test "don't highlight empty newlines (ascii)" =
@@ -54,7 +57,8 @@ let%test_module _ =
         -1,0 +1,3
         +|
         +|
-        +| |}]
+        +|
+        |}]
     ;;
 
     let%expect_test "don't highlight empty newlines (ansi)" =
@@ -73,7 +77,8 @@ let%test_module _ =
         -1,0 +1,3
         [0;1;32m+|[0m[0;32m[0m
         [0;1;32m+|[0m[0;32m[0m
-        [0;1;32m+|[0m[0;32m[0m |}]
+        [0;1;32m+|[0m[0;32m[0m
+        |}]
     ;;
 
     let%expect_test "do highlight empty newlines with some spaces (ansi)" =
@@ -92,7 +97,8 @@ let%test_module _ =
         -1,0 +1,3
         [0;1;32m+|[0m[0;7;32m  [0m
         [0;1;32m+|[0m[0;7;32m  [0m
-        [0;1;32m+|[0m[0;7;32m  [0m |}]
+        [0;1;32m+|[0m[0;7;32m  [0m
+        |}]
     ;;
 
     let%test "Ascii is not supported if [produce_unified_lines] is true" =
@@ -133,7 +139,8 @@ let%test_module _ =
 
         -1,1 +1,1
         -|1.0
-        +|1.015 |}]
+        +|1.015
+        |}]
     ;;
   end)
 ;;
@@ -156,9 +163,10 @@ let%test_module "python" =
            ());
       [%expect
         {|
-      -1,1 +1,2
-      [0;1;33m!|[0m[0;32mif True:[0m
-      [0;1;33m!|[0m[0;7;32m    [0mprint(5) |}]
+        -1,1 +1,2
+        [0;1;33m!|[0m[0;32mif True:[0m
+        [0;1;33m!|[0m[0;7;32m    [0mprint(5)
+        |}]
     ;;
 
     let%expect_test "Ascii is supported if [produce_unified_lines] is false" =
@@ -173,10 +181,11 @@ let%test_module "python" =
            ());
       [%expect
         {|
-      -1,1 +1,2
-      -|print(5)
-      +|if True:
-      +|    print(5) |}]
+        -1,1 +1,2
+        -|print(5)
+        +|if True:
+        +|    print(5)
+        |}]
     ;;
 
     let%test _ =
@@ -215,6 +224,657 @@ let%test_module "python" =
         ~next
         ()
       |> doesn't_contain_ansi_escapes
+    ;;
+
+    let test_moves ~prev ~next =
+      let prev : Diff_input.t = { name = "old"; text = prev } in
+      let next : Diff_input.t = { name = "new"; text = next } in
+      (* Override the default config to show moves better without colors *)
+      let rules = Format.Rules.default in
+      let removed_in_move = Format.Rule.create ~pre:(Format.Rule.Affix.create ">-") [] in
+      let added_in_move = Format.Rule.create ~pre:(Format.Rule.Affix.create ">+") [] in
+      let line_unified_in_move =
+        Format.Rule.create ~pre:(Format.Rule.Affix.create ">!") []
+      in
+      let rules = { rules with removed_in_move; added_in_move; line_unified_in_move } in
+      printf
+        "%s\n"
+        (Patdiff_core.patdiff
+           ~rules
+           ~find_moves:true
+           ~prev
+           ~next
+           ~output:Ascii
+           ~produce_unified_lines:false
+           ())
+    ;;
+
+    let%expect_test "test a simple move" =
+      let prev =
+        {|
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce sit amet
+malesuada leo. Vivamus vitae orci quis justo ornare molestie. Donec fringilla
+tempus magna, ut semper lacus tincidunt at. Suspendisse et rutrum arcu. Aliquam
+erat volutpat. Pellentesque pretium pellentesque elit, a consequat metus
+placerat a. Praesent hendrerit euismod sem nec facilisis. Curabitur finibus ex
+sagittis massa blandit, et dictum lectus lobortis. Sed fringilla fringilla
+tortor vel finibus. Sed vel tortor pulvinar, fermentum quam non, blandit lorem.
+
+Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ultricies eu, pretium et
+elit. Duis bibendum aliquet quam et tempor. Donec quis dapibus justo. Praesent
+eget pellentesque nisi. Nulla vestibulum orci quis dui laoreet, eget posuere sem
+interdum. Morbi ac sodales ligula. Proin arcu ipsum, venenatis id cursus et,
+blandit eu mi. Sed iaculis egestas ligula, lacinia condimentum velit commodo
+non. In eu elit convallis, tempus sapien sed, maximus purus. Sed vitae enim et
+tellus accumsan bibendum eu vel turpis. Phasellus massa leo, eleifend vel
+tincidunt ut, consequat et est. Duis quis condimentum ex. Etiam nec faucibus
+lorem. Aliquam vehicula porta sapien, ut aliquam purus cursus vitae. Nullam at
+ex vehicula, egestas sapien vitae, molestie ipsum.
+
+Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifend fermentum iaculis.
+Duis dignissim, mi sit amet vehicula auctor, odio mauris consectetur lectus, ac
+tincidunt lorem diam a nisi. Duis vehicula ex ac tortor sagittis, ac commodo
+lectus venenatis. Nam efficitur justo eros, et ornare neque aliquet ut. Duis
+vulputate nulla nunc, eget pellentesque diam aliquam at. Cras rhoncus orci at
+tortor posuere convallis sed sed risus. Quisque sed ipsum ex.
+
+Cras non semper ante. Vivamus non nulla scelerisque, fermentum sem at, laoreet
+est. Sed convallis, magna sit amet maximus sollicitudin, nulla metus sodales
+eros, eu molestie arcu urna ut nunc. Pellentesque habitant morbi tristique
+senectus et netus et malesuada fames ac turpis egestas. Morbi sollicitudin,
+turpis sit amet ultricies interdum, urna nisl rhoncus tellus, id consectetur
+urna risus ut arcu. Aliquam hendrerit eros id ex tempor vehicula. Nunc a pretium
+risus. Nulla tincidunt, mauris eu pellentesque hendrerit, nisi nibh volutpat
+sapien, vitae vehicula lacus tellus dictum augue. Pellentesque malesuada vitae
+tellus lobortis laoreet. Donec fringilla lacinia nulla sit amet eleifend.
+Suspendisse iaculis metus sed massa bibendum, quis consequat metus lacinia.
+Etiam scelerisque odio nec pulvinar dapibus. Duis interdum interdum quam vel
+dapibus. Quisque dapibus nisl quis magna accumsan, et lobortis magna eleifend.
+Ut venenatis cursus diam, vel dictum augue interdum vitae. Ut scelerisque
+condimentum augue, eget bibendum augue lacinia in.
+
+Aenean porta elit vitae pharetra dapibus. Duis a odio neque. Curabitur
+ullamcorper enim ut metus luctus, eu blandit augue consectetur. Vestibulum
+blandit lorem eget blandit fringilla. In et libero non lacus elementum pulvinar
+id a orci. Maecenas porta urna mollis, egestas lacus id, feugiat nisi. Vivamus
+imperdiet ornare dui eleifend semper. Integer erat ipsum, vestibulum a lobortis
+eu, posuere in orci. Pellentesque gravida in purus eu ullamcorper. Nunc urna
+tortor, hendrerit nec eleifend et, dapibus sed dolor.
+|}
+      in
+      let next =
+        {|
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce sit amet
+malesuada leo. Vivamus vitae orci quis justo ornare molestie. Donec fringilla
+tempus magna, ut semper lacus tincidunt at. Suspendisse et rutrum arcu. Aliquam
+erat volutpat. Pellentesque pretium pellentesque elit, a consequat metus
+placerat a. Praesent hendrerit euismod sem nec facilisis. Curabitur finibus ex
+sagittis massa blandit, et dictum lectus lobortis. Sed fringilla fringilla
+tortor vel finibus. Sed vel tortor pulvinar, fermentum quam non, blandit lorem.
+
+Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ultricies eu, pretium et
+elit. Duis bibendum aliquet quam et tempor. Donec quis dapibus justo. Praesent
+eget pellentesque nisi. Nulla vestibulum orci quis dui laoreet, eget posuere sem
+interdum. Morbi ac sodales ligula. Proin arcu ipsum, venenatis id cursus et,
+blandit eu mi. Sed iaculis egestas ligula, lacinia condimentum velit commodo
+non. In eu elit convallis, tempus sapien sed, maximus purus. Sed vitae enim et
+tellus accumsan bibendum eu vel turpis. Phasellus massa leo, eleifend vel
+tincidunt ut, consequat et est. Duis quis condimentum ex. Etiam nec faucibus
+lorem. Aliquam vehicula porta sapien, ut aliquam purus cursus vitae. Nullam at
+ex vehicula, egestas sapien vitae, molestie ipsum.
+
+Cras non semper ante. Vivamus non nulla scelerisque, fermentum sem at, laoreet
+est. Sed convallis, magna sit amet maximus sollicitudin, nulla metus sodales
+eros, eu molestie arcu urna ut nunc. Pellentesque habitant morbi tristique
+senectus et netus et malesuada fames ac turpis egestas. Morbi sollicitudin,
+turpis sit amet ultricies interdum, urna nisl rhoncus tellus, id consectetur
+urna risus ut arcu. Aliquam hendrerit eros id ex tempor vehicula. Nunc a pretium
+risus. Nulla tincidunt, mauris eu pellentesque hendrerit, nisi nibh volutpat
+sapien, vitae vehicula lacus tellus dictum augue. Pellentesque malesuada vitae
+tellus lobortis laoreet. Donec fringilla lacinia nulla sit amet eleifend.
+Suspendisse iaculis metus sed massa bibendum, quis consequat metus lacinia.
+Etiam scelerisque odio nec pulvinar dapibus. Duis interdum interdum quam vel
+dapibus. Quisque dapibus nisl quis magna accumsan, et lobortis magna eleifend.
+Ut venenatis cursus diam, vel dictum augue interdum vitae. Ut scelerisque
+condimentum augue, eget bibendum augue lacinia in.
+
+Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifend fermentum iaculis.
+Duis dignissim, mi sit amet vehicula auctor, odio mauris consectetur lectus, ac
+tincidunt lorem diam a nisi. Duis vehicula ex ac tortor sagittis, ac commodo
+lectus venenatis. Nam efficitur justo eros, et ornare neque aliquet ut. Duis
+vulputate nulla nunc, eget pellentesque diam aliquam at. Cras rhoncus orci at
+tortor posuere convallis sed sed risus. Quisque sed ipsum ex.
+
+Aenean porta elit vitae pharetra dapibus. Duis a odio neque. Curabitur
+ullamcorper enim ut metus luctus, eu blandit augue consectetur. Vestibulum
+blandit lorem eget blandit fringilla. In et libero non lacus elementum pulvinar
+id a orci. Maecenas porta urna mollis, egestas lacus id, feugiat nisi. Vivamus
+imperdiet ornare dui eleifend semper. Integer erat ipsum, vestibulum a lobortis
+eu, posuere in orci. Pellentesque gravida in purus eu ullamcorper. Nunc urna
+tortor, hendrerit nec eleifend et, dapibus sed dolor.
+|}
+      in
+      test_moves ~prev ~next;
+      [%expect
+        {|
+        -4,46 +4,46
+          tempus magna, ut semper lacus tincidunt at. Suspendisse et rutrum arcu. Aliquam
+          erat volutpat. Pellentesque pretium pellentesque elit, a consequat metus
+          placerat a. Praesent hendrerit euismod sem nec facilisis. Curabitur finibus ex
+          sagittis massa blandit, et dictum lectus lobortis. Sed fringilla fringilla
+          tortor vel finibus. Sed vel tortor pulvinar, fermentum quam non, blandit lorem.
+
+          Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ultricies eu, pretium et
+          elit. Duis bibendum aliquet quam et tempor. Donec quis dapibus justo. Praesent
+          eget pellentesque nisi. Nulla vestibulum orci quis dui laoreet, eget posuere sem
+          interdum. Morbi ac sodales ligula. Proin arcu ipsum, venenatis id cursus et,
+          blandit eu mi. Sed iaculis egestas ligula, lacinia condimentum velit commodo
+          non. In eu elit convallis, tempus sapien sed, maximus purus. Sed vitae enim et
+          tellus accumsan bibendum eu vel turpis. Phasellus massa leo, eleifend vel
+          tincidunt ut, consequat et est. Duis quis condimentum ex. Etiam nec faucibus
+          lorem. Aliquam vehicula porta sapien, ut aliquam purus cursus vitae. Nullam at
+          ex vehicula, egestas sapien vitae, molestie ipsum.
+        <|
+        <|Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifend fermentum iaculis.
+        <|Duis dignissim, mi sit amet vehicula auctor, odio mauris consectetur lectus, ac
+        <|tincidunt lorem diam a nisi. Duis vehicula ex ac tortor sagittis, ac commodo
+        <|lectus venenatis. Nam efficitur justo eros, et ornare neque aliquet ut. Duis
+        <|vulputate nulla nunc, eget pellentesque diam aliquam at. Cras rhoncus orci at
+        <|tortor posuere convallis sed sed risus. Quisque sed ipsum ex.
+
+          Cras non semper ante. Vivamus non nulla scelerisque, fermentum sem at, laoreet
+          est. Sed convallis, magna sit amet maximus sollicitudin, nulla metus sodales
+          eros, eu molestie arcu urna ut nunc. Pellentesque habitant morbi tristique
+          senectus et netus et malesuada fames ac turpis egestas. Morbi sollicitudin,
+          turpis sit amet ultricies interdum, urna nisl rhoncus tellus, id consectetur
+          urna risus ut arcu. Aliquam hendrerit eros id ex tempor vehicula. Nunc a pretium
+          risus. Nulla tincidunt, mauris eu pellentesque hendrerit, nisi nibh volutpat
+          sapien, vitae vehicula lacus tellus dictum augue. Pellentesque malesuada vitae
+          tellus lobortis laoreet. Donec fringilla lacinia nulla sit amet eleifend.
+          Suspendisse iaculis metus sed massa bibendum, quis consequat metus lacinia.
+          Etiam scelerisque odio nec pulvinar dapibus. Duis interdum interdum quam vel
+          dapibus. Quisque dapibus nisl quis magna accumsan, et lobortis magna eleifend.
+          Ut venenatis cursus diam, vel dictum augue interdum vitae. Ut scelerisque
+          condimentum augue, eget bibendum augue lacinia in.
+        >|
+        >|Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifend fermentum iaculis.
+        >|Duis dignissim, mi sit amet vehicula auctor, odio mauris consectetur lectus, ac
+        >|tincidunt lorem diam a nisi. Duis vehicula ex ac tortor sagittis, ac commodo
+        >|lectus venenatis. Nam efficitur justo eros, et ornare neque aliquet ut. Duis
+        >|vulputate nulla nunc, eget pellentesque diam aliquam at. Cras rhoncus orci at
+        >|tortor posuere convallis sed sed risus. Quisque sed ipsum ex.
+
+          Aenean porta elit vitae pharetra dapibus. Duis a odio neque. Curabitur
+          ullamcorper enim ut metus luctus, eu blandit augue consectetur. Vestibulum
+          blandit lorem eget blandit fringilla. In et libero non lacus elementum pulvinar
+          id a orci. Maecenas porta urna mollis, egestas lacus id, feugiat nisi. Vivamus
+          imperdiet ornare dui eleifend semper. Integer erat ipsum, vestibulum a lobortis
+          eu, posuere in orci. Pellentesque gravida in purus eu ullamcorper. Nunc urna
+          tortor, hendrerit nec eleifend et, dapibus sed dolor.
+        |}]
+    ;;
+
+    let%expect_test "test a move with a slight modification" =
+      let prev =
+        {|
+Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ultricies eu, pretium et
+elit. Duis bibendum aliquet quam et tempor. Donec quis dapibus justo. Praesent
+eget pellentesque nisi. Nulla vestibulum orci quis dui laoreet, eget posuere sem
+interdum. Morbi ac sodales ligula. Proin arcu ipsum, venenatis id cursus et,
+blandit eu mi. Sed iaculis egestas ligula, lacinia condimentum velit commodo
+non. In eu elit convallis, tempus sapien sed, maximus purus. Sed vitae enim et
+tellus accumsan bibendum eu vel turpis. Phasellus massa leo, eleifend vel
+tincidunt ut, consequat et est. Duis quis condimentum ex. Etiam nec faucibus
+lorem. Aliquam vehicula porta sapien, ut aliquam purus cursus vitae. Nullam at
+ex vehicula, egestas sapien vitae, molestie ipsum.
+
+Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifend fermentum iaculis.
+Duis dignissim, mi sit amet vehicula auctor, odio mauris consectetur lectus, ac
+tincidunt lorem diam a nisi. Duis vehicula ex ac tortor sagittis, ac commodo
+lectus venenatis. Nam efficitur justo eros, et ornare neque aliquet ut. Duis
+vulputate nulla nunc, eget pellentesque diam aliquam at. Cras rhoncus orci at
+tortor posuere convallis sed sed risus. Quisque sed ipsum ex.
+
+Cras non semper ante. Vivamus non nulla scelerisque, fermentum sem at, laoreet
+est. Sed convallis, magna sit amet maximus sollicitudin, nulla metus sodales
+eros, eu molestie arcu urna ut nunc. Pellentesque habitant morbi tristique
+senectus et netus et malesuada fames ac turpis egestas. Morbi sollicitudin,
+turpis sit amet ultricies interdum, urna nisl rhoncus tellus, id consectetur
+urna risus ut arcu. Aliquam hendrerit eros id ex tempor vehicula. Nunc a pretium
+risus. Nulla tincidunt, mauris eu pellentesque hendrerit, nisi nibh volutpat
+sapien, vitae vehicula lacus tellus dictum augue. Pellentesque malesuada vitae
+tellus lobortis laoreet. Donec fringilla lacinia nulla sit amet eleifend.
+Suspendisse iaculis metus sed massa bibendum, quis consequat metus lacinia.
+Etiam scelerisque odio nec pulvinar dapibus. Duis interdum interdum quam vel
+dapibus. Quisque dapibus nisl quis magna accumsan, et lobortis magna eleifend.
+Ut venenatis cursus diam, vel dictum augue interdum vitae. Ut scelerisque
+condimentum augue, eget bibendum augue lacinia in.
+
+Aenean porta elit vitae pharetra dapibus. Duis a odio neque. Curabitur
+ullamcorper enim ut metus luctus, eu blandit augue consectetur. Vestibulum
+blandit lorem eget blandit fringilla. In et libero non lacus elementum pulvinar
+id a orci. Maecenas porta urna mollis, egestas lacus id, feugiat nisi. Vivamus
+imperdiet ornare dui eleifend semper. Integer erat ipsum, vestibulum a lobortis
+eu, posuere in orci. Pellentesque gravida in purus eu ullamcorper. Nunc urna
+tortor, hendrerit nec eleifend et, dapibus sed dolor.
+
+Suspendisse convallis justo vitae leo efficitur ultrices. Fusce ullamcorper nisl
+accumsan maximus ultricies. Donec eu orci feugiat, lacinia ipsum a, rhoncus
+augue. Nullam mollis, dolor in varius auctor, ex tortor dapibus quam, id
+consectetur ipsum nunc ac leo. Maecenas condimentum nunc sed convallis ultrices.
+Suspendisse semper hendrerit ante, quis convallis dui eleifend et. Duis dui
+risus, laoreet eu suscipit eget, pretium vitae risus. Lorem ipsum dolor sit
+amet, consectetur adipiscing elit. Proin bibendum consequat pharetra. Morbi
+scelerisque vitae tellus sodales mattis.
+
+Nunc maximus porttitor nulla sit amet porta. Aenean tellus dui, viverra nec
+congue vitae, posuere a erat. Vestibulum lectus nibh, gravida et orci at,
+gravida eleifend tellus. Vestibulum nec iaculis odio. Donec et dui quis orci
+gravida euismod non sed eros. Aliquam ipsum metus, tempus a risus molestie,
+maximus vestibulum nibh. Cras sit amet sagittis nunc. Donec bibendum eros
+maximus lacus imperdiet, ac mollis quam tristique. Nunc eleifend ullamcorper
+tincidunt. Ut ut pulvinar ante. Mauris gravida, arcu vitae suscipit ultrices,
+elit metus sagittis odio, at pretium leo leo in odio. Ut dictum mi ac purus
+ullamcorper finibus.
+|}
+      in
+      let next =
+        {|
+Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ultricies eu, pretium et
+elit. Duis bibendum aliquet quam et tempor. Donec quis dapibus justo. Praesent
+eget pellentesque nisi. Nulla vestibulum orci quis dui laoreet, eget posuere sem
+interdum. Morbi ac sodales ligula. Proin arcu ipsum, venenatis id cursus et,
+blandit eu mi. Sed iaculis egestas ligula, lacinia condimentum velit commodo
+non. In eu elit convallis, tempus sapien sed, maximus purus. Sed vitae enim et
+tellus accumsan bibendum eu vel turpis. Phasellus massa leo, eleifend vel
+tincidunt ut, consequat et est. Duis quis condimentum ex. Etiam nec faucibus
+lorem. Aliquam vehicula porta sapien, ut aliquam purus cursus vitae. Nullam at
+ex vehicula, egestas sapien vitae, molestie ipsum.
+
+Cras non semper ante. Vivamus non nulla scelerisque, fermentum sem at, laoreet
+est. Sed convallis, magna sit amet maximus sollicitudin, nulla metus sodales
+eros, eu molestie arcu urna ut nunc. Pellentesque habitant morbi tristique
+senectus et netus et malesuada fames ac turpis egestas. Morbi sollicitudin,
+turpis sit amet ultricies interdum, urna nisl rhoncus tellus, id consectetur
+urna risus ut arcu. Aliquam hendrerit eros id ex tempor vehicula. Nunc a pretium
+risus. Nulla tincidunt, mauris eu pellentesque hendrerit, nisi nibh volutpat
+sapien, vitae vehicula lacus tellus dictum augue. Pellentesque malesuada vitae
+tellus lobortis laoreet. Donec fringilla lacinia nulla sit amet eleifend.
+Suspendisse iaculis metus sed massa bibendum, quis consequat metus lacinia.
+Etiam scelerisque odio nec pulvinar dapibus. Duis interdum interdum quam vel
+dapibus. Quisque dapibus nisl quis magna accumsan, et lobortis magna eleifend.
+Ut venenatis cursus diam, vel dictum augue interdum vitae. Ut scelerisque
+condimentum augue, eget bibendum augue lacinia in.
+
+Aenean porta elit vitae pharetra dapibus. Duis a odio neque. Curabitur
+ullamcorper enim ut metus luctus, eu blandit augue consectetur. Vestibulum
+blandit lorem eget blandit fringilla. In et libero non lacus elementum pulvinar
+id a orci. Maecenas porta urna mollis, egestas lacus id, feugiat nisi. Vivamus
+imperdiet ornare dui eleifend semper. Integer erat ipsum, vestibulum a lobortis
+eu, posuere in orci. Pellentesque gravida in purus eu ullamcorper. Nunc urna
+tortor, hendrerit nec eleifend et, dapibus sed dolor.
+
+Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifend fermentum iaculis.
+Duis dignissim, mi sit amet vehicula auctor, odio mauris consectetur lectus, ac
+tincidunt lorem diam a nisi. Duis vehicula exe ace tortor sagittis, ac commodo
+lectus venenatis. Nam efficitur justo eros, et ornare neque aliquet ut. Duis
+vulputate nulla nunc, eget pellentesque diam aliquam at. Cras rhoncus orci at
+tortor posuere convallis sed sed risus. Quisque sed ipsum ex.
+
+Suspendisse convallis justo vitae leo efficitur ultrices. Fusce ullamcorper nisl
+accumsan maximus ultricies. Donec eu orci feugiat, lacinia ipsum a, rhoncus
+augue. Nullam mollis, dolor in varius auctor, ex tortor dapibus quam, id
+consectetur ipsum nunc ac leo. Maecenas condimentum nunc sed convallis ultrices.
+Suspendisse semper hendrerit ante, quis convallis dui eleifend et. Duis dui
+risus, laoreet eu suscipit eget, pretium vitae risus. Lorem ipsum dolor sit
+amet, consectetur adipiscing elit. Proin bibendum consequat pharetra. Morbi
+scelerisque vitae tellus sodales mattis.
+
+Nunc maximus porttitor nulla sit amet porta. Aenean tellus dui, viverra nec
+congue vitae, posuere a erat. Vestibulum lectus nibh, gravida et orci at,
+gravida eleifend tellus. Vestibulum nec iaculis odio. Donec et dui quis orci
+gravida euismod non sed eros. Aliquam ipsum metus, tempus a risus molestie,
+maximus vestibulum nibh. Cras sit amet sagittis nunc. Donec bibendum eros
+maximus lacus imperdiet, ac mollis quam tristique. Nunc eleifend ullamcorper
+tincidunt. Ut ut pulvinar ante. Mauris gravida, arcu vitae suscipit ultrices,
+elit metus sagittis odio, at pretium leo leo in odio. Ut dictum mi ac purus
+ullamcorper finibus.
+|}
+      in
+      test_moves ~prev ~next;
+      [%expect
+        {|
+        -1,57 +1,57
+
+          Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ultricies eu, pretium et
+          elit. Duis bibendum aliquet quam et tempor. Donec quis dapibus justo. Praesent
+          eget pellentesque nisi. Nulla vestibulum orci quis dui laoreet, eget posuere sem
+          interdum. Morbi ac sodales ligula. Proin arcu ipsum, venenatis id cursus et,
+          blandit eu mi. Sed iaculis egestas ligula, lacinia condimentum velit commodo
+          non. In eu elit convallis, tempus sapien sed, maximus purus. Sed vitae enim et
+          tellus accumsan bibendum eu vel turpis. Phasellus massa leo, eleifend vel
+          tincidunt ut, consequat et est. Duis quis condimentum ex. Etiam nec faucibus
+          lorem. Aliquam vehicula porta sapien, ut aliquam purus cursus vitae. Nullam at
+          ex vehicula, egestas sapien vitae, molestie ipsum.
+        <|
+        <|Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifend fermentum iaculis.
+        <|Duis dignissim, mi sit amet vehicula auctor, odio mauris consectetur lectus, ac
+        <|tincidunt lorem diam a nisi. Duis vehicula ex ac tortor sagittis, ac commodo
+        <|lectus venenatis. Nam efficitur justo eros, et ornare neque aliquet ut. Duis
+        <|vulputate nulla nunc, eget pellentesque diam aliquam at. Cras rhoncus orci at
+        <|tortor posuere convallis sed sed risus. Quisque sed ipsum ex.
+
+          Cras non semper ante. Vivamus non nulla scelerisque, fermentum sem at, laoreet
+          est. Sed convallis, magna sit amet maximus sollicitudin, nulla metus sodales
+          eros, eu molestie arcu urna ut nunc. Pellentesque habitant morbi tristique
+          senectus et netus et malesuada fames ac turpis egestas. Morbi sollicitudin,
+          turpis sit amet ultricies interdum, urna nisl rhoncus tellus, id consectetur
+          urna risus ut arcu. Aliquam hendrerit eros id ex tempor vehicula. Nunc a pretium
+          risus. Nulla tincidunt, mauris eu pellentesque hendrerit, nisi nibh volutpat
+          sapien, vitae vehicula lacus tellus dictum augue. Pellentesque malesuada vitae
+          tellus lobortis laoreet. Donec fringilla lacinia nulla sit amet eleifend.
+          Suspendisse iaculis metus sed massa bibendum, quis consequat metus lacinia.
+          Etiam scelerisque odio nec pulvinar dapibus. Duis interdum interdum quam vel
+          dapibus. Quisque dapibus nisl quis magna accumsan, et lobortis magna eleifend.
+          Ut venenatis cursus diam, vel dictum augue interdum vitae. Ut scelerisque
+          condimentum augue, eget bibendum augue lacinia in.
+
+          Aenean porta elit vitae pharetra dapibus. Duis a odio neque. Curabitur
+          ullamcorper enim ut metus luctus, eu blandit augue consectetur. Vestibulum
+          blandit lorem eget blandit fringilla. In et libero non lacus elementum pulvinar
+          id a orci. Maecenas porta urna mollis, egestas lacus id, feugiat nisi. Vivamus
+          imperdiet ornare dui eleifend semper. Integer erat ipsum, vestibulum a lobortis
+          eu, posuere in orci. Pellentesque gravida in purus eu ullamcorper. Nunc urna
+          tortor, hendrerit nec eleifend et, dapibus sed dolor.
+        >|
+        >|Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifend fermentum iaculis.
+        >|Duis dignissim, mi sit amet vehicula auctor, odio mauris consectetur lectus, ac
+        >-tincidunt lorem diam a nisi. Duis vehicula ex ac tortor sagittis, ac commodo
+        >+tincidunt lorem diam a nisi. Duis vehicula exe ace tortor sagittis, ac commodo
+        >|lectus venenatis. Nam efficitur justo eros, et ornare neque aliquet ut. Duis
+        >|vulputate nulla nunc, eget pellentesque diam aliquam at. Cras rhoncus orci at
+        >|tortor posuere convallis sed sed risus. Quisque sed ipsum ex.
+
+          Suspendisse convallis justo vitae leo efficitur ultrices. Fusce ullamcorper nisl
+          accumsan maximus ultricies. Donec eu orci feugiat, lacinia ipsum a, rhoncus
+          augue. Nullam mollis, dolor in varius auctor, ex tortor dapibus quam, id
+          consectetur ipsum nunc ac leo. Maecenas condimentum nunc sed convallis ultrices.
+          Suspendisse semper hendrerit ante, quis convallis dui eleifend et. Duis dui
+          risus, laoreet eu suscipit eget, pretium vitae risus. Lorem ipsum dolor sit
+          amet, consectetur adipiscing elit. Proin bibendum consequat pharetra. Morbi
+          scelerisque vitae tellus sodales mattis.
+
+          Nunc maximus porttitor nulla sit amet porta. Aenean tellus dui, viverra nec
+          congue vitae, posuere a erat. Vestibulum lectus nibh, gravida et orci at,
+          gravida eleifend tellus. Vestibulum nec iaculis odio. Donec et dui quis orci
+          gravida euismod non sed eros. Aliquam ipsum metus, tempus a risus molestie,
+          maximus vestibulum nibh. Cras sit amet sagittis nunc. Donec bibendum eros
+          maximus lacus imperdiet, ac mollis quam tristique. Nunc eleifend ullamcorper
+        |}]
+    ;;
+
+    let%expect_test "test we prefer more similar lines" =
+      test_moves
+        ~prev:
+          {|
+Some code that is going to get moved somewhere. Make it long so
+things are really similar. We only match on at least 3 lines
+so make it 3 lines long.
+a
+b
+c
+d
+e
+f
+|}
+        ~next:
+          {|
+a
+b
+c
+Some code that is going to get moved somewhere. Make it long so
+things are really differs. We only match on at least 3 lines
+so make it 3 lines long.
+d
+e
+f
+Some code that is going to get moved somewhere. Make it long so
+things are really similar. We only match on at least 3 lines
+so make it 3 lines long.
+|};
+      [%expect
+        {|
+        -1,10 +1,13
+
+        <|Some code that is going to get moved somewhere. Make it long so
+        <|things are really similar. We only match on at least 3 lines
+        <|so make it 3 lines long.
+          a
+          b
+          c
+        +|Some code that is going to get moved somewhere. Make it long so
+        +|things are really differs. We only match on at least 3 lines
+        +|so make it 3 lines long.
+          d
+          e
+          f
+        >|Some code that is going to get moved somewhere. Make it long so
+        >|things are really similar. We only match on at least 3 lines
+        >|so make it 3 lines long.
+        |}]
+    ;;
+
+    let%expect_test "test moves of match statements" =
+      test_moves
+        ~prev:
+          {|
+let result =
+  (match variable with
+  | Case1 case1 ->
+    let a = b in
+    let double = case1 * case1 in
+    a + double
+  | Case2 case2 ->
+    let foo = case2 ^ "-something" in
+    let bar = String.length foo in
+    String.is_substring (bar ^ Int.to_string) ~substring
+  | Case3 case3 ->
+      let one_third = case3 *. 0.3333 in
+      let inverse = 1. -. one_third in
+      Global.log.debug_s [%sexp "Case3"];
+      let sqrt = sqrt inverse in
+      let sum = ref 0. in
+      List.iter [ 1; 2; 3] ~f:(fun _index ->
+        sum := !sum +. sqrt;
+      );
+      Percentage.of_float !sum) in
+fetch result
+|}
+        ~next:
+          {|
+let result =
+  (match variable with
+  | Case3 case3 ->
+      let one_third = case3 *. 0.3333 in
+      let inverse = 1. -. one_third in
+      Global.log.debug_s [%sexp "Case3"];
+      let sqrt = sqrt inverse in
+      let sum = ref 0. in
+      List.iter [ 1; 2; 3] ~f:(fun _index ->
+        sum := !sum +. sqrt;
+      );
+      Percentage.of_float !sum
+  | Case1 case1 ->
+    let a = b in
+    let double = case1 * case1 in
+    a + double
+  | Case2 case2 ->
+    let foo = case2 ^ "-something" in
+    let bar = String.length foo in
+    String.is_substring (bar ^ Int.to_string) ~substring) in
+fetch result
+|};
+      [%expect
+        {|
+        -1,22 +1,22
+
+          let result =
+            (match variable with
+        <|  | Case1 case1 ->
+        <|    let a = b in
+        <|    let double = case1 * case1 in
+        <|    a + double
+        <|  | Case2 case2 ->
+        <|    let foo = case2 ^ "-something" in
+        <|    let bar = String.length foo in
+        <|    String.is_substring (bar ^ Int.to_string) ~substring
+            | Case3 case3 ->
+                let one_third = case3 *. 0.3333 in
+                let inverse = 1. -. one_third in
+                Global.log.debug_s [%sexp "Case3"];
+                let sqrt = sqrt inverse in
+                let sum = ref 0. in
+                List.iter [ 1; 2; 3] ~f:(fun _index ->
+                  sum := !sum +. sqrt;
+                );
+        -|      Percentage.of_float !sum) in
+        >+      Percentage.of_float !sum
+        >|  | Case1 case1 ->
+        >|    let a = b in
+        >|    let double = case1 * case1 in
+        >|    a + double
+        >|  | Case2 case2 ->
+        >|    let foo = case2 ^ "-something" in
+        >|    let bar = String.length foo in
+        >-    String.is_substring (bar ^ Int.to_string) ~substring
+        >+    String.is_substring (bar ^ Int.to_string) ~substring) in
+          fetch result
+        |}]
+    ;;
+
+    module Action = struct
+      type t =
+        | Move of
+            { start : int
+            ; length : int
+            ; to_ : int
+            }
+        | Delete of
+            { start : int
+            ; length : int
+            }
+        | Insert of
+            { start : int
+            ; contents : string
+            }
+      [@@deriving sexp_of]
+
+      let gen_move ~str_length =
+        let open Quickcheck.Generator.Let_syntax in
+        let%bind start = Int.gen_incl 0 str_length in
+        let%bind length = Int.gen_incl 0 str_length in
+        let%bind to_ = Int.gen_incl 0 str_length in
+        return (Move { start; length; to_ })
+      ;;
+
+      let gen_delete ~str_length =
+        let open Quickcheck.Generator.Let_syntax in
+        let%bind start = Int.gen_incl 0 str_length in
+        let%bind length = Int.gen_incl 0 str_length in
+        return (Delete { start; length })
+      ;;
+
+      let gen_insert ~str_length =
+        let open Quickcheck.Generator.Let_syntax in
+        let%bind start = Int.gen_incl 0 str_length in
+        let%bind contents = String.gen_nonempty' Char.gen_alpha in
+        return (Insert { start; contents })
+      ;;
+
+      let gen ~str_length =
+        Quickcheck.Generator.union
+          [ gen_move ~str_length; gen_delete ~str_length; gen_insert ~str_length ]
+      ;;
+
+      (* All of these actions just clamp their indices if the are out of range *)
+      let apply str action =
+        match action with
+        | Move { start; length; to_ } ->
+          let prefix = String.prefix str start in
+          let suffix = String.drop_prefix str (start + length) in
+          let to_move =
+            String.drop_prefix str start |> fun str -> String.prefix str length
+          in
+          let before_insert = prefix ^ suffix in
+          let prefix = String.prefix before_insert to_ in
+          let suffix = String.drop_prefix before_insert to_ in
+          prefix ^ to_move ^ suffix
+        | Delete { start; length } ->
+          String.prefix str start ^ String.drop_prefix str (start + length)
+        | Insert { start; contents } ->
+          String.prefix str start ^ contents ^ String.drop_prefix str start
+      ;;
+    end
+
+    module Test_case = struct
+      type t =
+        { prev : string array
+        ; actions : Action.t list
+        }
+      [@@deriving sexp_of]
+    end
+
+    let%test_unit "ensure we can always recover the original content if there are moves" =
+      let test_case_gen =
+        let open Quickcheck.Generator.Let_syntax in
+        let%bind prev = List.gen_with_length 50 (String.gen_nonempty' Char.gen_alpha) in
+        let prev = Array.of_list prev in
+        let str_length = Array.sum (module Int) prev ~f:String.length in
+        let%bind actions =
+          List.gen_with_length 5 (Quickcheck.Generator.union [ Action.gen ~str_length ])
+        in
+        return { Test_case.prev; actions }
+      in
+      Quickcheck.test ~sexp_of:Test_case.sexp_of_t test_case_gen ~f:(fun test_case ->
+        let prev_string = String.concat ~sep:"\n" (Array.to_list test_case.prev) in
+        let next_string = List.fold test_case.actions ~init:prev_string ~f:Action.apply in
+        let next = String.split_lines next_string |> Array.of_list in
+        let hunks =
+          Patdiff_core.diff
+            ~context:(-1)
+            ~line_big_enough:3
+            ~keep_ws:false
+            ~find_moves:true
+            ~prev:test_case.prev
+            ~next
+        in
+        let recover_prev =
+          List.concat_map hunks ~f:(fun hunk ->
+            Import.Patience_diff.Range.prev_only hunk.ranges)
+          |> List.map ~f:(function
+               | Prev (prev, _) -> prev
+               | Same same -> Array.map same ~f:fst
+               | range -> raise_s [%sexp (range : string Import.Patience_diff.Range.t)])
+          |> Array.concat
+          |> String.concat_array ~sep:"\n"
+        in
+        let recover_next =
+          List.concat_map hunks ~f:(fun hunk ->
+            Import.Patience_diff.Range.next_only hunk.ranges)
+          |> List.map ~f:(function
+               | Next (next, _) -> next
+               | Same same -> Array.map same ~f:snd
+               | range -> raise_s [%sexp (range : string Import.Patience_diff.Range.t)])
+          |> Array.concat
+          |> String.concat_array ~sep:"\n"
+        in
+        (* Avoid comparing duplicate newlines at the end of the strings *)
+        [%test_result: string]
+          (String.strip recover_prev)
+          ~expect:(String.strip prev_string);
+        [%test_result: string]
+          (String.strip recover_next)
+          ~expect:(String.strip next_string))
     ;;
   end)
 ;;

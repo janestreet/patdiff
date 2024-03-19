@@ -16,7 +16,8 @@ let%expect_test "Show added newline at start of input" =
     (fg:black bg:red)-|(off)bar
     (fg:black bg:green)+|
     (fg:black bg:green)+|(fg:green +reverse) (off)bar
-    ("Unclean exit" (Exit_non_zero 1)) |}];
+    ("Unclean exit" (Exit_non_zero 1))
+    |}];
   return ()
 ;;
 
@@ -30,7 +31,8 @@ let%expect_test "-unrefined works too" =
     (fg:black bg:red)-|(fg:red)bar
     (fg:black bg:green)+|
     (fg:black bg:green)+|(fg:green) bar
-    ("Unclean exit" (Exit_non_zero 1)) |}];
+    ("Unclean exit" (Exit_non_zero 1))
+    |}];
   return ()
 ;;
 
@@ -44,7 +46,8 @@ let%expect_test "-ascii works too (it implies -unrefined)" =
     -|bar
     +|
     +| bar
-    ("Unclean exit" (Exit_non_zero 1)) |}];
+    ("Unclean exit" (Exit_non_zero 1))
+    |}];
   return ()
 ;;
 
@@ -57,7 +60,8 @@ let%expect_test "Show leading whitespace" =
     (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
     (fg:black bg:red)-|(off)bar
     (fg:black bg:green)+|(fg:green +reverse) (off)bar
-    ("Unclean exit" (Exit_non_zero 1)) |}];
+    ("Unclean exit" (Exit_non_zero 1))
+    |}];
   return ()
 ;;
 
@@ -70,7 +74,8 @@ let%expect_test "Show internal whitespace" =
     (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
     (fg:black bg:red)-|(off)foo(fg:red +reverse) (off)bar
     (fg:black bg:green)+|(off)foo(fg:green +reverse)  (off)bar
-    ("Unclean exit" (Exit_non_zero 1)) |}];
+    ("Unclean exit" (Exit_non_zero 1))
+    |}];
   return ()
 ;;
 
@@ -83,6 +88,7 @@ let%expect_test "Show trailing whitespace" =
     (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
     (fg:black bg:red)-|(off)foo
     (fg:black bg:green)+|(off)foo(fg:green +reverse)
-    ("Unclean exit" (Exit_non_zero 1)) |}];
+    ("Unclean exit" (Exit_non_zero 1))
+    |}];
   return ()
 ;;

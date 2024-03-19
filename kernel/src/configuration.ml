@@ -28,6 +28,7 @@ type t =
   ; produce_unified_lines : bool
   ; unrefined : bool
   ; keep_ws : bool
+  ; find_moves : bool
   ; split_long_lines : bool
   ; interleave : bool
   ; assume_text : bool
@@ -59,6 +60,7 @@ let invariant t =
       ~produce_unified_lines:ignore
       ~unrefined:ignore
       ~keep_ws:ignore
+      ~find_moves:ignore
       ~interleave:ignore
       ~assume_text:ignore
       ~split_long_lines:ignore
@@ -92,6 +94,7 @@ let create_exn
   ~produce_unified_lines
   ~unrefined
   ~keep_ws
+  ~find_moves
   ~split_long_lines
   ~interleave
   ~assume_text
@@ -114,6 +117,7 @@ let create_exn
     ; produce_unified_lines
     ; unrefined
     ; keep_ws
+    ; find_moves
     ; split_long_lines
     ; interleave
     ; assume_text
@@ -141,6 +145,7 @@ let override
   ?produce_unified_lines
   ?unrefined
   ?keep_ws
+  ?find_moves
   ?split_long_lines
   ?interleave
   ?assume_text
@@ -170,6 +175,7 @@ let override
       ~produce_unified_lines:(value produce_unified_lines)
       ~unrefined:(const unrefined)
       ~keep_ws:(value keep_ws)
+      ~find_moves:(value find_moves)
       ~interleave:(value interleave)
       ~assume_text:(value assume_text)
       ~split_long_lines:(value split_long_lines)
@@ -211,6 +217,7 @@ let default =
       ; word_same_prev = Format.Rule.create [ Dim ]
       ; word_same_next = Format.Rule.blank
       ; word_same_unified = Format.Rule.blank
+      ; word_same_unified_in_move = Format.Rule.create [ Fg Cyan ]
       ; word_prev = Format.Rule.create [ Fg Red ]
       ; word_next = Format.Rule.create [ Fg Green ]
       ; hunk =
@@ -228,11 +235,32 @@ let default =
           Format.Rule.create
             [ Bold ]
             ~pre:(Format.Rule.Affix.create "++++++ " ~styles:[ Fg Green ])
+      ; moved_from_prev =
+          Format.Rule.create
+            [ Fg Magenta ]
+            ~pre:(Format.Rule.Affix.create "<|" ~styles:[ Bg Magenta; Fg Black ])
+      ; moved_to_next =
+          Format.Rule.create
+            [ Fg Cyan ]
+            ~pre:(Format.Rule.Affix.create ">|" ~styles:[ Bg Cyan; Fg Black ])
+      ; removed_in_move =
+          Format.Rule.create
+            [ Fg Red ]
+            ~pre:(Format.Rule.Affix.create ">|" ~styles:[ Bg Red; Fg Black ])
+      ; added_in_move =
+          Format.Rule.create
+            [ Fg Green ]
+            ~pre:(Format.Rule.Affix.create ">|" ~styles:[ Bg Green; Fg Black ])
+      ; line_unified_in_move =
+          Format.Rule.create
+            []
+            ~pre:(Format.Rule.Affix.create ">|" ~styles:[ Bg Yellow; Fg Black ])
       }
   ; float_tolerance = None
   ; produce_unified_lines = true
   ; unrefined = false
   ; keep_ws = false
+  ; find_moves = false
   ; split_long_lines = false
   ; interleave = true
   ; assume_text = false

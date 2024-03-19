@@ -137,11 +137,17 @@ module Rules = struct
     ; word_same_prev : Rule.t
     ; word_same_next : Rule.t
     ; word_same_unified : Rule.t
+    ; word_same_unified_in_move : Rule.t
     ; word_prev : Rule.t
     ; word_next : Rule.t
     ; hunk : Rule.t
     ; header_prev : Rule.t
     ; header_next : Rule.t
+    ; moved_from_prev : Rule.t
+    ; moved_to_next : Rule.t
+    ; removed_in_move : Rule.t
+    ; added_in_move : Rule.t
+    ; line_unified_in_move : Rule.t
     }
   [@@deriving compare, fields ~iterators:map, sexp_of]
 
@@ -151,8 +157,12 @@ module Rules = struct
     Rule.create ~pre style
   ;;
 
-  let line_unified =
-    let pre = Rule.Affix.create ~styles:Style.[ Bold; Fg Color.Yellow ] "!|" in
+  let line_unified ~is_move =
+    let pre =
+      Rule.Affix.create
+        ~styles:Style.[ Bold; Fg Color.Yellow ]
+        (if is_move then ">|" else "!|")
+    in
     Rule.create ~pre []
   ;;
 
@@ -163,15 +173,21 @@ module Rules = struct
     { line_same = unstyled_prefix "  "
     ; line_prev = inner_line_change "-|" Color.Red
     ; line_next = inner_line_change "+|" Color.Green
-    ; line_unified
+    ; line_unified = line_unified ~is_move:false
     ; word_same_prev = blank
     ; word_same_next = blank
     ; word_same_unified = blank
+    ; word_same_unified_in_move = blank
     ; word_prev = word_change Color.Red
     ; word_next = word_change Color.Green
     ; hunk = blank
     ; header_prev = blank
     ; header_next = blank
+    ; moved_from_prev = inner_line_change "<|" Color.Magenta
+    ; moved_to_next = inner_line_change ">|" Color.Cyan
+    ; removed_in_move = inner_line_change ">|" Color.Red
+    ; added_in_move = inner_line_change ">|" Color.Green
+    ; line_unified_in_move = line_unified ~is_move:true
     }
   ;;
 
@@ -185,11 +201,17 @@ module Rules = struct
       ~word_same_prev:f
       ~word_same_next:f
       ~word_same_unified:f
+      ~word_same_unified_in_move:f
       ~word_prev:f
       ~word_next:f
       ~hunk:f
       ~header_prev:f
       ~header_next:f
+      ~moved_from_prev:f
+      ~moved_to_next:f
+      ~removed_in_move:f
+      ~added_in_move:f
+      ~line_unified_in_move:f
   ;;
 end
 

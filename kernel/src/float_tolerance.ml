@@ -91,7 +91,8 @@ module String_with_floats = struct
          (t5 ((floats (-12345678910.11)) (without_floats "(foo )")))
          (t6 ((floats (-12345678910.11)) (without_floats "(foo )")))
          (t7 ((floats (-12345678910.11)) (without_floats "(foo )")))
-         (t8 ((floats (-12345678910.11)) (without_floats "(foo )")))) |}]
+         (t8 ((floats (-12345678910.11)) (without_floats "(foo )"))))
+        |}]
     ;;
 
     let%expect_test _ =
@@ -105,7 +106,8 @@ module String_with_floats = struct
            (without_floats "(dynamic (Ok ((price_range ( )))))\n")))
          (next
           ((floats (-18.772 38.988))
-           (without_floats "(dynamic (Ok ((price_range ( )))))\n")))) |}]
+           (without_floats "(dynamic (Ok ((price_range ( )))))\n"))))
+        |}]
     ;;
 
     let%expect_test _ =
@@ -123,7 +125,8 @@ module String_with_floats = struct
            (without_floats "(primary_exchange_core_session (:: ::))")))
          (next
           ((floats (9 30 0 15 59 0))
-           (without_floats "(primary_exchange_core_session (:: ::))")))) |}]
+           (without_floats "(primary_exchange_core_session (:: ::))"))))
+        |}]
     ;;
   end
 end
@@ -217,9 +220,10 @@ let recover_ranges xs ys a =
        | Matching ijs ->
          let xys = Array.of_list ijs |> Array.map ~f:(fun (i, j) -> xs.(i), ys.(j)) in
          Range.Same xys
-       | Nonmatching (is, []) -> Prev (elts_of_indices is xs)
-       | Nonmatching ([], js) -> Next (elts_of_indices js ys)
-       | Nonmatching (is, js) -> Replace (elts_of_indices is xs, elts_of_indices js ys))
+       | Nonmatching (is, []) -> Prev (elts_of_indices is xs, None)
+       | Nonmatching ([], js) -> Next (elts_of_indices js ys, None)
+       | Nonmatching (is, js) ->
+         Replace (elts_of_indices is xs, elts_of_indices js ys, None))
 ;;
 
 let%expect_test "recover_ranges" =
@@ -230,7 +234,7 @@ let%expect_test "recover_ranges" =
   [%expect {| ((0 1) (1 1) (2 2)) |}];
   let ranges = recover_ranges prev next a in
   print_s ([%sexp_of: string Range.t list] ranges);
-  [%expect {| ((Replace (a b) (z))) |}]
+  [%expect {| ((Replace (a b) (z) ())) |}]
 ;;
 
 let do_tolerance ~equal hunks =
@@ -239,7 +243,7 @@ let do_tolerance ~equal hunks =
     | Same _ | Prev _ | Next _ -> [ range ]
     | Unified _ ->
       raise_s [%message "Unexpected Unified range." ~_:(range : string Range.t)]
-    | Replace (prev, next) ->
+    | Replace (prev, next, _) ->
       needleman_wunsch
         (Array.map prev ~f:String_with_floats.create)
         (Array.map next ~f:String_with_floats.create)
@@ -313,15 +317,16 @@ end = struct
       let%expect_test _ =
         let test ranges = print_s [%sexp (f ranges : t Sequence.t)] in
         let same = Range.Same [| "same", "same" |] in
-        let not_same = Range.Next [| "new" |] in
+        let not_same = Range.Next ([| "new" |], None) in
         test [ same; same ];
         [%expect {| () |}];
         test [ same; not_same; same; same; not_same; same; same ];
         [%expect
           {|
-        (((Same ((same same))) Start) ((Next (new)) Middle)
-         ((Same ((same same) (same same))) Middle) ((Next (new)) Middle)
-         ((Same ((same same) (same same))) End)) |}]
+          (((Same ((same same))) Start) ((Next (new) ()) Middle)
+           ((Same ((same same) (same same))) Middle) ((Next (new) ()) Middle)
+           ((Same ((same same) (same same))) End))
+          |}]
       ;;
     end
   end
@@ -390,7 +395,7 @@ end = struct
           print_s [%sexp (Merged_with_position.f ranges |> f ~context:1 : t Sequence.t)]
         in
         let same = Range.Same [| "same", "same" |] in
-        let not_same = Range.Next [| "new" |] in
+        let not_same = Range.Next ([| "new" |], None) in
         test [ same; same ];
         [%expect {| () |}];
         test
@@ -409,10 +414,11 @@ end = struct
           ];
         [%expect
           {|
-        ((Drop 1) (Keep (Same ((same same)))) (Keep (Next (new)))
-         (Keep (Same ((same same) (same same)))) (Keep (Next (new)))
-         (Keep (Same ((same same)))) (Drop 1) (Keep (Same ((same same))))
-         (Keep (Next (new))) (Keep (Same ((same same))))) |}]
+          ((Drop 1) (Keep (Same ((same same)))) (Keep (Next (new) ()))
+           (Keep (Same ((same same) (same same)))) (Keep (Next (new) ()))
+           (Keep (Same ((same same)))) (Drop 1) (Keep (Same ((same same))))
+           (Keep (Next (new) ())) (Keep (Same ((same same)))))
+          |}]
       ;;
     end
   end

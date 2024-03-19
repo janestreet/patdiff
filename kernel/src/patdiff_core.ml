@@ -92,14 +92,53 @@ module Make (Output_impls : Output_impls) = struct
               app x, app y)
           in
           Same formatted_ar
-        | Next ar -> Next (Array.map ar ~f:(apply ~refined:false ~rule:rules.line_next))
-        | Prev ar -> Prev (Array.map ar ~f:(apply ~refined:false ~rule:rules.line_prev))
-        | Unified ar ->
-          Unified (Array.map ar ~f:(apply ~refined:true ~rule:rules.line_unified))
-        | Replace (ar1, ar2) ->
-          let ar1 = Array.map ar1 ~f:(apply ~refined:true ~rule:rules.line_prev) in
-          let ar2 = Array.map ar2 ~f:(apply ~refined:true ~rule:rules.line_next) in
-          Replace (ar1, ar2)
+        | Next (ar, move_kind) ->
+          Next
+            ( Array.map
+                ar
+                ~f:
+                  (apply
+                     ~refined:false
+                     ~rule:
+                       (match move_kind with
+                        | Some (Move _) -> rules.moved_to_next
+                        | Some (Within_move _) -> rules.added_in_move
+                        | None -> rules.line_next))
+            , move_kind )
+        | Prev (ar, move_kind) ->
+          Prev
+            ( Array.map
+                ar
+                ~f:
+                  (apply
+                     ~refined:false
+                     ~rule:
+                       (match move_kind with
+                        | Some (Move _) -> rules.moved_from_prev
+                        | Some (Within_move _) -> rules.removed_in_move
+                        | None -> rules.line_prev))
+            , move_kind )
+        | Unified (ar, move_id) ->
+          Unified
+            ( Array.map
+                ar
+                ~f:
+                  (apply
+                     ~refined:true
+                     ~rule:
+                       (match move_id with
+                        | None -> rules.line_unified
+                        | Some _ -> rules.line_unified_in_move))
+            , move_id )
+        | Replace (ar1, ar2, move_id) ->
+          let prev_rule, next_rule =
+            match move_id with
+            | None -> rules.line_prev, rules.line_next
+            | Some _ -> rules.removed_in_move, rules.added_in_move
+          in
+          let ar1 = Array.map ar1 ~f:(apply ~refined:true ~rule:prev_rule) in
+          let ar2 = Array.map ar2 ~f:(apply ~refined:true ~rule:next_rule) in
+          Replace (ar1, ar2, move_id)
       ;;
 
       let map_ranges (hunks : _ Patience_diff.Hunk.t list) ~f =
@@ -243,7 +282,264 @@ module Make (Output_impls : Output_impls) = struct
     base_score + decreasing_indentation_bonus + bonus_for_chars
   ;;
 
-  let diff ~context ~line_big_enough ~keep_ws ~prev ~next =
+  module Range_info = struct
+    module T = struct
+      type t =
+        { range_index : int
+        ; size_of_range : int
+        }
+      [@@deriving compare, hash, sexp_of, fields ~getters]
+
+      let compare_by_size = Comparable.lift Int.compare ~f:size_of_range
+    end
+
+    include T
+    include Hashable.Make_plain (T)
+  end
+
+  (* Used to track the state of [Replace] ranges when we explode them into
+     a [Prev] and a [Next] *)
+  module Range_with_replaces_info = struct
+    type t =
+      { hunk_index : int
+      ; range_type : [ `Original | `Former_replace | `Move ]
+      }
+  end
+
+  let find_moves ~line_big_enough ~keep_ws (hunks : Hunks.t) =
+    let minimum_match_perc = 0.7 in
+    let minimum_lines = 3 in
+    (* Rewrite [Replace] ranges as a [Prev] and [Next] so we can consider them for moves.
+       Extract all ranges from the hunks so they are easier to work with *)
+    let all_ranges = Queue.create () in
+    List.iteri hunks ~f:(fun hunk_index hunk ->
+      List.iter hunk.ranges ~f:(fun range ->
+        match range with
+        | Replace (prev, next, None) ->
+          Queue.enqueue
+            all_ranges
+            ( { Range_with_replaces_info.hunk_index; range_type = `Former_replace }
+            , Patience_diff.Range.Prev (prev, None) );
+          Queue.enqueue
+            all_ranges
+            ( { Range_with_replaces_info.hunk_index; range_type = `Former_replace }
+            , Patience_diff.Range.Next (next, None) )
+        | _ ->
+          Queue.enqueue
+            all_ranges
+            ({ Range_with_replaces_info.hunk_index; range_type = `Original }, range)));
+    let prev_ranges = Queue.create () in
+    let next_ranges =
+      Pairing_heap.create ~cmp:(Comparable.lift Range_info.compare_by_size ~f:fst) ()
+    in
+    Queue.iteri all_ranges ~f:(fun range_index (_, range) ->
+      match range with
+      | Prev (range_contents, None) when Array.length range_contents >= minimum_lines ->
+        Queue.enqueue
+          prev_ranges
+          ( { Range_info.range_index
+            ; size_of_range = Array.sum (module Int) ~f:String.length range_contents
+            }
+          , range_contents )
+      | Next (range_contents, None) when Array.length range_contents >= minimum_lines ->
+        Pairing_heap.add
+          next_ranges
+          ( { Range_info.range_index
+            ; size_of_range = Array.sum (module Int) ~f:String.length range_contents
+            }
+          , range_contents )
+      | _ -> ());
+    let prevs_used = Range_info.Table.create () in
+    let nexts_to_replace = Range_info.Table.create () in
+    (* Find ranges that are similar enough to be moves *)
+    let next_ranges =
+      Array.init (Pairing_heap.length next_ranges) ~f:(fun _ ->
+        Pairing_heap.pop_exn next_ranges)
+    in
+    let move_id = ref Patience_diff.Move_id.zero in
+    Queue.iter prev_ranges ~f:(fun (prev_location, prev_contents) ->
+      let starting_index =
+        Array.binary_search
+          next_ranges
+          ~compare:(fun (next_range_info, _next_contents) prev_range_info ->
+            Range_info.compare_by_size next_range_info prev_range_info)
+          `Last_less_than_or_equal_to
+          prev_location
+        |> Option.value ~default:(Array.length next_ranges - 1)
+      in
+      let starting_index = if starting_index < 0 then 0 else starting_index in
+      let left_index = ref starting_index in
+      let right_index = ref (starting_index + 1) in
+      let max_similarity range_a range_b =
+        let a_size = Int.to_float range_a.Range_info.size_of_range in
+        let b_size = Int.to_float range_b.Range_info.size_of_range in
+        Float.min a_size b_size /. Float.max a_size b_size
+      in
+      let next_closest_range () =
+        let left_range =
+          if !left_index < 0 || !left_index >= Array.length next_ranges
+          then None
+          else Some next_ranges.(!left_index)
+        in
+        let right_range =
+          if !right_index < 0 || !right_index >= Array.length next_ranges
+          then None
+          else Some next_ranges.(!right_index)
+        in
+        match left_range, right_range with
+        | None, None -> None
+        | Some left_range, None ->
+          Int.decr left_index;
+          Some left_range
+        | None, Some right_range ->
+          Int.incr right_index;
+          Some right_range
+        | Some (left_info, left_range), Some (right_info, right_range) ->
+          if Float.compare
+               (max_similarity left_info prev_location)
+               (max_similarity right_info prev_location)
+             >= 0
+          then (
+            Int.decr left_index;
+            Some (left_info, left_range))
+          else (
+            Int.incr right_index;
+            Some (right_info, right_range))
+      in
+      let rec find_best_next_range best_match_so_far =
+        let finish () =
+          match best_match_so_far with
+          | None -> ()
+          | Some (_, select_hunk) -> select_hunk ()
+        in
+        match next_closest_range () with
+        | None -> finish ()
+        | Some (next_location, next_contents) ->
+          let max_similarity = max_similarity prev_location next_location in
+          (* If this range can't possibly have the required similarity then none of the
+             subsequent ranges can either so stop our search here *)
+          if Float.(max_similarity < minimum_match_perc)
+             ||
+             match best_match_so_far with
+             | None -> false
+             | Some (best_match_ratio, _) -> Float.(max_similarity < best_match_ratio)
+          then finish ()
+          else if Hashtbl.mem nexts_to_replace next_location
+          then find_best_next_range best_match_so_far
+          else (
+            let match_ratio =
+              Patience_diff.String.match_ratio prev_contents next_contents
+            in
+            let select_hunk () =
+              let hunk =
+                let transform = if keep_ws then Fn.id else remove_ws in
+                Patience_diff.String.get_hunks
+                  ~transform
+                  ~context:(-1)
+                  ~big_enough:line_big_enough
+                  ~max_slide:100
+                  ~score:score_line
+                  ~prev:prev_contents
+                  ~next:next_contents
+                  ()
+                (* Negative [context] returns a singleton hunk *)
+                |> List.hd_exn
+              in
+              let move_index = !move_id in
+              Hashtbl.add_exn prevs_used ~key:prev_location ~data:move_index;
+              move_id := Patience_diff.Move_id.succ !move_id;
+              Hashtbl.add_exn
+                nexts_to_replace
+                ~key:next_location
+                ~data:
+                  (List.map hunk.ranges ~f:(function
+                    | Same contents ->
+                      Patience_diff.Range.Next
+                        (Array.map ~f:snd contents, Some (Move move_index))
+                    | Replace (prev, next, _) -> Replace (prev, next, Some move_index)
+                    | Prev (prev, _) -> Prev (prev, Some (Within_move move_index))
+                    | Next (next, _) -> Next (next, Some (Within_move move_index))
+                    | Unified (contents, _) -> Unified (contents, Some move_index)))
+            in
+            let best_match_so_far =
+              match best_match_so_far with
+              | None when Float.(match_ratio >= minimum_match_perc) ->
+                Some (match_ratio, select_hunk)
+              | None -> None
+              | Some (best_match_ratio, _) ->
+                if Float.(match_ratio > best_match_ratio)
+                then Some (match_ratio, select_hunk)
+                else best_match_so_far
+            in
+            find_best_next_range best_match_so_far)
+      in
+      find_best_next_range None);
+    let ranges = Queue.to_array all_ranges in
+    (* Update the [Prev] ranges we used to be marked as moves *)
+    Hashtbl.iteri prevs_used ~f:(fun ~key:location ~data:move_index ->
+      let range_data, range = ranges.(location.range_index) in
+      match range with
+      | Patience_diff.Range.Prev (contents, None) ->
+        ranges.(location.range_index)
+          <- ( { range_data with range_type = `Move }
+             , Patience_diff.Range.Prev (contents, Some (Move move_index)) )
+      | _ ->
+        (* we should never reference anything except a [Prev] that hasn't been moved *)
+        assert false);
+    let nexts_by_range_index =
+      Hashtbl.to_alist nexts_to_replace
+      |> List.map ~f:(fun (range_info, ranges_to_insert) ->
+           range_info.Range_info.range_index, ranges_to_insert)
+      |> Int.Table.of_alist_exn
+    in
+    (* update the [Next] ranges *)
+    let ranges =
+      Array.mapi ranges ~f:(fun range_index (range_data, range) ->
+        match Hashtbl.find nexts_by_range_index range_index with
+        | None -> [ range_data, range ]
+        | Some ranges_to_replace ->
+          let range_data = { range_data with range_type = `Move } in
+          List.map ranges_to_replace ~f:(fun range -> range_data, range))
+      |> Array.to_list
+      |> List.concat
+    in
+    (* Recover any [Replace] ranges we broke up if we didn't use them for moves. *)
+    let final_ranges = Queue.create () in
+    let rec recover_replaces = function
+      | ( { Range_with_replaces_info.range_type = `Former_replace; hunk_index }
+        , Patience_diff.Range.Prev (prev, None) )
+        :: ( { Range_with_replaces_info.range_type = `Former_replace; hunk_index = _ }
+           , Next (next, None) )
+        :: rest_ranges ->
+        Queue.enqueue
+          final_ranges
+          ( { Range_with_replaces_info.range_type = `Original; hunk_index }
+          , Patience_diff.Range.Replace (prev, next, None) );
+        recover_replaces rest_ranges
+      | range :: rest_ranges ->
+        Queue.enqueue final_ranges range;
+        recover_replaces rest_ranges
+      | [] -> ()
+    in
+    recover_replaces ranges;
+    (* Place the ranges in the correct hunks *)
+    let final_hunks =
+      List.mapi hunks ~f:(fun hunk_index hunk ->
+        let ranges =
+          let hunk_ranges = Queue.create () in
+          Queue.drain
+            final_ranges
+            ~f:(fun (_, range) -> Queue.enqueue hunk_ranges range)
+            ~while_:(fun (range_data, _) ->
+              range_data.Range_with_replaces_info.hunk_index = hunk_index);
+          Queue.to_list hunk_ranges
+        in
+        { hunk with ranges })
+    in
+    final_hunks
+  ;;
+
+  let diff ~context ~line_big_enough ~keep_ws ~find_moves:should_find_moves ~prev ~next =
     let transform = if keep_ws then Fn.id else remove_ws in
     Patience_diff.String.get_hunks
       ~transform
@@ -254,6 +550,8 @@ module Make (Output_impls : Output_impls) = struct
       ~prev
       ~next
       ()
+    |> fun hunks ->
+    if should_find_moves then find_moves ~line_big_enough ~keep_ws hunks else hunks
   ;;
 
   type word_or_newline =
@@ -397,10 +695,10 @@ module Make (Output_impls : Output_impls) = struct
             | `Unified -> snd
           in
           Array.map ar ~f
-        | Prev ar ->
+        | Prev (ar, _) ->
           flag := `Prev;
           ar
-        | Next ar ->
+        | Next (ar, _) ->
           flag := `Next;
           ar
         | Replace _ | Unified _ ->
@@ -467,7 +765,7 @@ module Make (Output_impls : Output_impls) = struct
 
   let ranges_are_just_whitespace (ranges : _ Patience_diff.Range.t list) =
     List.for_all ranges ~f:(function
-      | Prev piece_array | Next piece_array ->
+      | Prev (piece_array, _) | Next (piece_array, _) ->
         Array.for_all piece_array ~f:(function
           | `Word s -> String.is_empty (remove_ws s)
           | `Newline _ -> true)
@@ -544,11 +842,11 @@ module Make (Output_impls : Output_impls) = struct
          | Ok width -> width)
     in
     let refine_range : _ Patience_diff.Range.t -> _ Patience_diff.Range.t list = function
-      | Next a when (not keep_ws) && Array.for_all a ~f:is_ws ->
+      | Next (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws ->
         [ Same (Array.zip_exn a a) ]
-      | Prev a when (not keep_ws) && Array.for_all a ~f:is_ws -> []
+      | Prev (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws -> []
       | (Next _ | Prev _ | Same _ | Unified _) as range -> [ range ]
-      | Replace (prev_ar, next_ar) ->
+      | Replace (prev_ar, next_ar, move_kind) ->
         (* Explode the arrays *)
         let prev_pieces = explode prev_ar ~keep_ws in
         let next_pieces = explode next_ar ~keep_ws in
@@ -646,10 +944,10 @@ module Make (Output_impls : Output_impls) = struct
                        | `Range r -> r :: rangeaccum, rangelistaccum)
                    in
                    split_lines new_len_so_far rest rangeaccum rangelistaccum
-                 | Next tokens_arr | Prev tokens_arr ->
+                 | Next (tokens_arr, _) | Prev (tokens_arr, _) ->
                    let new_len_so_far = get_new_len_so_far ~len_so_far tokens_arr in
                    split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
-                 | Replace (prev_arr, next_arr) ->
+                 | Replace (prev_arr, next_arr, _move_kind) ->
                    let new_len_so_far =
                      Int.max
                        (get_new_len_so_far ~len_so_far prev_arr)
@@ -672,7 +970,7 @@ module Make (Output_impls : Output_impls) = struct
             List.for_all ranges ~f:(fun range ->
               match (range : _ Patience_diff.Range.t) with
               | Same _ -> true
-              | Prev a | Next a ->
+              | Prev (a, _) | Next (a, _) ->
                 if keep_ws
                 then false
                 else
@@ -693,14 +991,21 @@ module Make (Output_impls : Output_impls) = struct
             match prev_all_same, next_all_same with
             | true, true ->
               let kind = `Next_only in
-              let rule_same = rules.word_same_unified in
+              let rule_same =
+                match move_kind with
+                | None -> rules.word_same_unified
+                | Some _ -> rules.word_same_unified_in_move
+              in
               let next_ar = collapse sub_next ~rule_same ~kind in
               [ next_ar, next_ar ]
             | false, true ->
               let kind = `Prev_only in
               let rule_same =
                 if produce_unified_lines
-                then rules.word_same_unified
+                then (
+                  match move_kind with
+                  | None -> rules.word_same_unified
+                  | Some _ -> rules.word_same_unified_in_move)
                 else rules.word_same_prev
               in
               let prev_ar = collapse sub_prev ~rule_same ~kind in
@@ -712,7 +1017,10 @@ module Make (Output_impls : Output_impls) = struct
               let kind = `Next_only in
               let rule_same =
                 if produce_unified_lines
-                then rules.word_same_unified
+                then (
+                  match move_kind with
+                  | None -> rules.word_same_unified
+                  | Some _ -> rules.word_same_unified_in_move)
                 else rules.word_same_next
               in
               let next_ar = collapse sub_next ~rule_same ~kind in
@@ -736,13 +1044,14 @@ module Make (Output_impls : Output_impls) = struct
               | _ ->
                 (match prev_ar, next_ar with
                  (* Ugly hack that takes care of empty files *)
-                 | [| "" |], next_ar -> Replace ([||], next_ar)
-                 | prev_ar, [| "" |] -> Replace (prev_ar, [||])
+                 | [| "" |], next_ar -> Replace ([||], next_ar, move_kind)
+                 | prev_ar, [| "" |] -> Replace (prev_ar, [||], move_kind)
                  | prev_ar, next_ar ->
                    (match produce_unified_lines, prev_all_same, next_all_same with
-                    | true, true, false -> Unified next_ar
-                    | true, false, true -> Unified prev_ar
-                    | false, _, _ | _, false, false -> Replace (prev_ar, next_ar)
+                    | true, true, false -> Unified (next_ar, move_kind)
+                    | true, false, true -> Unified (prev_ar, move_kind)
+                    | false, _, _ | _, false, false ->
+                      Replace (prev_ar, next_ar, move_kind)
                     | _ -> assert false))
             in
             range))
@@ -792,6 +1101,7 @@ module Make (Output_impls : Output_impls) = struct
   let patdiff
     ?(context = Configuration.default_context)
     ?(keep_ws = false)
+    ?(find_moves = false)
     ?(rules = Format.Rules.default)
     ?(output = Output.Ansi)
     ?(produce_unified_lines = true)
@@ -811,6 +1121,7 @@ module Make (Output_impls : Output_impls) = struct
       diff
         ~context
         ~keep_ws
+        ~find_moves
         ~line_big_enough
         ~prev:(List.to_array (String.split_lines prev.text))
         ~next:(List.to_array (String.split_lines next.text))

@@ -10,7 +10,15 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
     let keep_ws = config.keep_ws in
     let split_long_lines = config.split_long_lines in
     let line_big_enough = config.line_big_enough in
-    let hunks = Patdiff_core_arg.diff ~context ~line_big_enough ~keep_ws ~prev ~next in
+    let hunks =
+      Patdiff_core_arg.diff
+        ~context
+        ~line_big_enough
+        ~keep_ws
+        ~find_moves:config.find_moves
+        ~prev
+        ~next
+    in
     let hunks =
       match config.float_tolerance with
       | None -> hunks

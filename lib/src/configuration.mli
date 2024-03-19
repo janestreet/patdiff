@@ -13,6 +13,10 @@ val dark_bg : t Lazy.t
 val light_bg : t Lazy.t
 
 module On_disk : sig
+  module V3 : sig
+    type t
+  end
+
   module V2 : sig
     type t
   end
@@ -29,7 +33,7 @@ module On_disk : sig
     val to_v1 : t -> V1.t
   end
 
-  type t = V2.t [@@deriving sexp]
+  type t = V3.t [@@deriving sexp]
 end
 
 val parse : On_disk.t -> t

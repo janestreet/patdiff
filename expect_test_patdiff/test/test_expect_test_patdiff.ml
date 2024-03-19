@@ -9,9 +9,9 @@ let string2 = sorted_strings |> String.concat ~sep:"\n"
 
 let%expect_test "print_patdiff" =
   print_patdiff string1 string1;
-  [%expect {||}];
+  [%expect {| |}];
   print_patdiff string2 string2;
-  [%expect {||}];
+  [%expect {| |}];
   print_patdiff string1 string2;
   [%expect
     {|
@@ -21,7 +21,8 @@ let%expect_test "print_patdiff" =
     +|three
       two
     -|three
-    +|zero |}];
+    +|zero
+    |}];
   print_patdiff string2 string1 ~context:0;
   [%expect
     {|
@@ -31,7 +32,8 @@ let%expect_test "print_patdiff" =
     +|two
     -3,2 +5,0
     -|two
-    -|zero |}]
+    -|zero
+    |}]
 ;;
 
 let sexp1 =
@@ -77,7 +79,8 @@ let%expect_test "print_patdiff_s" =
             Node (
               (left  Leaf)
               (key   three)
-              (right Leaf))))))))) |}];
+              (right Leaf)))))))))
+    |}];
   print_s sexp2;
   [%expect
     {|
@@ -92,11 +95,12 @@ let%expect_test "print_patdiff_s" =
           (key   two)
           (right Leaf))))
       (key   three)
-      (right Leaf))) |}];
+      (right Leaf)))
+    |}];
   print_patdiff_s sexp1 sexp1;
-  [%expect {||}];
+  [%expect {| |}];
   print_patdiff_s sexp2 sexp2;
-  [%expect {||}];
+  [%expect {| |}];
   print_patdiff_s sexp1 sexp2;
   [%expect
     {|
@@ -122,7 +126,8 @@ let%expect_test "print_patdiff_s" =
     +|      (right Leaf))))
         (key   three)
     -|          (right Leaf)))))))))
-    +|  (right Leaf))) |}];
+    +|  (right Leaf)))
+    |}];
   print_patdiff_s sexp2 sexp1 ~context:0;
   [%expect
     {|
@@ -147,7 +152,8 @@ let%expect_test "print_patdiff_s" =
     +|          (left  Leaf)
     -12,1 +12,1
     -|  (right Leaf)))
-    +|          (right Leaf))))))))) |}]
+    +|          (right Leaf)))))))))
+    |}]
 ;;
 
 let%expect_test "non-empty patdiff prints a newline" =
@@ -159,7 +165,8 @@ let%expect_test "non-empty patdiff prints a newline" =
     -1,1 +1,1
     -|cat
     +|dog
-    ---------- |}]
+    ----------
+    |}]
 ;;
 
 let%expect_test "empty patdiff does not print a newline" =
@@ -168,5 +175,6 @@ let%expect_test "empty patdiff does not print a newline" =
   print_endline "----------";
   [%expect {|
     ----------
-    ---------- |}]
+    ----------
+    |}]
 ;;

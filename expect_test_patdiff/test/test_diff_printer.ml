@@ -31,7 +31,8 @@ let%expect_test "test with diff_printer" =
      (17 1700)
      (18 1800)
      (19 1900)
-     (20 2000)) |}];
+     (20 2000))
+    |}];
   let map = Map.set map ~key:10 ~data:999 in
   show map;
   print_diff [%expect.output];
@@ -41,7 +42,8 @@ let%expect_test "test with diff_printer" =
        (9  900)
     -| (10 1000)
     +| (10 999)
-       (11 1100) |}];
+       (11 1100)
+    |}];
   let map = Map.set map ~key:0 ~data:(-1) in
   show map;
   print_diff [%expect.output];
@@ -51,7 +53,8 @@ let%expect_test "test with diff_printer" =
     -|((1  100)
     +|((0  -1)
     +| (1  100)
-       (2  200) |}]
+       (2  200)
+    |}]
 ;;
 
 let%expect_test "test with diff_printer_s" =
@@ -84,7 +87,8 @@ let%expect_test "test with diff_printer_s" =
      (17 1700)
      (18 1800)
      (19 1900)
-     (20 2000)) |}];
+     (20 2000))
+    |}];
   let map = Map.set map ~key:10 ~data:999 in
   print_diff map;
   [%expect
@@ -93,7 +97,8 @@ let%expect_test "test with diff_printer_s" =
        (9  900)
     -| (10 1000)
     +| (10 999)
-       (11 1100) |}];
+       (11 1100)
+    |}];
   let map = Map.set map ~key:0 ~data:(-1) in
   print_diff map;
   [%expect
@@ -102,7 +107,8 @@ let%expect_test "test with diff_printer_s" =
     -|((1  100)
     +|((0  -1)
     +| (1  100)
-       (2  200) |}]
+       (2  200)
+    |}]
 ;;
 
 let%expect_test "test without diff_printer or diff_printer_s" =
@@ -130,7 +136,8 @@ let%expect_test "test without diff_printer or diff_printer_s" =
      (17 1700)
      (18 1800)
      (19 1900)
-     (20 2000)) |}];
+     (20 2000))
+    |}];
   let map = Map.set map ~key:10 ~data:999 in
   show map;
   [%expect
@@ -154,7 +161,8 @@ let%expect_test "test without diff_printer or diff_printer_s" =
      (17 1700)
      (18 1800)
      (19 1900)
-     (20 2000)) |}];
+     (20 2000))
+    |}];
   let map = Map.set map ~key:0 ~data:(-1) in
   show map;
   [%expect
@@ -179,7 +187,8 @@ let%expect_test "test without diff_printer or diff_printer_s" =
      (17 1700)
      (18 1800)
      (19 1900)
-     (20 2000)) |}]
+     (20 2000))
+    |}]
 ;;
 
 let%expect_test "passing [None] to diff_printer behaves like diff_printer, but delays \
@@ -187,7 +196,7 @@ let%expect_test "passing [None] to diff_printer behaves like diff_printer, but d
   =
   let show map = print_s [%sexp (map : int Int.Map.t)] in
   let print_diff = Expect_test_patdiff.diff_printer ~context:1 None |> unstage in
-  [%expect {||}];
+  [%expect {| |}];
   show map;
   print_diff [%expect.output];
   [%expect
@@ -211,7 +220,8 @@ let%expect_test "passing [None] to diff_printer behaves like diff_printer, but d
      (17 1700)
      (18 1800)
      (19 1900)
-     (20 2000)) |}];
+     (20 2000))
+    |}];
   let map = Map.set map ~key:10 ~data:999 in
   show map;
   print_diff [%expect.output];
@@ -221,7 +231,8 @@ let%expect_test "passing [None] to diff_printer behaves like diff_printer, but d
        (9  900)
     -| (10 1000)
     +| (10 999)
-       (11 1100) |}];
+       (11 1100)
+    |}];
   let map = Map.set map ~key:0 ~data:(-1) in
   show map;
   print_diff [%expect.output];
@@ -231,7 +242,8 @@ let%expect_test "passing [None] to diff_printer behaves like diff_printer, but d
     -|((1  100)
     +|((0  -1)
     +| (1  100)
-       (2  200) |}]
+       (2  200)
+    |}]
 ;;
 
 let%expect_test "passing [None] to diff_printer_s behaves like diff_printer_s, but \
@@ -241,7 +253,7 @@ let%expect_test "passing [None] to diff_printer_s behaves like diff_printer_s, b
     let diff_printer = Expect_test_patdiff.diff_printer_s ~context:1 None |> unstage in
     fun map -> diff_printer [%sexp (map : int Int.Map.t)]
   in
-  [%expect {||}];
+  [%expect {| |}];
   print_diff map;
   [%expect
     {|
@@ -264,7 +276,8 @@ let%expect_test "passing [None] to diff_printer_s behaves like diff_printer_s, b
      (17 1700)
      (18 1800)
      (19 1900)
-     (20 2000)) |}];
+     (20 2000))
+    |}];
   let map = Map.set map ~key:10 ~data:999 in
   print_diff map;
   [%expect
@@ -273,7 +286,8 @@ let%expect_test "passing [None] to diff_printer_s behaves like diff_printer_s, b
        (9  900)
     -| (10 1000)
     +| (10 999)
-       (11 1100) |}];
+       (11 1100)
+    |}];
   let map = Map.set map ~key:0 ~data:(-1) in
   print_diff map;
   [%expect
@@ -282,5 +296,6 @@ let%expect_test "passing [None] to diff_printer_s behaves like diff_printer_s, b
     -|((1  100)
     +|((0  -1)
     +| (1  100)
-       (2  200) |}]
+       (2  200)
+    |}]
 ;;

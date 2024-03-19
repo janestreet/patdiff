@@ -21,8 +21,7 @@ let%expect_test "patdiff-git-wrapper" =
     let%bind () = Writer.save "foo" ~contents:"foo baz quux\n" in
     (* Override whatever patdiff config the user has. *)
     let%bind () = run "patdiff" [ "-make-config"; ".patdiff" ] in
-    [%expect {|
-      Default configuration written to .patdiff |}];
+    [%expect {| Default configuration written to .patdiff |}];
     Unix.putenv ~key:"HOME" ~data:".";
     (* Standard git diff. *)
     let%bind () = run "git" [ "diff" ] in
@@ -34,7 +33,8 @@ let%expect_test "patdiff-git-wrapper" =
       +++ b/foo
       @@ -1 +1 @@
       -foo bar baz
-      +foo baz quux |}];
+      +foo baz quux
+      |}];
     (* Diff according to instructions in the script. *)
     Unix.putenv ~key:"GIT_EXTERNAL_DIFF" ~data:"patdiff-git-wrapper";
     let%bind () = system "git diff | ansicodes visualize -minimize" in
@@ -46,6 +46,7 @@ let%expect_test "patdiff-git-wrapper" =
       (fg:green)++++++ (+bold) b/foo
       (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
       (fg:black bg:red)-|(off)foo(fg:red) bar(off) baz
-      (fg:black bg:green)+|(off)foo baz(fg:green) quux |}];
+      (fg:black bg:green)+|(off)foo baz(fg:green) quux
+      |}];
     return ())
 ;;

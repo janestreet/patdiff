@@ -43,6 +43,7 @@ module Args = struct
     ; exclude : Re.re list
     ; location_style : Format.Location_style.t option
     ; warn_if_no_trailing_newline_in_both : bool option
+    ; find_moves_opt : bool option
     }
 
   type t =
@@ -99,6 +100,7 @@ let override config (args : Args.compare_flags) =
     ?produce_unified_lines:args.produce_unified_lines_opt
     ?float_tolerance:args.float_tolerance_opt
     ?keep_ws:args.keep_ws_opt
+    ?find_moves:args.find_moves_opt
     ?split_long_lines:args.split_long_lines_opt
     ?interleave:args.interleave_opt
     ?assume_text:args.assume_text_opt
@@ -354,6 +356,12 @@ let command =
               "BOOL warn when neither file ends in a newline, even though this does not \
                constitute a diff (default: read from config, or %b)"
               Configuration.warn_if_no_trailing_newline_in_both_default)
+     and find_moves_opt =
+       flag_no_arg
+         "find-moves"
+         ~doc:
+           "Try to find and render moves. If -dont-produce-unified-lines is set moves \
+            will not be found."
      and files =
        anon
          (maybe
@@ -391,6 +399,10 @@ let command =
              ; exclude
              ; location_style
              ; warn_if_no_trailing_newline_in_both
+             ; find_moves_opt =
+                 (match produce_unified_lines_opt with
+                  | None | Some true -> find_moves_opt
+                  | Some false -> Some false)
              ; prev_file
              ; next_file
              }

@@ -20,6 +20,7 @@ let%expect_test "pipe" =
     (fg:black) |
     (fg:black bg:red)-|(off)min=(fg:red)0(off)|max=10
     (fg:black bg:green)+|(off)min=(fg:green)5(off)|max=10
-    ("Unclean exit" (Exit_non_zero 1)) |}];
+    ("Unclean exit" (Exit_non_zero 1))
+    |}];
   return ()
 ;;

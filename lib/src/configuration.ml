@@ -93,6 +93,50 @@ module On_disk = struct
     let default = { prefix = None; suffix = None; style = None; word_same = None }
   end
 
+  module V3 = struct
+    type t =
+      { dont_produce_unified_lines : bool option [@sexp.option]
+      ; dont_overwrite_word_old_word_new : bool option [@sexp.option]
+      ; config_path : string option [@sexp.option]
+      ; context : int option [@sexp.option]
+      ; line_big_enough : (int[@generator Int.gen_incl 1 10_000]) option [@sexp.option]
+      ; word_big_enough : (int[@generator Int.gen_incl 1 10_000]) option [@sexp.option]
+      ; keep_whitespace : bool option [@sexp.option]
+      ; find_moves : bool option [@sexp.option]
+      ; split_long_lines : bool option [@sexp.option]
+      ; interleave : bool option [@sexp.option]
+      ; assume_text : bool option [@sexp.option]
+      ; quiet : bool option [@sexp.option]
+      ; shallow : bool option [@sexp.option]
+      ; double_check : bool option [@sexp.option]
+      ; mask_uniques : bool option [@sexp.option]
+      ; output : [ `ascii | `html | `ansi | `unrefined of [ `ansi | `html ] ]
+           [@default `ansi] [@sexp_drop_default.equal]
+      ; alt_old : string option [@sexp.option]
+      ; alt_new : string option [@sexp.option]
+      ; header_old : Header.t option [@sexp.option]
+      ; header_new : Header.t option [@sexp.option]
+      ; hunk : Hunk.t option [@sexp.option]
+      ; line_same : Line_rule.t option [@sexp.option]
+      ; line_old : Line_rule.t option [@sexp.option]
+      ; line_new : Line_rule.t option [@sexp.option]
+      ; line_unified : Line_rule.t option [@sexp.option]
+      ; line_from_old : Line_rule.t option [@sexp.option]
+      ; line_to_new : Line_rule.t option [@sexp.option]
+      ; line_removed_in_move : Line_rule.t option [@sexp.option]
+      ; line_added_in_move : Line_rule.t option [@sexp.option]
+      ; line_unified_in_move : Line_rule.t option [@sexp.option]
+      ; word_old : Rule.t option [@sexp.option]
+      ; word_new : Rule.t option [@sexp.option]
+      ; location_style : Format.Location_style.t
+           [@default Format.Location_style.Diff] [@sexp_drop_default.equal]
+      ; warn_if_no_trailing_newline_in_both : bool
+           [@default warn_if_no_trailing_newline_in_both_default]
+           [@sexp_drop_default.equal]
+      }
+    [@@deriving quickcheck, sexp]
+  end
+
   module V2 = struct
     type t =
       { dont_produce_unified_lines : bool option [@sexp.option]
@@ -129,6 +173,74 @@ module On_disk = struct
            [@sexp_drop_default.equal]
       }
     [@@deriving quickcheck, sexp]
+
+    let to_v3
+      { dont_produce_unified_lines
+      ; dont_overwrite_word_old_word_new
+      ; config_path
+      ; context
+      ; line_big_enough
+      ; word_big_enough
+      ; keep_whitespace
+      ; split_long_lines
+      ; interleave
+      ; assume_text
+      ; quiet
+      ; shallow
+      ; double_check
+      ; mask_uniques
+      ; output
+      ; alt_old
+      ; alt_new
+      ; header_old
+      ; header_new
+      ; hunk
+      ; line_same
+      ; line_old
+      ; line_new
+      ; line_unified
+      ; word_old
+      ; word_new
+      ; location_style
+      ; warn_if_no_trailing_newline_in_both
+      }
+      =
+      { V3.dont_produce_unified_lines
+      ; dont_overwrite_word_old_word_new
+      ; config_path
+      ; context
+      ; line_big_enough
+      ; word_big_enough
+      ; keep_whitespace
+      ; find_moves = Some false
+      ; split_long_lines
+      ; interleave
+      ; assume_text
+      ; quiet
+      ; shallow
+      ; double_check
+      ; mask_uniques
+      ; output
+      ; alt_old
+      ; alt_new
+      ; header_old
+      ; header_new
+      ; hunk
+      ; line_same
+      ; line_old
+      ; line_new
+      ; line_unified
+      ; line_from_old = None
+      ; line_to_new = None
+      ; line_removed_in_move = None
+      ; line_added_in_move = None
+      ; line_unified_in_move = None
+      ; word_old
+      ; word_new
+      ; location_style
+      ; warn_if_no_trailing_newline_in_both
+      }
+    ;;
   end
 
   module V1 = struct
@@ -378,24 +490,28 @@ module On_disk = struct
     ;;
   end
 
-  type t = V2.t [@@deriving sexp_of]
+  type t = V3.t [@@deriving sexp_of]
 
   let t_of_sexp sexp =
-    match V2.t_of_sexp sexp with
-    | v2 -> v2
-    | exception as_v2_exn ->
-      (match V1.t_of_sexp sexp with
-       | v1 -> V1.to_v2 v1
-       | exception as_v1_exn ->
-         (match V0.t_of_sexp sexp with
-          | v0 -> V1.to_v2 (V0.to_v1 v0)
-          | exception as_v0_exn ->
-            raise_s
-              [%message
-                "Patdiff.Configuration.On_disk.t_of_sexp: invalid config"
-                  (as_v2_exn : exn)
-                  (as_v1_exn : exn)
-                  (as_v0_exn : exn)]))
+    match V3.t_of_sexp sexp with
+    | v3 -> v3
+    | exception as_v3_exn ->
+      (match V2.t_of_sexp sexp with
+       | v2 -> V2.to_v3 v2
+       | exception as_v2_exn ->
+         (match V1.t_of_sexp sexp with
+          | v1 -> V2.to_v3 (V1.to_v2 v1)
+          | exception as_v1_exn ->
+            (match V0.t_of_sexp sexp with
+             | v0 -> V2.to_v3 (V1.to_v2 (V0.to_v1 v0))
+             | exception as_v0_exn ->
+               raise_s
+                 [%message
+                   "Patdiff.Configuration.On_disk.t_of_sexp: invalid config"
+                     (as_v3_exn : exn)
+                     (as_v2_exn : exn)
+                     (as_v1_exn : exn)
+                     (as_v0_exn : exn)])))
   ;;
 end
 
@@ -407,6 +523,7 @@ let parse
    ; line_big_enough
    ; word_big_enough
    ; keep_whitespace
+   ; find_moves
    ; split_long_lines
    ; interleave
    ; assume_text
@@ -424,6 +541,11 @@ let parse
    ; line_old
    ; line_new
    ; line_unified
+   ; line_from_old
+   ; line_to_new
+   ; line_removed_in_move
+   ; line_added_in_move
+   ; line_unified_in_move
    ; word_old
    ; word_new
    ; location_style
@@ -439,9 +561,22 @@ let parse
   let line_prev = default_rule line_old in
   let line_next = default_rule line_new in
   let line_unified = default_rule line_unified in
+  let line_from_prev = default_rule line_from_old in
+  let line_to_next = default_rule line_to_new in
+  let line_removed_in_move = default_rule line_removed_in_move in
+  let line_added_in_move = default_rule line_added_in_move in
+  let line_unified_in_move = default_rule line_unified_in_move in
   (* Padding for prefixes: They should all be the same length. *)
   let min_width =
-    [ line_same; line_prev; line_next; line_unified ]
+    [ line_same
+    ; line_prev
+    ; line_next
+    ; line_unified
+    ; line_from_prev
+    ; line_to_next
+    ; line_removed_in_move
+    ; line_added_in_move
+    ]
     |> List.map ~f:(fun line -> On_disk.Affix.length line.prefix)
     |> List.max_elt ~compare:Int.compare
     |> Option.value_exn
@@ -482,11 +617,22 @@ let parse
       ; word_same_prev = create_word_same line_prev
       ; word_same_next = create_word_same line_next
       ; word_same_unified = create_word_same line_unified
+      ; word_same_unified_in_move =
+          Format.Rule.create
+            (Option.value_map
+               ~default:[]
+               ~f:(fun rule -> Option.value ~default:[] rule.style)
+               line_to_new)
       ; word_prev = create_word ~line_rule:line_prev word_old
       ; word_next = create_word ~line_rule:line_next word_new
       ; hunk = On_disk.Hunk.to_internal (Option.value hunk ~default:On_disk.Rule.blank)
       ; header_prev = create_header header_old "---"
       ; header_next = create_header header_new "+++"
+      ; moved_from_prev = create_line line_from_prev
+      ; moved_to_next = create_line line_to_next
+      ; removed_in_move = create_line line_removed_in_move
+      ; added_in_move = create_line line_added_in_move
+      ; line_unified_in_move = create_line line_unified_in_move
       }
     ~output:
       (match output with
@@ -503,6 +649,7 @@ let parse
     ~produce_unified_lines:(not (default_false dont_produce_unified_lines))
     ~float_tolerance:None
     ~keep_ws:(default_false keep_whitespace)
+    ~find_moves:(default_false find_moves)
     ~split_long_lines:(default_false split_long_lines)
     ~interleave:(default_true interleave)
     ~assume_text:(default_false assume_text)
@@ -537,7 +684,11 @@ let dark_bg =
    (style (Bold (Fg blue)))))
  )|}
      in
-     parse (On_disk.V0.t_of_sexp sexp |> On_disk.V0.to_v1 |> On_disk.V1.to_v2))
+     parse
+       (On_disk.V0.t_of_sexp sexp
+        |> On_disk.V0.to_v1
+        |> On_disk.V1.to_v2
+        |> On_disk.V2.to_v3))
 ;;
 
 let light_bg =
@@ -556,7 +707,11 @@ let light_bg =
                 (style_new ((bg yellow) bold))))
  )|}
      in
-     parse (On_disk.V0.t_of_sexp sexp |> On_disk.V0.to_v1 |> On_disk.V1.to_v2))
+     parse
+       (On_disk.V0.t_of_sexp sexp
+        |> On_disk.V0.to_v1
+        |> On_disk.V1.to_v2
+        |> On_disk.V2.to_v3))
 ;;
 
 let%test_module _ =
@@ -575,27 +730,30 @@ let load_sexp_conv f conv = Result.try_with (fun () -> Sexp.load_sexp_conv_exn f
 
 let rec load_exn' ~set config_file =
   let config =
-    match load_sexp_conv config_file On_disk.V2.t_of_sexp with
+    match load_sexp_conv config_file On_disk.V3.t_of_sexp with
     | Ok c -> c
     | Error exn ->
-      let as_old_config =
-        match load_sexp_conv config_file On_disk.V1.t_of_sexp with
-        | Ok c -> Ok (On_disk.V1.to_v2 c)
-        | Error _ ->
-          (match load_sexp_conv config_file On_disk.V0.t_of_sexp with
-           | Ok c -> Ok (On_disk.V1.to_v2 (On_disk.V0.to_v1 c))
-           | Error _ -> Error exn)
-      in
-      (match as_old_config with
-       | Error _another_exn -> raise exn
-       | Ok c ->
-         (let new_file = config_file ^ ".new" in
-          match Sys_unix.file_exists new_file with
-          | `Yes | `Unknown -> ()
-          | `No ->
-            (try Sexp.save_hum new_file (On_disk.V2.sexp_of_t c) with
-             | _ -> ()));
-         c)
+      (match load_sexp_conv config_file On_disk.V2.t_of_sexp with
+       | Ok c -> On_disk.V2.to_v3 c
+       | Error _ ->
+         let as_old_config =
+           match load_sexp_conv config_file On_disk.V1.t_of_sexp with
+           | Ok c -> Ok (On_disk.V2.to_v3 (On_disk.V1.to_v2 c))
+           | Error _ ->
+             (match load_sexp_conv config_file On_disk.V0.t_of_sexp with
+              | Ok c -> Ok (On_disk.V2.to_v3 (On_disk.V1.to_v2 (On_disk.V0.to_v1 c)))
+              | Error _ -> Error exn)
+         in
+         (match as_old_config with
+          | Error _another_exn -> raise exn
+          | Ok c ->
+            (let new_file = config_file ^ ".new" in
+             match Sys_unix.file_exists new_file with
+             | `Yes | `Unknown -> ()
+             | `No ->
+               (try Sexp.save_hum new_file (On_disk.V3.sexp_of_t c) with
+                | _ -> ()));
+            c))
   in
   match config.config_path with
   | Some config_path ->
@@ -647,11 +805,29 @@ let default_string =
   ((prefix ((text "++++++ ") (style ((fg green)))))
    (style (bold))))
 
-
  (hunk
   ((prefix ((text "@|") (style ((bg bright_black) (fg black)))))
    (suffix ((text " ============================================================") (style ())))
    (style (bold))))
+
+ (line_from_old
+  ((prefix ((text "<|") (style ((bg magenta)(fg black)))))
+   (style ((fg magenta)))))
+
+ (line_to_new
+  ((prefix ((text ">|") (style ((bg cyan)(fg black)))))
+   (style ((fg cyan)))))
+
+ (line_removed_in_move
+  ((prefix ((text ">|") (style ((bg red)(fg black)))))
+   (style ((fg red)))))
+
+ (line_added_in_move
+  ((prefix ((text ">|") (style ((bg green)(fg black)))))
+   (style ((fg green)))))
+
+ (line_unified_in_move
+  ((prefix ((text ">|") (style ((bg yellow)(fg black)))))))
 )|}
     default_context
 ;;

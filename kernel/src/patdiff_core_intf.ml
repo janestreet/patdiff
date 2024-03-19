@@ -8,9 +8,12 @@ module type S = sig
     :  context:int
     -> line_big_enough:int
     -> keep_ws:bool
+    -> find_moves:bool
     -> prev:string array
     -> next:string array
     -> Hunks.t
+
+  val find_moves : line_big_enough:int -> keep_ws:bool -> Hunks.t -> Hunks.t
 
   (** [refine hunks] maps each [Range.Replace (prev, next)] in [hunks] to a diff of [prev]
       against [next]. *)
@@ -63,6 +66,7 @@ module type S = sig
   val patdiff
     :  ?context:int
     -> ?keep_ws:bool
+    -> ?find_moves:bool
     -> ?rules:Format.Rules.t
     -> ?output:Output.t
     -> ?produce_unified_lines:bool

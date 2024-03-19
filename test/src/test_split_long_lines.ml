@@ -59,7 +59,8 @@ let%expect_test "~split_long_lines:false" =
     (fg:black) |
     (fg:black) |
     (fg:black) |(off)z
-    ("Unclean exit" (Exit_non_zero 1)) |}];
+    ("Unclean exit" (Exit_non_zero 1))
+    |}];
   return ()
 ;;
 
@@ -87,6 +88,7 @@ let%expect_test "~split_long_lines:true" =
     (fg:black) |
     (fg:black) |
     (fg:black) |(off)z
-    ("Unclean exit" (Exit_non_zero 1)) |}];
+    ("Unclean exit" (Exit_non_zero 1))
+    |}];
   return ()
 ;;

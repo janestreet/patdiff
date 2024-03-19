@@ -11,6 +11,7 @@ let%expect_test "refine does not raise with ~split_long_lines:true and no contro
       ~context:Configuration.default_context
       ~line_big_enough:Configuration.default_line_big_enough
       ~keep_ws
+      ~find_moves:false
       ~prev:[| "hello"; "world" |]
       ~next:[| "good bye"; "world" |]
   in
@@ -36,8 +37,10 @@ let%expect_test "refine does not raise with ~split_long_lines:true and no contro
       (ranges (
         (Replace
           (hello)
-          ("good bye"))
-        (Same ((world world))))))) |}]
+          ("good bye")
+          ())
+        (Same ((world world)))))))
+    |}]
 ;;
 
 let print_patdiff prev next =
@@ -55,16 +58,19 @@ let%expect_test "extra empty lines are not added" =
   [%expect {|
     -1,1 +1,1
     -|hello world
-    +|hello |}];
+    +|hello
+    |}];
   print_patdiff "hello world" "world";
   [%expect {|
     -1,1 +1,1
     -|hello world
-    +|world |}];
+    +|world
+    |}];
   print_patdiff "hello world" "";
   [%expect {|
     -1,1 +1,0
-    -|hello world |}]
+    -|hello world
+    |}]
 ;;
 
 let%expect_test "extra empty lines are not added for consecutive long lines" =
@@ -91,5 +97,6 @@ bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
     -|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa 0000000000000000000000000000000000000000
     -|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb 1111111111111111111111111111111111111111
     +|aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
-    +|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb |}]
+    +|bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+    |}]
 ;;
