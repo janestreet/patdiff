@@ -738,7 +738,7 @@ fetch result
                   sum := !sum +. sqrt;
                 );
         -|      Percentage.of_float !sum) in
-        >+      Percentage.of_float !sum
+        +|      Percentage.of_float !sum
         >|  | Case1 case1 ->
         >|    let a = b in
         >|    let double = case1 * case1 in
@@ -749,6 +749,232 @@ fetch result
         >-    String.is_substring (bar ^ Int.to_string) ~substring
         >+    String.is_substring (bar ^ Int.to_string) ~substring) in
           fetch result
+        |}]
+    ;;
+
+    let%expect_test "make sure we don't use a replace as a move" =
+      test_moves
+        ~prev:
+          {|
+module Stable : sig
+  module Row : sig
+    module V1 : sig
+      type t
+    end
+
+    module V2 : sig
+      type t
+    end
+
+    module V3 : sig
+      type t = Row.t
+    end
+
+    module V4 : sig
+      type t =
+        { first_name : string
+        ; last_name : string
+        ; age : int
+        ; address : string
+        ; favorite_food : string
+        }
+    end
+  end
+
+  module V1 : sig
+    type t [@@deriving bin_io, sexp_of, compare]
+  end
+
+  module V2 : sig
+    type t [@@deriving bin_io, sexp_of, compare]
+
+    val to_v1 : t -> V1.t
+  end
+
+  module V3 : sig
+    type nonrec t = t [@@deriving bin_io, sexp_of, compare]
+
+    val to_v2 : t -> V2.t
+  end
+
+  module V4 : sig
+    type t = Row.V4.t list [@@deriving bin_io, sexp_of, compare]
+
+    val to_v3 : t -> V3.t
+  end
+end
+|}
+        ~next:
+          {|
+module Stable : sig
+  module Row : sig
+    module V1 : sig
+      type t
+    end
+
+    module V2 : sig
+      type t
+    end
+
+    module V3 : sig
+      type t
+    end
+
+    module V4 : sig
+      type t = Row.t
+    end
+  end
+
+  module V1 : sig
+    type t [@@deriving bin_io, sexp_of, compare]
+  end
+
+  module V2 : sig
+    type t [@@deriving bin_io, sexp_of, compare]
+
+    val to_v1 : t -> V1.t
+  end
+
+  module V3 : sig
+    type t [@@deriving bin_io, sexp_of, compare]
+
+    val to_v2 : t -> V2.t
+  end
+
+  module V4 : sig
+    type nonrec t = t [@@deriving bin_io, sexp_of, compare]
+
+    val to_v3 : t -> V3.t
+  end
+end
+|};
+      [%expect
+        {|
+        -1,48 +1,42
+
+          module Stable : sig
+            module Row : sig
+              module V1 : sig
+                type t
+              end
+
+              module V2 : sig
+                type t
+              end
+
+              module V3 : sig
+        -|      type t = Row.t
+        -|    end
+        -|
+        -|    module V4 : sig
+        -|      type t =
+        -|        { first_name : string
+        -|        ; last_name : string
+        -|        ; age : int
+        -|        ; address : string
+        -|        ; favorite_food : string
+        -|        }
+        +|      type t
+        +|    end
+        +|
+        +|    module V4 : sig
+        +|      type t = Row.t
+              end
+            end
+
+            module V1 : sig
+              type t [@@deriving bin_io, sexp_of, compare]
+            end
+
+            module V2 : sig
+              type t [@@deriving bin_io, sexp_of, compare]
+
+              val to_v1 : t -> V1.t
+            end
+
+            module V3 : sig
+        -|    type nonrec t = t [@@deriving bin_io, sexp_of, compare]
+        -|
+        -|    val to_v2 : t -> V2.t
+        -|  end
+        -|
+        -|  module V4 : sig
+        -|    type t = Row.V4.t list [@@deriving bin_io, sexp_of, compare]
+        +|    type t [@@deriving bin_io, sexp_of, compare]
+        +|
+        +|    val to_v2 : t -> V2.t
+        +|  end
+        +|
+        +|  module V4 : sig
+        +|    type nonrec t = t [@@deriving bin_io, sexp_of, compare]
+
+              val to_v3 : t -> V3.t
+            end
+          end
+        |}]
+    ;;
+
+    let%expect_test "don't include deletions or additions on the edges of moves" =
+      test_moves
+        ~prev:
+          {|
+        1
+        2
+        3
+        to_delete
+        5
+        6
+        7
+        8
+        9
+        10
+        11
+        12
+        13
+        14
+        15
+|}
+        ~next:
+          {|
+        1
+        2
+        3
+        8
+        9
+        10
+        11
+        12
+        5
+        6
+        7
+        added
+        13
+        14
+        15
+|};
+      [%expect
+        {|
+        -1,16 +1,16
+
+                  1
+                  2
+                  3
+        -|        to_delete
+        <|        5
+        <|        6
+        <|        7
+                  8
+                  9
+                  10
+                  11
+                  12
+        >|        5
+        >|        6
+        >|        7
+        +|        added
+                  13
+                  14
+                  15
         |}]
     ;;
 
