@@ -17,7 +17,7 @@ depends: [
   "expect_test_helpers_core"
   "patience_diff"
   "ppx_jane"
-  "dune"                     {>= "2.0.0"}
+  "dune"                     {>= "3.11.0"}
   "re"                       {>= "1.8.0"}
 ]
 available: arch != "arm32" & arch != "x86_32"
