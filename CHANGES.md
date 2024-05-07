@@ -1,3 +1,31 @@
+## Release v0.17.0
+
+- Patdiff can now find lines that are moved from the first file to the new.
+  If you pass the flag `-find-moves` patdiff will try to find similar ranges
+  in render them. You may need to update your `~/.patdiff` config so it renders
+  the move ranges correctly. `patdiff -make-config TEST_FILE` will write the
+  default patdiff config to `TEST_FILE`. The parameters rules that have been added
+  are the following `line_from_old`, `line_to_new`, `line_removed_in_move`, `line_added_in_move`,
+  and `line_unified_in_move`.
+
+  - line_from_old is a line that was moved TO somewhere else
+  - line_to_new is a line that was moved FROM somewhere else
+  - line_removed_in_move is a line that was deleted as part of a larger moved block
+  - line_added_in_move is a line that was added as part of a larger moved block
+  - line_unified_in_move is a line that slightly modified as part of a large moved block
+
+- Can now specify the output to be Ascii from the ~/.patdiff config using `(output ascii)`
+
+- `Patdiff_core` now exposes the `float_tolerance` paramater
+
+- Fixed a bug where `split-long-lines` adds extra empty lines
+
+- Address an issue where we find moves too aggressively
+
+- Trim the edge of move blocks if the edge was strictly added or strictly removed
+
+- Remove the dependency on Pcre
+
 ## git version
 
 - Added a unit argument to `Patience_diff.S.get_hunks` and
