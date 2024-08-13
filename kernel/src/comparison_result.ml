@@ -8,6 +8,8 @@ type t =
       ; next_is_binary : bool
       }
   | Hunks of Hunks.t
+  | Structured_hunks of
+      ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
 
 let update_config_infer_keep_ws config ~prev ~next =
   let keep_ws =
@@ -32,9 +34,12 @@ let create
     if String.( = ) prev.text next.text
     then Binary_same
     else Binary_different { prev_is_binary; next_is_binary }
-  else
-    Hunks
-      (compare_assuming_text (update_config_infer_keep_ws config ~prev ~next) ~prev ~next)
+  else (
+    match
+      compare_assuming_text (update_config_infer_keep_ws config ~prev ~next) ~prev ~next
+    with
+    | `Hunks hunks -> Hunks hunks
+    | `Structured_hunks hunks -> Structured_hunks hunks)
 ;;
 
 let has_no_diff t =
@@ -42,4 +47,5 @@ let has_no_diff t =
   | Binary_same -> true
   | Binary_different _ -> false
   | Hunks hunks -> List.for_all hunks ~f:Patience_diff.Hunk.all_same
+  | Structured_hunks hunks -> List.for_all hunks ~f:Patience_diff.Hunk.all_same
 ;;

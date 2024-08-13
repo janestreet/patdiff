@@ -4,14 +4,18 @@ open! Import
 
 (* Regression test for a case where we used to drop the first line of this diff. *)
 
-let prev = {|
+let prev =
+  {|
 ((foo (1 2))
  (bar 0.5%))
 |}
+;;
 
-let next = {|
+let next =
+  {|
 ()
 |}
+;;
 
 let%expect_test "default" =
   let%bind () = patdiff ~prev ~next ~extra_flags:[] in

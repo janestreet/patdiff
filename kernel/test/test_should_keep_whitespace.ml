@@ -7,11 +7,7 @@ let test file1 lines1 file2 lines2 =
   let next : Patdiff_kernel.Diff_input.t = { name = file2; text = String.strip lines2 } in
   let should_keep_whitespace = for_diff ~prev ~next in
   (* [for_diff] should be symmetric. *)
-  require_equal
-    [%here]
-    (module Bool)
-    should_keep_whitespace
-    (for_diff ~prev:next ~next:prev);
+  require_equal (module Bool) should_keep_whitespace (for_diff ~prev:next ~next:prev);
   print_s [%message (should_keep_whitespace : bool)]
 ;;
 
@@ -30,7 +26,9 @@ print 8/7
 let test1 file1 contents1 = test file1 contents1 file1 contents1
 
 let%expect_test "#!/bin/python" =
-  test1 "python.py" {|
+  test1
+    "python.py"
+    {|
 #!/bin/python
 print "foo"
 |};
@@ -38,7 +36,9 @@ print "foo"
 ;;
 
 let%expect_test "#!/usr/bin/env python3" =
-  test1 "python.py" {|
+  test1
+    "python.py"
+    {|
 #!/usr/bin/env python3
 print "foo"
 |};
@@ -46,7 +46,9 @@ print "foo"
 ;;
 
 let%expect_test "#!/bin/bash" =
-  test1 "bash.sh" {|
+  test1
+    "bash.sh"
+    {|
 #!/bin/bash
 echo foo
 |};

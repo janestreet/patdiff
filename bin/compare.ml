@@ -44,6 +44,7 @@ module Args = struct
     ; location_style : Format.Location_style.t option
     ; warn_if_no_trailing_newline_in_both : bool option
     ; find_moves_opt : bool option
+    ; side_by_side_opt : [ `wrap | `truncate ] option option
     }
 
   type t =
@@ -115,6 +116,7 @@ let override config (args : Args.compare_flags) =
     ?next_alt:args.next_alt_opt
     ?location_style:args.location_style
     ?warn_if_no_trailing_newline_in_both:args.warn_if_no_trailing_newline_in_both
+    ?side_by_side:args.side_by_side_opt
 ;;
 
 let compare_main (args : Args.compare_flags) =
@@ -362,6 +364,11 @@ let command =
          ~doc:
            "Try to find and render moves. If -dont-produce-unified-lines is set moves \
             will not be found."
+     and side_by_side_opt =
+       flag
+         "side-by-side"
+         (optional (Arg_type.enumerated (module Wrap_or_truncate)))
+         ~doc:" Render a diff side by side"
      and files =
        anon
          (maybe
@@ -403,6 +410,7 @@ let command =
                  (match produce_unified_lines_opt with
                   | None | Some true -> find_moves_opt
                   | Some false -> Some false)
+             ; side_by_side_opt = Some side_by_side_opt
              ; prev_file
              ; next_file
              }

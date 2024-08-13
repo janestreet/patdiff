@@ -1,8 +1,8 @@
 (executables
  (modes byte exe)
  (names main)
- (libraries core_unix.command_unix core core_unix.filename_unix patdiff re
-   core_unix.sys_unix)
+ (libraries core_unix.command_unix core core_unix core_unix.filename_unix
+   patdiff re core_unix.sys_unix)
  (preprocess
   (pps ppx_jane)))
 

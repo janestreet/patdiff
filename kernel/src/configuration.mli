@@ -46,6 +46,7 @@ type t = private
   ; next_alt : string option
   ; location_style : Format.Location_style.t
   ; warn_if_no_trailing_newline_in_both : bool
+  ; side_by_side : [ `wrap | `truncate ] option
   }
 [@@deriving compare, fields ~getters, sexp_of]
 
@@ -74,6 +75,7 @@ val create_exn
   -> next_alt:string option
   -> location_style:Format.Location_style.t
   -> warn_if_no_trailing_newline_in_both:bool
+  -> side_by_side:[ `wrap | `truncate ] option
   -> t
 
 val override
@@ -98,6 +100,7 @@ val override
   -> ?next_alt:string option
   -> ?location_style:Format.Location_style.t
   -> ?warn_if_no_trailing_newline_in_both:bool
+  -> ?side_by_side:[ `wrap | `truncate ] option
   -> t
   -> t
 

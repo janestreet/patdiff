@@ -2,13 +2,17 @@ open! Core
 open! Async
 open! Import
 
-let prev = {|
+let prev =
+  {|
 min=0|max=10
 |}
+;;
 
-let next = {|
+let next =
+  {|
 min=5|max=10
 |}
+;;
 
 let%expect_test "pipe" =
   let%bind () = patdiff ~prev ~next ~extra_flags:[] in

@@ -44,6 +44,7 @@ type t =
   ; location_style : Format.Location_style.t
   ; warn_if_no_trailing_newline_in_both : bool
        [@default warn_if_no_trailing_newline_in_both_default] [@sexp_drop_default.equal]
+  ; side_by_side : [ `wrap | `truncate ] option
   }
 [@@deriving compare, fields ~iterators:(iter, map), sexp_of]
 
@@ -84,7 +85,8 @@ let invariant t =
       ~prev_alt:ignore
       ~next_alt:ignore
       ~location_style:ignore
-      ~warn_if_no_trailing_newline_in_both:ignore)
+      ~warn_if_no_trailing_newline_in_both:ignore
+      ~side_by_side:ignore)
 ;;
 
 let create_exn
@@ -109,6 +111,7 @@ let create_exn
   ~next_alt
   ~location_style
   ~warn_if_no_trailing_newline_in_both
+  ~side_by_side
   =
   let t =
     { output
@@ -132,6 +135,7 @@ let create_exn
     ; next_alt
     ; location_style
     ; warn_if_no_trailing_newline_in_both
+    ; side_by_side
     }
   in
   invariant t;
@@ -160,6 +164,7 @@ let override
   ?next_alt
   ?location_style
   ?warn_if_no_trailing_newline_in_both
+  ?side_by_side
   t
   =
   let output = Option.value ~default:t.output output in
@@ -190,6 +195,7 @@ let override
       ~next_alt:(value next_alt)
       ~location_style:(value location_style)
       ~warn_if_no_trailing_newline_in_both:(value warn_if_no_trailing_newline_in_both)
+      ~side_by_side:(value side_by_side)
   in
   invariant t;
   t
@@ -275,5 +281,6 @@ let default =
   ; next_alt = None
   ; location_style = Diff
   ; warn_if_no_trailing_newline_in_both = warn_if_no_trailing_newline_in_both_default
+  ; side_by_side = None
   }
 ;;

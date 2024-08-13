@@ -103,6 +103,8 @@ module Rule : sig
   val blank : t
   val unstyled_prefix : string -> t
   val strip_styles : t -> t
+  val strip_prefix : t -> t
+  val use_prefix_text_from : t -> this_prefix:t -> t
 end
 
 (** Rules are configured in the configuration file.

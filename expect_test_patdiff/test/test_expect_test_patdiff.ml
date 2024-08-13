@@ -160,7 +160,8 @@ let%expect_test "non-empty patdiff prints a newline" =
   print_endline "----------";
   print_patdiff "cat" "dog";
   print_endline "----------";
-  [%expect {|
+  [%expect
+    {|
     ----------
     -1,1 +1,1
     -|cat
@@ -173,7 +174,8 @@ let%expect_test "empty patdiff does not print a newline" =
   print_endline "----------";
   print_patdiff "cat" "cat";
   print_endline "----------";
-  [%expect {|
+  [%expect
+    {|
     ----------
     ----------
     |}]

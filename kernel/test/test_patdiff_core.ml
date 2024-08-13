@@ -35,7 +35,8 @@ let%test_module _ =
            ~prev
            ~next
            ());
-      [%expect {|
+      [%expect
+        {|
         -1,1 +1,1
         -|Foo bar buzz
         +|Foo buzz
@@ -53,7 +54,8 @@ let%test_module _ =
            ~prev:{ name = "old"; text = "" }
            ~next:{ name = "new"; text = "\n\n\n" }
            ());
-      [%expect {|
+      [%expect
+        {|
         -1,0 +1,3
         +|
         +|
@@ -122,14 +124,14 @@ let%test_module _ =
       ; Some 0.01, "1.0", "1.015"
       ]
       |> List.iter ~f:(fun (mult_float_tolerance, old_text, new_text) ->
-           print_endline
-             (Patdiff_core.patdiff
-                ?float_tolerance:(Option.map mult_float_tolerance ~f:Percent.of_mult)
-                ~produce_unified_lines:false
-                ~output:Ascii
-                ~prev:{ name = "old"; text = old_text }
-                ~next:{ name = "new"; text = new_text }
-                ()));
+        print_endline
+          (Patdiff_core.patdiff
+             ?float_tolerance:(Option.map mult_float_tolerance ~f:Percent.of_mult)
+             ~produce_unified_lines:false
+             ~output:Ascii
+             ~prev:{ name = "old"; text = old_text }
+             ~next:{ name = "new"; text = new_text }
+             ()));
       [%expect
         {|
         -1,1 +1,1
@@ -140,6 +142,44 @@ let%test_module _ =
         -1,1 +1,1
         -|1.0
         +|1.015
+        |}]
+    ;;
+
+    let%expect_test "test single empty line" =
+      let original =
+        {|Line one
+Some line that will be deleted (and replaced with a single newline)
+  with some indented content on the next line
+Line four
+Line five
+Line six
+|}
+      in
+      let modified =
+        {|Line one
+
+Line four
+Line five
+An added line goes here
+Line six|}
+      in
+      print_endline
+        (Patdiff_core.patdiff
+           ~produce_unified_lines:false
+           ~output:Ascii
+           ~prev:{ name = "old"; text = original }
+           ~next:{ name = "new"; text = modified }
+           ());
+      [%expect
+        {|
+        -1,6 +1,6
+          Line one
+        -|Some line that will be deleted (and replaced with a single newline)
+        -|  with some indented content on the next line
+          Line four
+          Line five
+        +|An added line goes here
+          Line six
         |}]
     ;;
   end)
@@ -978,6 +1018,83 @@ end
         |}]
     ;;
 
+    let%expect_test "a move plus not keeping whitespace hides deleted empty lines" =
+      test_moves
+        ~prev:
+          {|
+a
+b
+c
+d
+e
+f
+g
+h
+i
+j
+k
+l
+
+section
+to
+move
+
+m
+n
+o
+p
+|}
+        ~next:
+          {|
+a
+b
+c
+section
+to
+move
+d
+e
+f
+g
+h
+i
+j
+k
+l
+m
+n
+o
+p
+|};
+      [%expect
+        {|
+        -1,22 +1,20
+
+          a
+          b
+          c
+        >|section
+        >|to
+        >|move
+          d
+          e
+          f
+          g
+          h
+          i
+          j
+          k
+          l
+        <|section
+        <|to
+        <|move
+          m
+          n
+          o
+          p
+        |}]
+    ;;
+
     module Action = struct
       type t =
         | Move of
@@ -1078,9 +1195,9 @@ end
           List.concat_map hunks ~f:(fun hunk ->
             Import.Patience_diff.Range.prev_only hunk.ranges)
           |> List.map ~f:(function
-               | Prev (prev, _) -> prev
-               | Same same -> Array.map same ~f:fst
-               | range -> raise_s [%sexp (range : string Import.Patience_diff.Range.t)])
+            | Prev (prev, _) -> prev
+            | Same same -> Array.map same ~f:fst
+            | range -> raise_s [%sexp (range : string Import.Patience_diff.Range.t)])
           |> Array.concat
           |> String.concat_array ~sep:"\n"
         in
@@ -1088,9 +1205,9 @@ end
           List.concat_map hunks ~f:(fun hunk ->
             Import.Patience_diff.Range.next_only hunk.ranges)
           |> List.map ~f:(function
-               | Next (next, _) -> next
-               | Same same -> Array.map same ~f:snd
-               | range -> raise_s [%sexp (range : string Import.Patience_diff.Range.t)])
+            | Next (next, _) -> next
+            | Same same -> Array.map same ~f:snd
+            | range -> raise_s [%sexp (range : string Import.Patience_diff.Range.t)])
           |> Array.concat
           |> String.concat_array ~sep:"\n"
         in

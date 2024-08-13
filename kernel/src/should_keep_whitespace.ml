@@ -18,7 +18,7 @@ let fsharp_suffixes =
   let base = ".fs" in
   base
   :: List.map (String.to_list non_base_suffixes) ~f:(fun char ->
-       base ^ Char.to_string char)
+    base ^ Char.to_string char)
 ;;
 
 let%expect_test "fsharp_suffixes" =
@@ -43,9 +43,9 @@ let for_diff =
   for_diff_internal
     ~get_name:Diff_input.name
     ~get_first_line:(fun (input : Diff_input.t) ->
-    match String.lsplit2 input.text ~on:'\n' with
-    | Some (first_line, _) -> first_line
-    | None -> input.text)
+      match String.lsplit2 input.text ~on:'\n' with
+      | Some (first_line, _) -> first_line
+      | None -> input.text)
 ;;
 
 let for_diff_array =

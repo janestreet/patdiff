@@ -19,6 +19,7 @@ depends: [
   "ppx_jane"
   "dune"                     {>= "3.11.0"}
   "re"                       {>= "1.8.0"}
+  "uucp"
 ]
 available: arch != "arm32" & arch != "x86_32"
 synopsis: "File Diff using the Patience Diff algorithm"

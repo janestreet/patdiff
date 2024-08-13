@@ -126,6 +126,12 @@ module Rule = struct
       ~suf:(f Affix.strip_styles)
       ~styles:(f (const []))
   ;;
+
+  let strip_prefix t = { t with pre = Affix.blank }
+
+  let use_prefix_text_from t ~this_prefix =
+    { t with pre = { t.pre with text = this_prefix.pre.text } }
+  ;;
 end
 
 module Rules = struct

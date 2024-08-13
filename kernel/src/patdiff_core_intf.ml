@@ -28,6 +28,16 @@ module type S = sig
     -> Hunks.t
     -> Hunks.t
 
+  (** The same as [refine] except returns structured data. *)
+  val refine_structured
+    :  produce_unified_lines:bool
+    -> keep_ws:bool
+    -> split_long_lines:bool
+    -> interleave:bool
+    -> word_big_enough:int
+    -> string Patience_diff.Hunk.t list
+    -> ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
+
   val explode
     :  string array
     -> keep_ws:bool
@@ -42,6 +52,15 @@ module type S = sig
     -> Hunks.t
     -> unit
 
+  val print_side_by_side
+    :  ?width_override:int
+    -> file_names:File_name.t * File_name.t
+    -> rules:Format.Rules.t
+    -> wrap_or_truncate:[ `wrap | `truncate ]
+    -> output:Output.t
+    -> ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
+    -> unit
+
   (** Output a hunk list, usually from [diff] or [refine], to a string *)
   val output_to_string
     :  ?print_global_header:bool
@@ -52,6 +71,15 @@ module type S = sig
     -> Hunks.t
     -> string
 
+  val output_to_string_side_by_side
+    :  ?width_override:int
+    -> file_names:File_name.t * File_name.t
+    -> rules:Format.Rules.t
+    -> wrap_or_truncate:[ `truncate | `wrap ]
+    -> output:Output.t
+    -> ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
+    -> string
+
   (** Iter along the lines of the diff and the breaks between hunks. Offers more flexibility
       regarding what the caller wants to do with the lines *)
   val iter_ansi
@@ -59,6 +87,16 @@ module type S = sig
     -> f_hunk_break:(int * int -> int * int -> unit)
     -> f_line:(string -> unit)
     -> Hunks.t
+    -> unit
+
+  (** Same as [iter_ansi] but for side-by-side diffs *)
+  val iter_side_by_side_ansi
+    :  ?width_override:int
+    -> rules:Format.Rules.t
+    -> f_hunk_break:(int * int -> int * int -> unit)
+    -> f_line:(string -> unit)
+    -> wrap_or_truncate:[ `truncate | `wrap ]
+    -> ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
     -> unit
 
   (** Runs the equivalent of the command line version of patdiff on two given contents

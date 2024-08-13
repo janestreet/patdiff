@@ -2,6 +2,6 @@
  (name patdiff_kernel)
  (public_name patdiff.kernel)
  (libraries core_kernel.composition_infix core patience_diff
-   core_kernel.pairing_heap re)
+   core_kernel.pairing_heap re uucp)
  (preprocess
   (pps ppx_jane)))

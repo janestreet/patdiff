@@ -55,19 +55,22 @@ let print_patdiff prev next =
 
 let%expect_test "extra empty lines are not added" =
   print_patdiff "hello world" "hello";
-  [%expect {|
+  [%expect
+    {|
     -1,1 +1,1
     -|hello world
     +|hello
     |}];
   print_patdiff "hello world" "world";
-  [%expect {|
+  [%expect
+    {|
     -1,1 +1,1
     -|hello world
     +|world
     |}];
   print_patdiff "hello world" "";
-  [%expect {|
+  [%expect
+    {|
     -1,1 +1,0
     -|hello world
     |}]

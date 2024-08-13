@@ -16,7 +16,10 @@ module type S = sig
       :  Configuration.t
       -> prev:string array
       -> next:string array
-      -> string Patience_diff.Hunks.t
+      -> [ `Hunks of string Patience_diff.Hunks.t
+         | `Structured_hunks of
+           ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
+         ]
   end
 end
 

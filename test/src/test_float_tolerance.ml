@@ -14,16 +14,20 @@ let test prev next =
 ;;
 
 let%expect_test _ =
-  let%bind () = test {|
+  let%bind () =
+    test
+      {|
  foo
  bar
  bax
  baz
-|} {|
+|}
+      {|
  foo
  bar
  baz
-|} in
+|}
+  in
   [%expect
     {|
     ====== strict ======

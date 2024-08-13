@@ -11,25 +11,26 @@ include struct
 end
 
 (* Strip whitespace from a string by stripping and replacing with spaces *)
-let ws_rex = Re.compile Re.(rep1 space)
-let ws_rex_anchored = Re.compile Re.(seq [ bol; rep space; eol ])
+let ws_rex = lazy (Re.compile Re.(rep1 space))
+let ws_rex_anchored = lazy (Re.compile Re.(seq [ bol; rep space; eol ]))
 let ws_sub = " "
-let remove_ws s = String.strip (Re.replace_string ws_rex s ~by:ws_sub)
-let is_ws = Re.execp ws_rex_anchored
+let remove_ws s = String.strip (Re.replace_string (force ws_rex) s ~by:ws_sub)
+let is_ws s = Re.execp (force ws_rex_anchored) s
 
 (* This regular expression describes the delimiters on which to split the string *)
 let words_rex =
-  let open Re in
-  let delim = set {|"{}[]#,.;()_|} in
-  let punct = rep1 (set {|=`+-/!@$%^&*:|<>|}) in
-  let space = rep1 space in
-  (* We don't want to split up ANSI color sequences, so let's make sure they get through
+  lazy
+    (let open Re in
+     let delim = set {|"{}[]#,.;()_|} in
+     let punct = rep1 (set {|=`+-/!@$%^&*:|<>|}) in
+     let space = rep1 space in
+     (* We don't want to split up ANSI color sequences, so let's make sure they get through
      intact. *)
-  let ansi_sgr_sequence =
-    let esc = char '\027' in
-    seq [ esc; char '['; rep (alt [ char ';'; digit ]); char 'm' ]
-  in
-  compile (alt [ delim; punct; space; ansi_sgr_sequence ])
+     let ansi_sgr_sequence =
+       let esc = char '\027' in
+       seq [ esc; char '['; rep (alt [ char ';'; digit ]); char 'm' ]
+     in
+     compile (alt [ delim; punct; space; ansi_sgr_sequence ]))
 ;;
 
 (* Split a string into a list of string options delimited by words_rex
@@ -39,14 +40,14 @@ let split s ~keep_ws =
   if String.is_empty s && keep_ws
   then [ "" ]
   else
-    Re.split_full words_rex s
+    Re.split_full (force words_rex) s
     |> List.filter_map ~f:(fun token ->
-         let string =
-           match token with
-           | `Delim d -> Re.Group.get d 0
-           | `Text t -> t
-         in
-         if String.is_empty string then None else Some string)
+      let string =
+        match token with
+        | `Delim d -> Re.Group.get d 0
+        | `Text t -> t
+      in
+      if String.is_empty string then None else Some string)
 ;;
 
 (* This function ensures that the tokens passed to Patience diff do not include
@@ -57,7 +58,7 @@ let whitespace_ignorant_split s =
   if String.is_empty s
   then []
   else (
-    let istext s = not (Re.execp ws_rex s) in
+    let istext s = not (Re.execp (force ws_rex) s) in
     split s ~keep_ws:false
     |> List.group ~break:(fun split_result1 _ -> istext split_result1)
     |> List.map ~f:String.concat)
@@ -159,6 +160,338 @@ module Make (Output_impls : Output_impls) = struct
         ~print
         ~location_style
         formatted_hunks
+    ;;
+
+    let wrap_or_truncate_line_contents
+      ~wrap_or_truncate
+      ~width
+      (line_contents : ([ `Prev | `Same | `Next ] * string) list)
+      : (([ `Prev | `Same | `Next ] * string) list * [ `Columns_left of int ]) list
+      =
+      if width <= 1 then raise_s [%sexp "Screen is too narrow"];
+      let lines = Queue.create () in
+      let current_line = Deque.create () in
+      let columns_used_current_line = ref 0 in
+      let start_word_type word_type = Deque.enqueue_back current_line (word_type, []) in
+      let add_char word_type uchar char_width =
+        (match Deque.dequeue_back current_line with
+         | None -> Deque.enqueue_back current_line (word_type, [ uchar ])
+         | Some (prev_word_type, rev_char_list) ->
+           if [%equal: [ `Prev | `Same | `Next ]] prev_word_type word_type
+           then Deque.enqueue_back current_line (word_type, uchar :: rev_char_list)
+           else (
+             Deque.enqueue_back current_line (prev_word_type, rev_char_list);
+             Deque.enqueue_back current_line (word_type, [ uchar ])));
+        columns_used_current_line := !columns_used_current_line + char_width
+      in
+      let am_done = ref false in
+      let finish_line () =
+        (match wrap_or_truncate with
+         | `truncate -> am_done := true
+         | `wrap -> ());
+        let line =
+          Deque.to_list current_line
+          |> List.map ~f:(fun (word_type, rev_char_list) ->
+            let str =
+              String.Utf8.of_list (List.rev rev_char_list) |> String.Utf8.to_string
+            in
+            word_type, str)
+        in
+        if (not (List.is_empty line)) || Queue.is_empty lines
+        then (
+          let columns_left = width - !columns_used_current_line in
+          Queue.enqueue lines (line, `Columns_left columns_left));
+        Deque.clear current_line;
+        columns_used_current_line := 0
+      in
+      let rec loop = function
+        | [] -> ()
+        | (word_type, word) :: rest ->
+          start_word_type word_type;
+          let char_list_with_widths =
+            String.Utf8.to_list (String.Utf8.of_string word)
+            |> List.map ~f:(fun uchar ->
+              let columns = Uucp.Break.tty_width_hint uchar in
+              uchar, columns)
+          in
+          List.iter char_list_with_widths ~f:(fun (uchar, char_width) ->
+            if char_width > width then raise_s [%sexp "Screen is too narrow"];
+            if char_width + !columns_used_current_line > width then finish_line ();
+            if !am_done then () else add_char word_type uchar char_width);
+          if !am_done then () else loop rest
+      in
+      loop line_contents;
+      finish_line ();
+      Queue.to_list lines
+    ;;
+
+    let create_padding len = String.init len ~f:(Fn.const ' ')
+
+    let render_line
+      (line : Side_by_side.Line_info.t)
+      ~(rules : Format.Rules.t)
+      ~output
+      ~pane_cols
+      ~line_number_size
+      ~left_or_right
+      ~prefix_column_width
+      ~wrap_or_truncate
+      =
+      let apply ~rule str = Rule.apply str ~rule ~output ~refined:false in
+      let line_and_styles =
+        let diff_style ~first_word_style = function
+          | `Prev -> Some (first_word_style, apply ~rule:rules.word_prev)
+          | `Same -> Some (first_word_style, apply ~rule:rules.word_same_unified)
+          | `Next -> Some (first_word_style, apply ~rule:rules.word_next)
+        in
+        let any_non_same =
+          List.exists ~f:(fun (style, _) ->
+            match style with
+            | `Next | `Prev -> true
+            | `Same -> false)
+        in
+        match left_or_right with
+        | `Left ->
+          (match line with
+           | Same (prev, next) ->
+             let unified_line =
+               any_non_same prev.contents || any_non_same next.contents
+             in
+             Some
+               ( prev
+               , diff_style
+                   ~first_word_style:
+                     (apply
+                        ~rule:
+                          (if unified_line then rules.line_unified else rules.line_same))
+               )
+           | Prev (prev, move_id) ->
+             Some
+               ( prev
+               , match move_id with
+                 | None ->
+                   let first_word_style = apply ~rule:rules.line_prev in
+                   diff_style ~first_word_style
+                 | Some _ ->
+                   (function
+                     | `Prev ->
+                       Some
+                         ( apply
+                             ~rule:
+                               (Format.Rule.use_prefix_text_from
+                                  rules.removed_in_move
+                                  ~this_prefix:rules.moved_from_prev)
+                         , apply ~rule:rules.word_prev )
+                     | `Same ->
+                       Some
+                         ( apply ~rule:rules.moved_from_prev
+                         , apply ~rule:(Format.Rule.strip_prefix rules.moved_from_prev) )
+                     | `Next -> None) )
+           | Next _ -> None)
+        | `Right ->
+          (match line with
+           | Same (prev, next) ->
+             let unified_line =
+               any_non_same prev.contents || any_non_same next.contents
+             in
+             Some
+               ( next
+               , diff_style
+                   ~first_word_style:
+                     (apply
+                        ~rule:
+                          (if unified_line then rules.line_unified else rules.line_same))
+               )
+           | Next (next, move_id) ->
+             Some
+               ( next
+               , match move_id with
+                 | None ->
+                   let first_word_style = apply ~rule:rules.line_next in
+                   diff_style ~first_word_style
+                 | Some _ ->
+                   (function
+                     | `Prev -> None
+                     | `Same ->
+                       Some
+                         ( apply ~rule:rules.moved_to_next
+                         , apply ~rule:(Format.Rule.strip_prefix rules.moved_to_next) )
+                     | `Next ->
+                       Some (apply ~rule:rules.added_in_move, apply ~rule:rules.word_next))
+               )
+           | Prev _ -> None)
+      in
+      let style_line ~apply_first_word ~styles structured_line =
+        let gutter_style =
+          if apply_first_word
+          then (
+            match styles `Same with
+            | None -> ""
+            | Some (first_word_style, _) -> first_word_style "")
+          else ""
+        in
+        let styled_lines =
+          gutter_style
+          :: List.map structured_line ~f:(fun (word_type, word) ->
+            match styles word_type with
+            | None -> word
+            | Some (_, word_style) -> word_style word)
+        in
+        String.concat styled_lines
+      in
+      let line_number, lines_to_render =
+        match line_and_styles with
+        | None -> None, [ create_padding (pane_cols - line_number_size) ]
+        | Some (line, styles) ->
+          let (line : Side_by_side.Line.t) = line in
+          ( Some line.line_number
+          , let width = pane_cols - line_number_size - prefix_column_width - 1 in
+            let structured_lines =
+              wrap_or_truncate_line_contents ~wrap_or_truncate ~width line.contents
+            in
+            List.mapi
+              structured_lines
+              ~f:(fun line_index (structured_line, `Columns_left columns_left) ->
+                style_line ~apply_first_word:(line_index = 0) ~styles structured_line
+                ^ create_padding columns_left) )
+      in
+      let line_number_padding = create_padding line_number_size in
+      let line_number_text =
+        match line_number with
+        | None -> line_number_padding
+        | Some line_number ->
+          let line_number_as_string = Int.to_string line_number in
+          (* Add a space after the line number so it isn't cluttered *)
+          sprintf
+            "%s%s "
+            (create_padding (line_number_size - String.length line_number_as_string))
+            line_number_as_string
+      in
+      List.mapi lines_to_render ~f:(fun line_index line_to_render ->
+        String.concat
+          [ (if line_index = 0 then line_number_text else line_number_padding)
+          ; line_to_render
+          ])
+    ;;
+
+    let print_side_by_side
+      ?width_override
+      ?f_hunk_break
+      original_hunks
+      ~(rules : Format.Rules.t)
+      ~wrap_or_truncate
+      ~output
+      ~file_names
+      ~print
+      =
+      let middle_divider =
+        match output with
+        | Output.Ansi -> "│"
+        | Ascii -> "|"
+        | Html -> raise_s [%sexp "side-by-side does not support html output"]
+      in
+      (* The rule prefixes should already be padding so using anyone should be fine *)
+      let prefix_column_width = String.length rules.line_same.pre.text in
+      let max_line_number = ref 0 in
+      let console_width =
+        Option.value_or_thunk width_override ~default:(fun () ->
+          match Output_impls.console_width () with
+          | Error _ -> 80
+          | Ok width -> width)
+      in
+      (* Need one character for the center divider *)
+      let pane_cols = (console_width - 1) / 2 in
+      let hunks = Side_by_side.hunks_to_lines original_hunks in
+      let original_hunks = Array.of_list original_hunks in
+      Array.iter hunks ~f:(fun hunk ->
+        Array.iter hunk ~f:(function
+          | Same (prev, next) ->
+            max_line_number := max !max_line_number prev.line_number;
+            max_line_number := max !max_line_number next.line_number
+          | Prev (prev, _) -> max_line_number := max !max_line_number prev.line_number
+          | Next (next, _) -> max_line_number := max !max_line_number next.line_number));
+      let line_number_size = String.length (Int.to_string !max_line_number) in
+      let pane_padding = create_padding pane_cols in
+      let apply ~rule str = Rule.apply str ~rule ~output ~refined:false in
+      let render_file_name ~rule file =
+        let line_number_padding = create_padding (line_number_size + 1) in
+        let columns_left_for_line =
+          pane_cols - line_number_size - prefix_column_width - 1
+        in
+        let file = String.prefix (File_name.display_name file) columns_left_for_line in
+        let columns_to_pad = columns_left_for_line - String.length file in
+        String.concat
+          [ line_number_padding; apply ~rule ""; file; create_padding columns_to_pad ]
+      in
+      (match file_names with
+       | None -> ()
+       | Some (prev_file, next_file) ->
+         print
+           (String.concat
+              [ render_file_name ~rule:rules.line_prev prev_file
+              ; middle_divider
+              ; render_file_name ~rule:rules.line_next next_file
+              ]));
+      Array.iteri hunks ~f:(fun hunk_index hunk ->
+        (match f_hunk_break with
+         | None -> ()
+         | Some f_hunk_break ->
+           let original_hunk = original_hunks.(hunk_index) in
+           f_hunk_break
+             (original_hunk.prev_start, original_hunk.prev_size)
+             (original_hunk.next_start, original_hunk.next_size));
+        Array.iter hunk ~f:(fun line ->
+          (* We may get back multiple lines if we are wrapping long lines. *)
+          let left_lines =
+            render_line
+              line
+              ~rules
+              ~output
+              ~pane_cols
+              ~line_number_size
+              ~left_or_right:`Left
+              ~prefix_column_width
+              ~wrap_or_truncate
+          in
+          let right_lines =
+            render_line
+              line
+              ~rules
+              ~output
+              ~pane_cols
+              ~line_number_size
+              ~left_or_right:`Right
+              ~prefix_column_width
+              ~wrap_or_truncate
+          in
+          let rec print_lines line_num left_lines right_lines =
+            let pad_non_first_lines line =
+              if line_num = 0
+              then line
+              else create_padding (prefix_column_width + 1) ^ line
+            in
+            match left_lines, right_lines with
+            | [], [] -> ()
+            | left_line :: rest_left, [] ->
+              print
+                (String.concat
+                   [ pad_non_first_lines left_line; middle_divider; pane_padding ]);
+              print_lines (line_num + 1) rest_left []
+            | [], right_line :: rest_right ->
+              print
+                (String.concat
+                   [ pane_padding; middle_divider; pad_non_first_lines right_line ]);
+              print_lines (line_num + 1) [] rest_right
+            | left_line :: rest_left, right_line :: rest_right ->
+              print
+                (String.concat
+                   [ pad_non_first_lines left_line
+                   ; middle_divider
+                   ; pad_non_first_lines right_line
+                   ]);
+              print_lines (line_num + 1) rest_left rest_right
+          in
+          print_lines 0 left_lines right_lines))
     ;;
   end
 
@@ -379,7 +712,7 @@ module Make (Output_impls : Output_impls) = struct
             Range_info.compare_by_size next_range_info prev_range_info)
           `Last_less_than_or_equal_to
           prev_location
-        |> Option.value ~default:(Array.length next_ranges - 1)
+        |> Option.value_local ~default:(Array.length next_ranges - 1)
       in
       let starting_index = if starting_index < 0 then 0 else starting_index in
       let left_index = ref starting_index in
@@ -524,13 +857,13 @@ module Make (Output_impls : Output_impls) = struct
     let prevs_by_range_index =
       Hashtbl.to_alist prevs_used
       |> List.map ~f:(fun (range_info, move_info) ->
-           range_info.Range_info.range_index, move_info)
+        range_info.Range_info.range_index, move_info)
       |> Int.Table.of_alist_exn
     in
     let nexts_by_range_index =
       Hashtbl.to_alist nexts_to_replace
       |> List.map ~f:(fun (range_info, ranges_to_insert) ->
-           range_info.Range_info.range_index, ranges_to_insert)
+        range_info.Range_info.range_index, ranges_to_insert)
       |> Int.Table.of_alist_exn
     in
     (* update the [Next] ranges *)
@@ -668,8 +1001,7 @@ module Make (Output_impls : Output_impls) = struct
        This representation is used to try to collapse consecutive whitespace as tightly as
        possible, but it's not a great abstraction, so some consecutive whitespace does not
        get collapsed.
-
-     *)
+    *)
     let words =
       List.concat_map words ~f:(fun x ->
         match x with
@@ -716,15 +1048,13 @@ module Make (Output_impls : Output_impls) = struct
     let words =
       match words with
       | [] -> []
-      | [ `Newline (0, None) ] -> []
+      (* Don't drop this section if it includes only a single newline. *)
       | list -> List.append list [ `Newline (1, None) ]
     in
     Array.of_list words
   ;;
 
-  (* Takes hunks of `Words and `Newlines and collapses them back into lines,
-   * formatting appropriately. *)
-  let collapse ranges ~rule_same ~rule_prev ~rule_next ~kind ~output =
+  let collapse_structured ranges ~kind =
     (* flag indicates what kind of range is currently being collapsed *)
     let flag = ref `Same in
     (* segment is the current series of words being processed. *)
@@ -733,33 +1063,29 @@ module Make (Output_impls : Output_impls) = struct
     let line = ref [] in
     (* lines is the return array *)
     let lines = ref [] in
-    let apply ~rule = function
-      | "" -> ""
-      | s -> Output_ops.Rule.apply s ~rule ~output ~refined:false
-    in
     (*
-     * Finish the current segment by applying the appropriate format
+       * Finish the current segment by applying the appropriate format
      * and popping it on to the end of the current line
-     *)
+    *)
     let finish_segment () =
       let rule =
         match !flag with
-        | `Same -> rule_same
-        | `Prev -> rule_prev
-        | `Next -> rule_next
+        | `Same -> fun str -> `Same, str
+        | `Prev -> fun str -> `Prev, str
+        | `Next -> fun str -> `Next, str
       in
-      let formatted_segment = List.rev !segment |> String.concat |> apply ~rule in
+      let formatted_segment = List.rev !segment |> String.concat |> rule in
       line := formatted_segment :: !line;
       segment := []
     in
     (*
-     * Finish the current segment, apply the reset rule to the line,
+       * Finish the current segment, apply the reset rule to the line,
      * and pop the finished line onto the return array
-     *)
+    *)
     let newline i =
       for _ = 1 to i do
         finish_segment ();
-        lines := String.concat (List.rev !line) :: !lines;
+        lines := List.rev !line :: !lines;
         line := []
       done
     in
@@ -794,7 +1120,7 @@ module Make (Output_impls : Output_impls) = struct
       in
       (* Iterate through the elements of the range, appending each `Word to
        * segment and calling newline on each `Newline
-       *)
+      *)
       Array.iter ar ~f:(function
         | `Newline (i, None) -> newline i
         | `Newline (i, Some s) ->
@@ -805,10 +1131,10 @@ module Make (Output_impls : Output_impls) = struct
     in
     List.iter ranges ~f;
     (match !line with
-     | [] | [ "" ] -> ()
+     | [] | [ (_, "") ] -> ()
      | line ->
-       let line = String.concat (List.rev line) in
-       if is_ws line
+       let line = List.rev line in
+       if is_ws (List.map ~f:snd line |> String.concat)
        then
          (* This branch was unreachable in our regression tests, but I can't prove it's
             unreachable in all cases. Rather than raise in production, let's drop this
@@ -818,8 +1144,24 @@ module Make (Output_impls : Output_impls) = struct
          raise_s
            [%message
              "Invariant violated: [collapse] got a line not terminated with a newline"
-               (line : string)]);
+               (line : ([ `Next | `Prev | `Same ] * string) list)]);
     Array.of_list (List.rev !lines)
+  ;;
+
+  (* Takes hunks of `Words and `Newlines and collapses them back into lines,
+   * formatting appropriately. *)
+  let collapse ranges ~rule_same ~rule_prev ~rule_next ~kind ~output =
+    let collapsed = collapse_structured ranges ~kind in
+    let apply ~rule = function
+      | "" -> ""
+      | s -> Output_ops.Rule.apply s ~rule ~output ~refined:false
+    in
+    Array.map collapsed ~f:(function line ->
+      List.map line ~f:(function
+        | `Same, word -> apply ~rule:rule_same word
+        | `Prev, word -> apply ~rule:rule_prev word
+        | `Next, word -> apply ~rule:rule_next word)
+      |> String.concat)
   ;;
 
   (* Get the hunks from two arrays of pieces (`Words and `Newlines) *)
@@ -898,39 +1240,27 @@ module Make (Output_impls : Output_impls) = struct
        | _ :: _ as ranges -> List.rev ranges :: !ans)
   ;;
 
-  (* Refines the diff, splitting the lines into smaller arrays and diffing them, then
-     collapsing them back into their initial lines after applying a format. *)
-  let refine
-    ~(rules : Format.Rules.t)
+  let refine_internal
+    (type a)
+    ~map_non_replace
+    ~line_is_ws
+    ~collapse_range
     ~produce_unified_lines
-    ~output
     ~keep_ws
     ~split_long_lines
     ~interleave
     ~word_big_enough
     (hunks : string Patience_diff.Hunk.t list)
+    : a Patience_diff.Hunk.t list
     =
-    let rule_prev = rules.word_prev in
-    let rule_next = rules.word_next in
-    let collapse = collapse ~rule_prev ~rule_next ~output in
-    let () =
-      match output with
-      | Ansi | Html -> ()
-      | Ascii ->
-        if produce_unified_lines
-        then failwith "produce_unified_lines is not supported in Ascii mode"
-    in
     let console_width =
       lazy
         (match Output_impls.console_width () with
          | Error _ -> 80
          | Ok width -> width)
     in
-    let refine_range : _ Patience_diff.Range.t -> _ Patience_diff.Range.t list = function
-      | Next (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws ->
-        [ Same (Array.zip_exn a a) ]
-      | Prev (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws -> []
-      | (Next _ | Prev _ | Same _ | Unified _) as range -> [ range ]
+    let refine_range : _ Patience_diff.Range.t -> a Patience_diff.Range.t list = function
+      | (Next _ | Prev _ | Same _ | Unified _) as range -> map_non_replace ~keep_ws range
       | Replace (prev_ar, next_ar, move_kind) ->
         (* Explode the arrays *)
         let prev_pieces = explode prev_ar ~keep_ws in
@@ -1024,9 +1354,9 @@ module Make (Output_impls : Output_impls) = struct
                        new_ranges
                        ~init:(rangeaccum, rangelistaccum)
                        ~f:(fun (rangeaccum, rangelistaccum) r ->
-                       match r with
-                       | `Break -> [], List.rev rangeaccum :: rangelistaccum
-                       | `Range r -> r :: rangeaccum, rangelistaccum)
+                         match r with
+                         | `Break -> [], List.rev rangeaccum :: rangelistaccum
+                         | `Range r -> r :: rangeaccum, rangelistaccum)
                    in
                    split_lines new_len_so_far rest rangeaccum rangelistaccum
                  | Next (tokens_arr, _) | Prev (tokens_arr, _) ->
@@ -1073,54 +1403,7 @@ module Make (Output_impls : Output_impls) = struct
           in
           (* Collapse the pieces back into lines *)
           let prev_next_pairs =
-            match prev_all_same, next_all_same with
-            | true, true ->
-              let kind = `Next_only in
-              let rule_same =
-                match move_kind with
-                | None -> rules.word_same_unified
-                | Some _ -> rules.word_same_unified_in_move
-              in
-              let next_ar = collapse sub_next ~rule_same ~kind in
-              [ next_ar, next_ar ]
-            | false, true ->
-              let kind = `Prev_only in
-              let rule_same =
-                if produce_unified_lines
-                then (
-                  match move_kind with
-                  | None -> rules.word_same_unified
-                  | Some _ -> rules.word_same_unified_in_move)
-                else rules.word_same_prev
-              in
-              let prev_ar = collapse sub_prev ~rule_same ~kind in
-              let kind = `Next_only in
-              let rule_same = rules.word_same_next in
-              let next_ar = collapse sub_next ~rule_same ~kind in
-              [ prev_ar, next_ar ]
-            | true, false ->
-              let kind = `Next_only in
-              let rule_same =
-                if produce_unified_lines
-                then (
-                  match move_kind with
-                  | None -> rules.word_same_unified
-                  | Some _ -> rules.word_same_unified_in_move)
-                else rules.word_same_next
-              in
-              let next_ar = collapse sub_next ~rule_same ~kind in
-              let kind = `Prev_only in
-              let rule_same = rules.word_same_prev in
-              let prev_ar = collapse sub_prev ~rule_same ~kind in
-              [ prev_ar, next_ar ]
-            | false, false ->
-              let kind = `Prev_only in
-              let rule_same = rules.word_same_prev in
-              let prev_ar = collapse sub_prev ~rule_same ~kind in
-              let kind = `Next_only in
-              let rule_same = rules.word_same_next in
-              let next_ar = collapse sub_next ~rule_same ~kind in
-              [ prev_ar, next_ar ]
+            collapse_range ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind
           in
           List.map prev_next_pairs ~f:(fun (prev_ar, next_ar) ->
             let range : _ Patience_diff.Range.t =
@@ -1129,8 +1412,10 @@ module Make (Output_impls : Output_impls) = struct
               | _ ->
                 (match prev_ar, next_ar with
                  (* Ugly hack that takes care of empty files *)
-                 | [| "" |], next_ar -> Replace ([||], next_ar, move_kind)
-                 | prev_ar, [| "" |] -> Replace (prev_ar, [||], move_kind)
+                 | [| line |], next_ar when line_is_ws line ->
+                   Replace ([||], next_ar, move_kind)
+                 | prev_ar, [| line |] when line_is_ws line ->
+                   Replace (prev_ar, [||], move_kind)
                  | prev_ar, next_ar ->
                    (match produce_unified_lines, prev_all_same, next_all_same with
                     | true, true, false -> Unified (next_ar, move_kind)
@@ -1143,8 +1428,144 @@ module Make (Output_impls : Output_impls) = struct
     in
     hunks
     |> List.map ~f:(fun hunk ->
-         { hunk with ranges = List.concat_map hunk.ranges ~f:refine_range })
+      { hunk with ranges = List.concat_map hunk.ranges ~f:refine_range })
     |> List.filter ~f:(not << Patience_diff.Hunk.all_same)
+  ;;
+
+  let refine_structured
+    ~produce_unified_lines
+    ~keep_ws
+    ~split_long_lines
+    ~interleave
+    ~word_big_enough
+    (hunks : string Patience_diff.Hunk.t list)
+    =
+    refine_internal
+      ~produce_unified_lines
+      ~line_is_ws:(const false)
+      ~keep_ws
+      ~split_long_lines
+      ~interleave
+      ~word_big_enough
+      hunks
+      ~map_non_replace:(fun ~keep_ws range ->
+        match range with
+        | Next (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws ->
+          [ Same (Array.map a ~f:(fun line -> [ `Same, line ], [ `Same, line ])) ]
+        | Prev (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws -> []
+        | Next (lines, move_info) ->
+          [ Next (Array.map lines ~f:(fun line -> [ `Same, line ]), move_info) ]
+        | Prev (lines, move_info) ->
+          [ Prev (Array.map lines ~f:(fun line -> [ `Same, line ]), move_info) ]
+        | Same lines ->
+          [ Same
+              (Array.map lines ~f:(fun (prev, next) -> [ `Same, prev ], [ `Same, next ]))
+          ]
+        | Unified (lines, move_info) ->
+          [ Unified (Array.map lines ~f:(fun line -> [ `Same, line ]), move_info) ]
+        | Replace _ -> assert false)
+      ~collapse_range:
+        (fun
+          ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind:_ ->
+        match prev_all_same, next_all_same with
+        | true, true ->
+          let kind = `Next_only in
+          let next_ar = collapse_structured sub_next ~kind in
+          [ next_ar, next_ar ]
+        | true, false | false, true | false, false ->
+          let kind = `Prev_only in
+          let prev_ar = collapse_structured sub_prev ~kind in
+          let kind = `Next_only in
+          let next_ar = collapse_structured sub_next ~kind in
+          [ prev_ar, next_ar ])
+  ;;
+
+  (* Refines the diff, splitting the lines into smaller arrays and diffing them, then
+     collapsing them back into their initial lines after applying a format. *)
+  let refine
+    ~(rules : Format.Rules.t)
+    ~produce_unified_lines
+    ~output
+    ~keep_ws
+    ~split_long_lines
+    ~interleave
+    ~word_big_enough
+    (hunks : string Patience_diff.Hunk.t list)
+    =
+    let rule_prev = rules.word_prev in
+    let rule_next = rules.word_next in
+    let collapse = collapse ~rule_prev ~rule_next ~output in
+    let () =
+      match output with
+      | Ansi | Html -> ()
+      | Ascii ->
+        if produce_unified_lines
+        then failwith "produce_unified_lines is not supported in Ascii mode"
+    in
+    refine_internal
+      ~produce_unified_lines
+      ~line_is_ws:(fun line -> String.equal line "")
+      ~keep_ws
+      ~split_long_lines
+      ~interleave
+      ~word_big_enough
+      hunks
+      ~map_non_replace:(fun ~keep_ws range ->
+        match range with
+        | Next (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws ->
+          [ Same (Array.zip_exn a a) ]
+        | Prev (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws -> []
+        | (Next _ | Prev _ | Same _ | Unified _) as range -> [ range ]
+        | Replace _ -> assert false)
+      ~collapse_range:(fun ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind ->
+        match prev_all_same, next_all_same with
+        | true, true ->
+          let kind = `Next_only in
+          let rule_same =
+            match move_kind with
+            | None -> rules.word_same_unified
+            | Some _ -> rules.word_same_unified_in_move
+          in
+          let next_ar = collapse sub_next ~rule_same ~kind in
+          [ next_ar, next_ar ]
+        | false, true ->
+          let kind = `Prev_only in
+          let rule_same =
+            if produce_unified_lines
+            then (
+              match move_kind with
+              | None -> rules.word_same_unified
+              | Some _ -> rules.word_same_unified_in_move)
+            else rules.word_same_prev
+          in
+          let prev_ar = collapse sub_prev ~rule_same ~kind in
+          let kind = `Next_only in
+          let rule_same = rules.word_same_next in
+          let next_ar = collapse sub_next ~rule_same ~kind in
+          [ prev_ar, next_ar ]
+        | true, false ->
+          let kind = `Next_only in
+          let rule_same =
+            if produce_unified_lines
+            then (
+              match move_kind with
+              | None -> rules.word_same_unified
+              | Some _ -> rules.word_same_unified_in_move)
+            else rules.word_same_next
+          in
+          let next_ar = collapse sub_next ~rule_same ~kind in
+          let kind = `Prev_only in
+          let rule_same = rules.word_same_prev in
+          let prev_ar = collapse sub_prev ~rule_same ~kind in
+          [ prev_ar, next_ar ]
+        | false, false ->
+          let kind = `Prev_only in
+          let rule_same = rules.word_same_prev in
+          let prev_ar = collapse sub_prev ~rule_same ~kind in
+          let kind = `Next_only in
+          let rule_same = rules.word_same_next in
+          let next_ar = collapse sub_next ~rule_same ~kind in
+          [ prev_ar, next_ar ])
   ;;
 
   let print ~file_names ~rules ~output ~location_style hunks =
@@ -1156,6 +1577,24 @@ module Make (Output_impls : Output_impls) = struct
       ~print:(Printf.printf "%s\n")
       ~location_style
       ~print_global_header:true
+  ;;
+
+  let print_side_by_side
+    ?width_override
+    ~file_names
+    ~rules
+    ~wrap_or_truncate
+    ~output
+    hunks
+    =
+    Output_ops.print_side_by_side
+      ?width_override
+      hunks
+      ~rules
+      ~wrap_or_truncate
+      ~output
+      ~file_names:(Some file_names)
+      ~print:(Printf.printf "%s\n")
   ;;
 
   let output_to_string
@@ -1178,9 +1617,48 @@ module Make (Output_impls : Output_impls) = struct
     String.concat (Queue.to_list buf) ~sep:"\n"
   ;;
 
+  let output_to_string_side_by_side
+    ?width_override
+    ~file_names
+    ~rules
+    ~wrap_or_truncate
+    ~output
+    hunks
+    =
+    let buf = Queue.create () in
+    Output_ops.print_side_by_side
+      ?width_override
+      hunks
+      ~rules
+      ~wrap_or_truncate
+      ~output
+      ~file_names:(Some file_names)
+      ~print:(Queue.enqueue buf);
+    String.concat (Queue.to_list buf) ~sep:"\n"
+  ;;
+
   let iter_ansi ~rules ~f_hunk_break ~f_line hunks =
     let hunks = Output_ops.Rules.apply hunks ~rules ~output:Ansi in
     Hunks.iter ~f_hunk_break ~f_line hunks
+  ;;
+
+  let iter_side_by_side_ansi
+    ?width_override
+    ~rules
+    ~f_hunk_break
+    ~f_line
+    ~wrap_or_truncate
+    hunks
+    =
+    Output_ops.print_side_by_side
+      ?width_override
+      ~f_hunk_break
+      hunks
+      ~output:Output.Ansi
+      ~rules
+      ~wrap_or_truncate
+      ~file_names:None
+      ~print:f_line
   ;;
 
   let patdiff
@@ -1235,14 +1713,14 @@ module Make (Output_impls : Output_impls) = struct
 end
 
 module Without_unix = Make (struct
-  let console_width () = Ok 80
+    let console_width () = Ok 80
 
-  let implementation : Output.t -> (module Output.S) = function
-    | Ansi -> (module Ansi_output)
-    | Ascii -> (module Ascii_output)
-    | Html -> (module Html_output.Without_mtime)
-  ;;
-end)
+    let implementation : Output.t -> (module Output.S) = function
+      | Ansi -> (module Ansi_output)
+      | Ascii -> (module Ascii_output)
+      | Html -> (module Html_output.Without_mtime)
+    ;;
+  end)
 
 module Private = struct
   module Make = Make

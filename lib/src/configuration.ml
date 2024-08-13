@@ -110,7 +110,13 @@ module On_disk = struct
       ; shallow : bool option [@sexp.option]
       ; double_check : bool option [@sexp.option]
       ; mask_uniques : bool option [@sexp.option]
-      ; output : [ `ascii | `html | `ansi | `unrefined of [ `ansi | `html ] ]
+      ; output :
+          [ `ascii
+          | `html
+          | `ansi
+          | `unrefined of [ `ansi | `html ]
+          | `side_by_side of [ `wrap | `truncate ]
+          ]
            [@default `ansi] [@sexp_drop_default.equal]
       ; alt_old : string option [@sexp.option]
       ; alt_new : string option [@sexp.option]
@@ -220,7 +226,12 @@ module On_disk = struct
       ; shallow
       ; double_check
       ; mask_uniques
-      ; output
+      ; output :> [ `ascii
+                  | `html
+                  | `ansi
+                  | `unrefined of [ `ansi | `html ]
+                  | `side_by_side of [ `wrap | `truncate ]
+                  ]
       ; alt_old
       ; alt_new
       ; header_old
@@ -638,7 +649,7 @@ let parse
       (match output with
        | `ascii -> Output.Ascii
        | `unrefined `html | `html -> Html
-       | `unrefined `ansi | `ansi -> Ansi)
+       | `unrefined `ansi | `ansi | `side_by_side _ -> Ansi)
     ~context:(Option.value ~default:(-1) context)
     ~word_big_enough:(Option.value ~default:default_word_big_enough word_big_enough)
     ~line_big_enough:(Option.value ~default:default_line_big_enough line_big_enough)
@@ -661,6 +672,10 @@ let parse
     ~next_alt:alt_new
     ~location_style
     ~warn_if_no_trailing_newline_in_both
+    ~side_by_side:
+      (match output with
+       | `side_by_side wrap_or_truncate -> Some wrap_or_truncate
+       | _ -> None)
 ;;
 
 let dark_bg =

@@ -63,7 +63,14 @@ let print hunks ~file_names ~(config : Configuration.t) =
         ~file_names
         ~output
         ~rules
-        ~location_style:config.location_style)
+        ~location_style:config.location_style
+    | Structured_hunks hunks ->
+      Patdiff_core.print_side_by_side
+        hunks
+        ~file_names
+        ~rules
+        ~wrap_or_truncate:(Option.value config.side_by_side ~default:`wrap)
+        ~output)
 ;;
 
 let diff_files_internal (config : Configuration.t) ~prev_file ~next_file =
@@ -107,15 +114,15 @@ let rec diff_dirs_internal (config : Configuration.t) ~prev_dir ~next_dir ~file_
     in
     Sys_unix.ls_dir (File_name.real_name_exn dir)
     |> List.filter ~f:(fun x ->
-         let x = File_name.real_name_exn dir ^/ x in
-         match Unix.stat x with
-         | exception Unix.Unix_error (ENOENT, _, _) ->
-           (* If the file disappeared during listing, let's pretend it didn't exist.
+      let x = File_name.real_name_exn dir ^/ x in
+      match Unix.stat x with
+      | exception Unix.Unix_error (ENOENT, _, _) ->
+        (* If the file disappeared during listing, let's pretend it didn't exist.
            This is important when the file is [-exclude]d because we don't want to create
            noise for excluded files, but it's also not too bad if the file is [-include]d
         *)
-           false
-         | stats -> file_filter (x, stats))
+        false
+      | stats -> file_filter (x, stats))
     |> String.Set.of_list
   in
   let prev_set = set_of_dir prev_dir in

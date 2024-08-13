@@ -152,10 +152,10 @@ let needleman_wunsch xs ys ~equal =
   for i = 1 to rows do
     for j = 1 to cols do
       a.(i).(j)
-        <- min3
-             (a.(i - 1).(j) + 1)
-             (a.(i).(j - 1) + 1)
-             (a.(i - 1).(j - 1) + if equal xs.(i - 1) ys.(j - 1) then 0 else 1)
+      <- min3
+           (a.(i - 1).(j) + 1)
+           (a.(i).(j - 1) + 1)
+           (a.(i - 1).(j - 1) + if equal xs.(i - 1) ys.(j - 1) then 0 else 1)
     done
   done;
   a
@@ -217,13 +217,12 @@ let recover_ranges xs ys a =
   let elts_of_indices is xs = Array.of_list is |> Array.map ~f:(Array.get xs) in
   traceback a (Array.length xs) (Array.length ys) []
   |> List.map ~f:(function
-       | Matching ijs ->
-         let xys = Array.of_list ijs |> Array.map ~f:(fun (i, j) -> xs.(i), ys.(j)) in
-         Range.Same xys
-       | Nonmatching (is, []) -> Prev (elts_of_indices is xs, None)
-       | Nonmatching ([], js) -> Next (elts_of_indices js ys, None)
-       | Nonmatching (is, js) ->
-         Replace (elts_of_indices is xs, elts_of_indices js ys, None))
+    | Matching ijs ->
+      let xys = Array.of_list ijs |> Array.map ~f:(fun (i, j) -> xs.(i), ys.(j)) in
+      Range.Same xys
+    | Nonmatching (is, []) -> Prev (elts_of_indices is xs, None)
+    | Nonmatching ([], js) -> Next (elts_of_indices js ys, None)
+    | Nonmatching (is, js) -> Replace (elts_of_indices is xs, elts_of_indices js ys, None))
 ;;
 
 let%expect_test "recover_ranges" =

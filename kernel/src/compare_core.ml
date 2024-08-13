@@ -26,25 +26,56 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
     in
     (* Refine if desired *)
     if config.unrefined
-    then
+    then (
       (* Turn `Replace ranges into `Prev and `Next ranges.
          `Replace's would otherwise be later interpreted as refined output *)
-      Patience_diff.Hunks.unified hunks
+      let hunks = Patience_diff.Hunks.unified hunks in
+      match config.side_by_side with
+      | Some _ ->
+        let tag_array arr = Array.map arr ~f:(fun line -> [ `Same, line ]) in
+        `Structured_hunks
+          (List.map hunks ~f:(fun hunk ->
+             { hunk with
+               ranges =
+                 List.map hunk.ranges ~f:(function
+                   | Same same ->
+                     Patience_diff.Range.Same
+                       (Array.map same ~f:(fun (prev, next) ->
+                          [ `Same, prev ], [ `Same, next ]))
+                   | Prev (prev, move) -> Prev (tag_array prev, move)
+                   | Next (next, move) -> Next (tag_array next, move)
+                   | Replace (prev, next, move) ->
+                     Replace (tag_array prev, tag_array next, move)
+                   | Unified (lines, move) -> Unified (tag_array lines, move))
+             }))
+      | None -> `Hunks hunks)
     else (
       let rules = config.rules in
       let output = config.output in
       let produce_unified_lines = config.produce_unified_lines in
       let interleave = config.interleave in
       let word_big_enough = config.word_big_enough in
-      Patdiff_core_arg.refine
-        ~rules
-        ~output
-        ~keep_ws
-        ~produce_unified_lines
-        ~split_long_lines
-        ~interleave
-        hunks
-        ~word_big_enough)
+      match config.side_by_side with
+      | Some _ ->
+        `Structured_hunks
+          (Patdiff_core_arg.refine_structured
+             ~keep_ws
+             ~produce_unified_lines:false
+             ~split_long_lines
+             ~interleave
+             hunks
+             ~word_big_enough)
+      | None ->
+        `Hunks
+          (Patdiff_core_arg.refine
+             ~rules
+             ~output
+             ~keep_ws
+             ~produce_unified_lines
+             ~split_long_lines
+             ~interleave
+             hunks
+             ~word_big_enough))
   ;;
 
   let diff_strings
@@ -60,7 +91,7 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
         ~prev
         ~next
         ~compare_assuming_text:(fun config ~prev ~next ->
-        compare_lines config ~prev:(lines prev) ~next:(lines next))
+          compare_lines config ~prev:(lines prev) ~next:(lines next))
     in
     if Comparison_result.has_no_diff hunks
     then `Same
@@ -82,7 +113,14 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
              ~file_names:(Fake prev.name, Fake next.name)
              ~output:config.output
              ~rules:config.rules
-             ~location_style:config.location_style)
+             ~location_style:config.location_style
+         | Structured_hunks hunks ->
+           Patdiff_core_arg.output_to_string_side_by_side
+             hunks
+             ~file_names:(Fake prev.name, Fake next.name)
+             ~output:config.output
+             ~rules:config.rules
+             ~wrap_or_truncate:(Option.value config.side_by_side ~default:`wrap))
   ;;
 
   module Private = struct

@@ -129,8 +129,8 @@ module Make (Mtime : Mtime) = struct
 end
 
 module Without_mtime = Make (struct
-  let mtime _ = Or_error.error_string "Mtime implementation not available"
-end)
+    let mtime _ = Or_error.error_string "Mtime implementation not available"
+  end)
 
 module Private = struct
   module Make = Make
