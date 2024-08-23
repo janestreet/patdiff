@@ -526,6 +526,135 @@ module On_disk = struct
   ;;
 end
 
+let line_same_default =
+  { On_disk.Line_rule.default with
+    prefix =
+      Some { On_disk.Affix.text = Some " |"; style = Some [ Bg Bright_black; Fg Black ] }
+  }
+;;
+
+let line_old_default =
+  { On_disk.Line_rule.default with
+    prefix = Some { On_disk.Affix.text = Some "-|"; style = Some [ Bg Red; Fg Black ] }
+  ; style = Some [ Fg Red ]
+  ; word_same = Some [ Dim ]
+  }
+;;
+
+let line_new_default =
+  { On_disk.Line_rule.default with
+    prefix = Some { On_disk.Affix.text = Some "+|"; style = Some [ Bg Green; Fg Black ] }
+  ; style = Some [ Fg Green ]
+  }
+;;
+
+let line_unified_default =
+  { On_disk.Line_rule.default with
+    prefix = Some { On_disk.Affix.text = Some "!|"; style = Some [ Bg Yellow; Fg Black ] }
+  }
+;;
+
+let header_old_default =
+  { On_disk.Line_rule.default with
+    prefix = Some { On_disk.Affix.text = Some "------ "; style = Some [ Fg Red ] }
+  ; style = Some [ Bold ]
+  }
+;;
+
+let header_new_default =
+  { On_disk.Line_rule.default with
+    prefix = Some { On_disk.Affix.text = Some "++++++ "; style = Some [ Fg Green ] }
+  ; style = Some [ Bold ]
+  }
+;;
+
+let line_from_old_default =
+  { On_disk.Line_rule.default with
+    prefix =
+      Some { On_disk.Affix.text = Some "<|"; style = Some [ Bg Magenta; Fg Black ] }
+  ; style = Some [ Fg Magenta ]
+  }
+;;
+
+let line_to_new_default =
+  { On_disk.Line_rule.default with
+    prefix = Some { On_disk.Affix.text = Some ">|"; style = Some [ Bg Cyan; Fg Black ] }
+  ; style = Some [ Fg Cyan ]
+  }
+;;
+
+let line_removed_in_move_default =
+  { On_disk.Line_rule.default with
+    prefix = Some { On_disk.Affix.text = Some ">|"; style = Some [ Bg Red; Fg Black ] }
+  ; style = Some [ Fg Red ]
+  }
+;;
+
+let line_added_in_move_default =
+  { On_disk.Line_rule.default with
+    prefix = Some { On_disk.Affix.text = Some ">|"; style = Some [ Bg Green; Fg Black ] }
+  ; style = Some [ Fg Green ]
+  }
+;;
+
+let line_unified_in_move_default =
+  { On_disk.Line_rule.default with
+    prefix = Some { On_disk.Affix.text = Some ">|"; style = Some [ Bg Yellow; Fg Black ] }
+  }
+;;
+
+let default_string =
+  let line_rule_to_string line_rule =
+    On_disk.Line_rule.sexp_of_t line_rule |> Sexp.to_string
+  in
+  sprintf
+    {|;; -*- scheme -*-
+;; patdiff Configuration file
+
+(
+ (context %d)
+
+ (line_same %s)
+
+ (line_old %s)
+
+ (line_new %s)
+
+ (line_unified %s)
+
+ (header_old %s)
+
+ (header_new %s)
+
+ (hunk
+  ((prefix ((text "@|") (style ((bg bright_black) (fg black)))))
+   (suffix ((text " ============================================================") (style ())))
+   (style (bold))))
+
+ (line_from_old %s)
+
+ (line_to_new %s)
+
+ (line_removed_in_move %s)
+
+ (line_added_in_move %s)
+
+ (line_unified_in_move %s)
+)|}
+    default_context
+    (line_rule_to_string line_same_default)
+    (line_rule_to_string line_old_default)
+    (line_rule_to_string line_new_default)
+    (line_rule_to_string line_unified_default)
+    (line_rule_to_string header_old_default)
+    (line_rule_to_string header_new_default)
+    (line_rule_to_string line_from_old_default)
+    (line_rule_to_string line_to_new_default)
+    (line_rule_to_string line_removed_in_move_default)
+    (line_rule_to_string line_added_in_move_default)
+    (line_rule_to_string line_unified_in_move_default)
+;;
+
 let parse
   ({ dont_produce_unified_lines
    ; dont_overwrite_word_old_word_new
@@ -566,17 +695,22 @@ let parse
   =
   let default_true = Option.value ~default:true in
   let default_false = Option.value ~default:false in
-  let default_rule = Option.value ~default:On_disk.Line_rule.default in
   (* Lines *)
-  let line_same = default_rule line_same in
-  let line_prev = default_rule line_old in
-  let line_next = default_rule line_new in
-  let line_unified = default_rule line_unified in
-  let line_from_prev = default_rule line_from_old in
-  let line_to_next = default_rule line_to_new in
-  let line_removed_in_move = default_rule line_removed_in_move in
-  let line_added_in_move = default_rule line_added_in_move in
-  let line_unified_in_move = default_rule line_unified_in_move in
+  let line_same = Option.value line_same ~default:line_same_default in
+  let line_prev = Option.value line_old ~default:line_old_default in
+  let line_next = Option.value line_new ~default:line_new_default in
+  let line_unified = Option.value line_unified ~default:line_unified_default in
+  let line_from_prev = Option.value line_from_old ~default:line_from_old_default in
+  let line_to_next = Option.value line_to_new ~default:line_to_new_default in
+  let line_removed_in_move =
+    Option.value line_removed_in_move ~default:line_removed_in_move_default
+  in
+  let line_added_in_move =
+    Option.value line_added_in_move ~default:line_added_in_move_default
+  in
+  let line_unified_in_move =
+    Option.value line_unified_in_move ~default:line_unified_in_move_default
+  in
   (* Padding for prefixes: They should all be the same length. *)
   let min_width =
     [ line_same
@@ -676,6 +810,11 @@ let parse
       (match output with
        | `side_by_side wrap_or_truncate -> Some wrap_or_truncate
        | _ -> None)
+;;
+
+let%test_unit "default Config.t sexp matches default Configuration.t" =
+  let default_from_disk = parse ([%of_sexp: On_disk.t] (Sexp.of_string default_string)) in
+  [%test_eq: t] default default_from_disk
 ;;
 
 let dark_bg =
@@ -787,69 +926,6 @@ let load ?(quiet_errors = false) config_file =
     if not quiet_errors
     then eprintf "Note: error loading %S: %s\n%!" config_file (Exn.to_string e);
     None
-;;
-
-let default_string =
-  sprintf
-    {|;; -*- scheme -*-
-;; patdiff Configuration file
-
-(
- (context %d)
-
- (line_same
-  ((prefix ((text " |") (style ((bg bright_black) (fg black)))))))
-
- (line_old
-  ((prefix ((text "-|") (style ((bg red)(fg black)))))
-   (style ((fg red)))
-   (word_same (dim))))
-
- (line_new
-  ((prefix ((text "+|") (style ((bg green)(fg black)))))
-   (style ((fg green)))))
-
- (line_unified
-  ((prefix ((text "!|") (style ((bg yellow)(fg black)))))))
-
- (header_old
-  ((prefix ((text "------ ") (style ((fg red)))))
-   (style (bold))))
-
- (header_new
-  ((prefix ((text "++++++ ") (style ((fg green)))))
-   (style (bold))))
-
- (hunk
-  ((prefix ((text "@|") (style ((bg bright_black) (fg black)))))
-   (suffix ((text " ============================================================") (style ())))
-   (style (bold))))
-
- (line_from_old
-  ((prefix ((text "<|") (style ((bg magenta)(fg black)))))
-   (style ((fg magenta)))))
-
- (line_to_new
-  ((prefix ((text ">|") (style ((bg cyan)(fg black)))))
-   (style ((fg cyan)))))
-
- (line_removed_in_move
-  ((prefix ((text ">|") (style ((bg red)(fg black)))))
-   (style ((fg red)))))
-
- (line_added_in_move
-  ((prefix ((text ">|") (style ((bg green)(fg black)))))
-   (style ((fg green)))))
-
- (line_unified_in_move
-  ((prefix ((text ">|") (style ((bg yellow)(fg black)))))))
-)|}
-    default_context
-;;
-
-let%test_unit "default Config.t sexp matches default Configuration.t" =
-  let default_from_disk = parse ([%of_sexp: On_disk.t] (Sexp.of_string default_string)) in
-  [%test_eq: t] default default_from_disk
 ;;
 
 let get_config ?filename () =

@@ -209,7 +209,7 @@ module Make (Output_impls : Output_impls) = struct
         | (word_type, word) :: rest ->
           start_word_type word_type;
           let char_list_with_widths =
-            String.Utf8.to_list (String.Utf8.of_string word)
+            String.Utf8.to_list (String.Utf8.sanitize word)
             |> List.map ~f:(fun uchar ->
               let columns = Uucp.Break.tty_width_hint uchar in
               uchar, columns)
