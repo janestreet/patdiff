@@ -209,7 +209,7 @@ module Make (Output_impls : Output_impls) = struct
         | (word_type, word) :: rest ->
           start_word_type word_type;
           let char_list_with_widths =
-            String.Utf8.to_list (String.Utf8.of_string word)
+            String.Utf8.to_list (String.Utf8.sanitize word)
             |> List.map ~f:(fun uchar ->
               let columns = Uucp.Break.tty_width_hint uchar in
               uchar, columns)
@@ -386,9 +386,8 @@ module Make (Output_impls : Output_impls) = struct
       =
       let middle_divider =
         match output with
-        | Output.Ansi -> "│"
+        | Output.Ansi | Html -> "│"
         | Ascii -> "|"
-        | Html -> raise_s [%sexp "side-by-side does not support html output"]
       in
       (* The rule prefixes should already be padding so using anyone should be fine *)
       let prefix_column_width = String.length rules.line_same.pre.text in
@@ -423,6 +422,9 @@ module Make (Output_impls : Output_impls) = struct
         String.concat
           [ line_number_padding; apply ~rule ""; file; create_padding columns_to_pad ]
       in
+      (match output with
+       | Output.Ansi | Ascii -> ()
+       | Html -> print "<pre style=\"font-family:consolas,monospace\">");
       (match file_names with
        | None -> ()
        | Some (prev_file, next_file) ->
@@ -491,7 +493,10 @@ module Make (Output_impls : Output_impls) = struct
                    ]);
               print_lines (line_num + 1) rest_left rest_right
           in
-          print_lines 0 left_lines right_lines))
+          print_lines 0 left_lines right_lines));
+      match output with
+      | Output.Ansi | Ascii -> ()
+      | Html -> print "</pre>"
     ;;
   end
 

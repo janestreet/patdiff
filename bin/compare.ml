@@ -45,6 +45,7 @@ module Args = struct
     ; warn_if_no_trailing_newline_in_both : bool option
     ; find_moves_opt : bool option
     ; side_by_side_opt : [ `wrap | `truncate ] option option
+    ; width_override : int option option
     }
 
   type t =
@@ -117,6 +118,7 @@ let override config (args : Args.compare_flags) =
     ?location_style:args.location_style
     ?warn_if_no_trailing_newline_in_both:args.warn_if_no_trailing_newline_in_both
     ?side_by_side:args.side_by_side_opt
+    ?width_override:args.width_override
 ;;
 
 let compare_main (args : Args.compare_flags) =
@@ -369,6 +371,13 @@ let command =
          "side-by-side"
          (optional (Arg_type.enumerated (module Wrap_or_truncate)))
          ~doc:" Render a diff side by side"
+     and width_override =
+       flag
+         "width"
+         (optional int)
+         ~doc:
+           "INT number of columns to use for side by side diff. If not provided defaults \
+            to current terminal width."
      and files =
        anon
          (maybe
@@ -411,6 +420,7 @@ let command =
                   | None | Some true -> find_moves_opt
                   | Some false -> Some false)
              ; side_by_side_opt = Some side_by_side_opt
+             ; width_override = Some width_override
              ; prev_file
              ; next_file
              }

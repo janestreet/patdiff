@@ -1079,3 +1079,65 @@ MNO
     5   MNO                                                              │6   MNO
     |}]
 ;;
+
+let%expect_test "Test html output" =
+  let prev =
+    {|
+ABC
+1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20
+21 22 23 24 25
+MNO
+|}
+  in
+  let next =
+    {|
+ABC
+1 2 3 4 5 6 7 8
+new line
+new 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25
+MNO
+|}
+  in
+  let prev = String.split_lines prev |> Array.of_list in
+  let next = String.split_lines next |> Array.of_list in
+  let module Patdiff = Patdiff_core.Without_unix in
+  let hunks =
+    Patdiff.diff
+      ~context:(-1)
+      ~line_big_enough:3
+      ~keep_ws:false
+      ~find_moves:true
+      ~prev
+      ~next
+  in
+  let refined =
+    Patdiff.refine_structured
+      ~produce_unified_lines:false
+      ~keep_ws:false
+      ~split_long_lines:false
+      ~word_big_enough:3
+      ~interleave:true
+      hunks
+  in
+  Patdiff.print_side_by_side
+    ~width_override:100
+    ~file_names:(File_name.Fake "a", File_name.Fake "b")
+    ~rules:Format.Rules.default
+    ~wrap_or_truncate:`wrap
+    ~output:Html
+    refined;
+  [%expect
+    {|
+    <pre style="font-family:consolas,monospace">
+      <span style="color:#880000"><span style="font-weight:bold">-|</span></span><span style="color:#880000"></span>a                                            │  <span style="color:#008800"><span style="font-weight:bold">+|</span></span><span style="color:#008800"></span>b
+    1                                                │1
+    2   ABC                                          │2   ABC
+    3 <span style="color:#888800"><span style="font-weight:bold">!|</span></span>1 2 3 4 5 6 7 8<span style="color:#880000"> 9</span> 10 11 12 13 14 15 16 17 18 │3 <span style="color:#888800"><span style="font-weight:bold">!|</span></span>1 2 3 4 5 6 7 8<span style="color:#008800"></span>
+        19 20<span style="color:#880000"></span>                                        │
+                                                     │4 <span style="color:#008800"><span style="font-weight:bold">+|</span></span><span style="color:#008800"></span><span style="color:#008800">new line</span>
+    4 <span style="color:#888800"><span style="font-weight:bold">!|</span></span><span style="color:#880000"></span>21 22 23 24 25                               │5 <span style="color:#888800"><span style="font-weight:bold">!|</span></span><span style="color:#008800">new</span> 10 11 12 13 14 15 16 17 18 19 20 21 22 23
+                                                     │     24 25
+    5   MNO                                          │6   MNO
+    </pre>
+    |}]
+;;
