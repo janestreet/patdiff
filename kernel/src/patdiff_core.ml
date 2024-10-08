@@ -984,13 +984,7 @@ module Make (Output_impls : Output_impls) = struct
   [@@deriving sexp_of]
 
   (* Splits an array of lines into an array of pieces (`Newlines and R.Words) *)
-  let explode ar ~keep_ws =
-    let words = Array.to_list ar in
-    let words =
-      if keep_ws
-      then List.map words ~f:(split ~keep_ws)
-      else List.map words ~f:whitespace_ignorant_split
-    in
+  let explode_internal words ~keep_ws =
     let to_words l = List.map l ~f:(fun s -> `Word s) in
     (*
        [`Newline of (int * string option)]
@@ -1044,10 +1038,7 @@ module Make (Output_impls : Output_impls) = struct
     let words =
       match words with
       | `Newline (i, opt) :: tl -> `Newline (i - 1, opt) :: tl
-      | `Word _ :: _ | [] ->
-        raise_s
-          [%message
-            "Expected words to start with a `Newline." (words : word_or_newline list)]
+      | _ -> words
     in
     (* Append a newline to the end, if this array has any words *)
     let words =
@@ -1057,6 +1048,16 @@ module Make (Output_impls : Output_impls) = struct
       | list -> List.append list [ `Newline (1, None) ]
     in
     Array.of_list words
+  ;;
+
+  let explode ar ~keep_ws =
+    let ar = Array.to_list ar in
+    let words =
+      if keep_ws
+      then List.map ar ~f:(split ~keep_ws)
+      else List.map ar ~f:whitespace_ignorant_split
+    in
+    explode_internal words ~keep_ws
   ;;
 
   let collapse_structured ranges ~kind =
@@ -1245,6 +1246,117 @@ module Make (Output_impls : Output_impls) = struct
        | _ :: _ as ranges -> List.rev ranges :: !ans)
   ;;
 
+  (* Turn lines into words and apply a heuristic to break up large blocks of lines
+     by relatively unique words. *)
+  let words_break_hueristic prev_ar next_ar ~keep_ws =
+    let target_block_size = 100 in
+    let target_num_blocks =
+      min (Array.length prev_ar) (Array.length next_ar) / target_block_size
+    in
+    let prev_words =
+      if keep_ws
+      then Array.map prev_ar ~f:(split ~keep_ws)
+      else Array.map prev_ar ~f:whitespace_ignorant_split
+    in
+    let next_words =
+      if keep_ws
+      then Array.map next_ar ~f:(split ~keep_ws)
+      else Array.map next_ar ~f:whitespace_ignorant_split
+    in
+    if Array.length prev_words < target_block_size * 2
+       && Array.length next_words < target_block_size
+    then
+      (* The Replace range is small enough don't apply the heuristic. *)
+      [ prev_words, next_words ]
+    else (
+      (* Count word frequencies. *)
+      let word_freq = String.Table.create () in
+      Array.iter prev_words ~f:(fun line ->
+        List.iter line ~f:(fun word ->
+          Hashtbl.update word_freq word ~f:(function
+            | None -> 1, 0
+            | Some (cnt, other) -> cnt + 1, other)));
+      Array.iter next_words ~f:(fun line ->
+        List.iter line ~f:(fun word ->
+          Hashtbl.update word_freq word ~f:(function
+            | None -> 0, 1
+            | Some (other, cnt) -> other, cnt + 1)));
+      let prev_word_count = Array.sum (module Int) prev_words ~f:List.length in
+      let next_word_count = Array.sum (module Int) next_words ~f:List.length in
+      let prev_freq_cutoff = Int.of_float (sqrt (Int.to_float prev_word_count)) in
+      let next_freq_cutoff = Int.of_float (sqrt (Int.to_float next_word_count)) in
+      (* Find all words shared between the two files and sort by least common *)
+      let word_breaks_to_consider =
+        Hashtbl.to_alist word_freq
+        |> List.filter ~f:(fun (_, (cnt_prev, cnt_next)) ->
+          cnt_prev > 0
+          && cnt_next > 0
+          (* Don't break on words that are too common *)
+          && cnt_prev < prev_freq_cutoff
+          && cnt_next < next_freq_cutoff)
+        |> List.sort
+             ~compare:
+               (Comparable.lift Int.compare ~f:(fun (_, (cnt_prev, cnt_next)) ->
+                  cnt_prev + cnt_next))
+        |> (fun list -> List.take list target_num_blocks)
+        |> List.map ~f:fst
+        |> String.Set.of_list
+      in
+      let line_breaks_in_prev =
+        Array.filter_mapi prev_words ~f:(fun i line ->
+          match List.find line ~f:(Set.mem word_breaks_to_consider) with
+          | None -> None
+          | Some word -> Some (word, i))
+        |> Array.to_list
+        |> String.Map.of_alist_reduce ~f:(fun first _ -> first)
+      in
+      let line_breaks_in_next =
+        Array.filter_mapi next_words ~f:(fun i line ->
+          match List.find line ~f:(Set.mem word_breaks_to_consider) with
+          | None -> None
+          | Some word -> Some (word, i))
+        |> Array.to_list
+        |> String.Map.of_alist_reduce ~f:(fun first _ -> first)
+      in
+      let line_breaks_to_consider =
+        Map.merge line_breaks_in_prev line_breaks_in_next ~f:(fun ~key:_ merge_element ->
+          match merge_element with
+          | `Both (prev, next) -> Some (prev, next)
+          | `Left _ | `Right _ -> None)
+        |> Map.data
+        |> List.sort ~compare:(Comparable.lift Int.compare ~f:snd)
+      in
+      (* Find the actual line numbers to split on *)
+      let line_breaks =
+        let last_prev = ref (-1) in
+        let last_next = ref (-1) in
+        List.filter line_breaks_to_consider ~f:(fun (prev, next) ->
+          (* Avoid overlapping indices and don't make small segments *)
+          if prev > !last_prev
+             && prev - !last_prev > target_block_size / 2
+             && next - !last_next > target_block_size / 2
+          then (
+            last_prev := prev;
+            last_next := next;
+            true)
+          else false)
+      in
+      (* Break up the arrays *)
+      let arrays_rev = ref [] in
+      let last_prev_i = ref 0 in
+      let last_next_i = ref 0 in
+      List.iter
+        (line_breaks @ [ Array.length prev_ar, Array.length next_ar ])
+        ~f:(fun (prev_i, next_i) ->
+          arrays_rev
+          := ( Array.sub prev_words ~pos:!last_prev_i ~len:(prev_i - !last_prev_i)
+             , Array.sub next_words ~pos:!last_next_i ~len:(next_i - !last_next_i) )
+             :: !arrays_rev;
+          last_prev_i := prev_i;
+          last_next_i := next_i);
+      List.rev !arrays_rev)
+  ;;
+
   let refine_internal
     (type a)
     ~map_non_replace
@@ -1264,172 +1376,176 @@ module Make (Output_impls : Output_impls) = struct
          | Error _ -> 80
          | Ok width -> width)
     in
-    let refine_range : _ Patience_diff.Range.t -> a Patience_diff.Range.t list = function
-      | (Next _ | Prev _ | Same _ | Unified _) as range -> map_non_replace ~keep_ws range
-      | Replace (prev_ar, next_ar, move_kind) ->
-        (* Explode the arrays *)
-        let prev_pieces = explode prev_ar ~keep_ws in
-        let next_pieces = explode next_ar ~keep_ws in
-        (* Diff the pieces *)
-        let sub_diff = diff_pieces ~prev_pieces ~next_pieces ~keep_ws ~word_big_enough in
-        (* Smash the hunks' ranges all together *)
-        let sub_diff = Patience_diff.Hunks.ranges sub_diff in
-        (* Break it up where lines are too long *)
-        let sub_diff_pieces =
-          if not split_long_lines
-          then [ sub_diff ]
-          else (
-            let max_len = Int.max 20 (force console_width - 2) in
-            (* Accumulates the total length of the line so far, summing lengths
+    let handle_replace prev_ar next_ar move_kind =
+      (* Explode the arrays *)
+      let prev_pieces = explode_internal prev_ar ~keep_ws in
+      let next_pieces = explode_internal next_ar ~keep_ws in
+      (* Diff the pieces *)
+      let sub_diff = diff_pieces ~prev_pieces ~next_pieces ~keep_ws ~word_big_enough in
+      (* Smash the hunks' ranges all together *)
+      let sub_diff = Patience_diff.Hunks.ranges sub_diff in
+      (* Break it up where lines are too long *)
+      let sub_diff_pieces =
+        if not split_long_lines
+        then [ sub_diff ]
+        else (
+          let max_len = Int.max 20 (force console_width - 2) in
+          (* Accumulates the total length of the line so far, summing lengths
                of word tokens but resetting when newlines are hit *)
-            let get_new_len_so_far ~len_so_far tokens_arr =
-              Array.fold ~init:len_so_far tokens_arr ~f:(fun len_so_far token ->
-                match token with
-                | `Newline _ -> 0
-                | `Word word -> len_so_far + String.length word)
-            in
-            (* Iteratively split long lines up.
+          let get_new_len_so_far ~len_so_far tokens_arr =
+            Array.fold ~init:len_so_far tokens_arr ~f:(fun len_so_far token ->
+              match token with
+              | `Newline _ -> 0
+              | `Word word -> len_so_far + String.length word)
+          in
+          (* Iteratively split long lines up.
                Produces a list of "range lists", where each range list should be displayed
                all together in one unbroken piece before being followed by the next range
                list, etc. *)
-            let rec split_lines len_so_far sub_diff rangeaccum rangelistaccum =
-              match sub_diff with
-              | [] ->
-                (match rangeaccum with
-                 | [] -> List.rev rangelistaccum
-                 | _ -> List.rev (List.rev rangeaccum :: rangelistaccum))
-              (* More tokens ranges left to process *)
-              | range :: rest ->
-                (match (range : _ Patience_diff.Range.t) with
-                 | Same tokenpairs_arr ->
-                   let range_of_tokens tokenpairs =
-                     Patience_diff.Range.Same (Array.of_list tokenpairs)
-                   in
-                   (* Keep taking tokens until we exceed max_len or hit a newline.
+          let rec split_lines len_so_far sub_diff rangeaccum rangelistaccum =
+            match sub_diff with
+            | [] ->
+              (match rangeaccum with
+               | [] -> List.rev rangelistaccum
+               | _ -> List.rev (List.rev rangeaccum :: rangelistaccum))
+            (* More tokens ranges left to process *)
+            | range :: rest ->
+              (match (range : _ Patience_diff.Range.t) with
+               | Same tokenpairs_arr ->
+                 let range_of_tokens tokenpairs =
+                   Patience_diff.Range.Same (Array.of_list tokenpairs)
+                 in
+                 (* Keep taking tokens until we exceed max_len or hit a newline.
                       Returns (new len_so_far, new range, remaining tokens, hit newline)
-                   *)
-                   let rec take_until_max len_so_far tokenpairs accum =
-                     match tokenpairs with
-                     | [] -> len_so_far, range_of_tokens (List.rev accum), [], false
-                     | ((token, _) as tokenpair) :: rest ->
-                       (match token with
-                        | `Newline _ ->
-                          0, range_of_tokens (List.rev (tokenpair :: accum)), rest, true
-                        | `Word word ->
-                          let wordlen = String.length word in
-                          if wordlen + len_so_far > max_len && len_so_far > 0
-                          then 0, range_of_tokens (List.rev accum), tokenpairs, false
-                          else
-                            take_until_max (wordlen + len_so_far) rest (tokenpair :: accum))
-                   in
-                   let make_newline () =
-                     Patience_diff.Range.Same [| `Newline (1, None), `Newline (1, None) |]
-                   in
-                   (* Keep taking ranges until all tokens exhausted.
+                 *)
+                 let rec take_until_max len_so_far tokenpairs accum =
+                   match tokenpairs with
+                   | [] -> len_so_far, range_of_tokens (List.rev accum), [], false
+                   | ((token, _) as tokenpair) :: rest ->
+                     (match token with
+                      | `Newline _ ->
+                        0, range_of_tokens (List.rev (tokenpair :: accum)), rest, true
+                      | `Word word ->
+                        let wordlen = String.length word in
+                        if wordlen + len_so_far > max_len && len_so_far > 0
+                        then 0, range_of_tokens (List.rev accum), tokenpairs, false
+                        else
+                          take_until_max (wordlen + len_so_far) rest (tokenpair :: accum))
+                 in
+                 let make_newline () =
+                   Patience_diff.Range.Same [| `Newline (1, None), `Newline (1, None) |]
+                 in
+                 (* Keep taking ranges until all tokens exhausted.
                       Returns (new len_so_far, range list) *)
-                   let rec take_ranges_until_exhausted len_so_far tokenpairs accum =
-                     match tokenpairs with
-                     | [] -> len_so_far, List.rev accum
-                     | _ ->
-                       let new_len_so_far, new_range, new_tokenpairs, hit_newline =
-                         take_until_max len_so_far tokenpairs []
-                       in
-                       let new_accum = `Range new_range :: accum in
-                       (* If there are token pairs left, that means we hit the max_len,
+                 let rec take_ranges_until_exhausted len_so_far tokenpairs accum =
+                   match tokenpairs with
+                   | [] -> len_so_far, List.rev accum
+                   | _ ->
+                     let new_len_so_far, new_range, new_tokenpairs, hit_newline =
+                       take_until_max len_so_far tokenpairs []
+                     in
+                     let new_accum = `Range new_range :: accum in
+                     (* If there are token pairs left, that means we hit the max_len,
                           so add a break at this point *)
-                       let new_accum =
-                         match new_tokenpairs with
-                         | _ :: _ when not hit_newline ->
-                           `Break :: `Range (make_newline ()) :: new_accum
-                         | _ -> new_accum
-                       in
-                       take_ranges_until_exhausted new_len_so_far new_tokenpairs new_accum
-                   in
-                   let new_len_so_far, new_ranges =
-                     take_ranges_until_exhausted
-                       len_so_far
-                       (Array.to_list tokenpairs_arr)
-                       []
-                   in
-                   (* Update rangeaccum and rangelistaccum according to the `Ranges and
+                     let new_accum =
+                       match new_tokenpairs with
+                       | _ :: _ when not hit_newline ->
+                         `Break :: `Range (make_newline ()) :: new_accum
+                       | _ -> new_accum
+                     in
+                     take_ranges_until_exhausted new_len_so_far new_tokenpairs new_accum
+                 in
+                 let new_len_so_far, new_ranges =
+                   take_ranges_until_exhausted
+                     len_so_far
+                     (Array.to_list tokenpairs_arr)
+                     []
+                 in
+                 (* Update rangeaccum and rangelistaccum according to the `Ranges and
                       `Breaks. `Ranges accumulate on to the existing range list to be
                       displayed contiguously, `Breaks start a new range list. *)
-                   let rangeaccum, rangelistaccum =
-                     List.fold
-                       new_ranges
-                       ~init:(rangeaccum, rangelistaccum)
-                       ~f:(fun (rangeaccum, rangelistaccum) r ->
-                         match r with
-                         | `Break -> [], List.rev rangeaccum :: rangelistaccum
-                         | `Range r -> r :: rangeaccum, rangelistaccum)
-                   in
-                   split_lines new_len_so_far rest rangeaccum rangelistaccum
-                 | Next (tokens_arr, _) | Prev (tokens_arr, _) ->
-                   let new_len_so_far = get_new_len_so_far ~len_so_far tokens_arr in
-                   split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
-                 | Replace (prev_arr, next_arr, _move_kind) ->
-                   let new_len_so_far =
-                     Int.max
-                       (get_new_len_so_far ~len_so_far prev_arr)
-                       (get_new_len_so_far ~len_so_far next_arr)
-                   in
-                   split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
-                 | Unified _ -> assert false)
-            in
-            split_lines 0 sub_diff [] [])
+                 let rangeaccum, rangelistaccum =
+                   List.fold
+                     new_ranges
+                     ~init:(rangeaccum, rangelistaccum)
+                     ~f:(fun (rangeaccum, rangelistaccum) r ->
+                       match r with
+                       | `Break -> [], List.rev rangeaccum :: rangelistaccum
+                       | `Range r -> r :: rangeaccum, rangelistaccum)
+                 in
+                 split_lines new_len_so_far rest rangeaccum rangelistaccum
+               | Next (tokens_arr, _) | Prev (tokens_arr, _) ->
+                 let new_len_so_far = get_new_len_so_far ~len_so_far tokens_arr in
+                 split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
+               | Replace (prev_arr, next_arr, _move_kind) ->
+                 let new_len_so_far =
+                   Int.max
+                     (get_new_len_so_far ~len_so_far prev_arr)
+                     (get_new_len_so_far ~len_so_far next_arr)
+                 in
+                 split_lines new_len_so_far rest (range :: rangeaccum) rangelistaccum
+               | Unified _ -> assert false)
+          in
+          split_lines 0 sub_diff [] [])
+      in
+      let sub_diff_pieces =
+        if interleave
+        then List.concat_map sub_diff_pieces ~f:split_for_readability
+        else sub_diff_pieces
+      in
+      List.concat_map sub_diff_pieces ~f:(fun sub_diff ->
+        let sub_prev = Patience_diff.Range.prev_only sub_diff in
+        let sub_next = Patience_diff.Range.next_only sub_diff in
+        let all_same ranges =
+          List.for_all ranges ~f:(fun range ->
+            match (range : _ Patience_diff.Range.t) with
+            | Same _ -> true
+            | Prev (a, _) | Next (a, _) ->
+              if keep_ws
+              then false
+              else
+                Array.for_all a ~f:(function
+                  | `Newline _ -> true
+                  | `Word _ -> false)
+            | _ -> false)
         in
-        let sub_diff_pieces =
-          if interleave
-          then List.concat_map sub_diff_pieces ~f:split_for_readability
-          else sub_diff_pieces
+        let prev_all_same = all_same sub_prev in
+        let next_all_same = all_same sub_next in
+        let produce_unified_lines =
+          produce_unified_lines
+          && (((not (ranges_are_just_whitespace sub_prev)) && next_all_same)
+              || ((not (ranges_are_just_whitespace sub_next)) && prev_all_same))
         in
-        List.concat_map sub_diff_pieces ~f:(fun sub_diff ->
-          let sub_prev = Patience_diff.Range.prev_only sub_diff in
-          let sub_next = Patience_diff.Range.next_only sub_diff in
-          let all_same ranges =
-            List.for_all ranges ~f:(fun range ->
-              match (range : _ Patience_diff.Range.t) with
-              | Same _ -> true
-              | Prev (a, _) | Next (a, _) ->
-                if keep_ws
-                then false
-                else
-                  Array.for_all a ~f:(function
-                    | `Newline _ -> true
-                    | `Word _ -> false)
-              | _ -> false)
+        (* Collapse the pieces back into lines *)
+        let prev_next_pairs =
+          collapse_range ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind
+        in
+        List.map prev_next_pairs ~f:(fun (prev_ar, next_ar) ->
+          let range : _ Patience_diff.Range.t =
+            match prev_all_same, next_all_same with
+            | true, true -> Same (Array.map next_ar ~f:(fun x -> x, x))
+            | _ ->
+              (match prev_ar, next_ar with
+               (* Ugly hack that takes care of empty files *)
+               | [| line |], next_ar when line_is_ws line ->
+                 Replace ([||], next_ar, move_kind)
+               | prev_ar, [| line |] when line_is_ws line ->
+                 Replace (prev_ar, [||], move_kind)
+               | prev_ar, next_ar ->
+                 (match produce_unified_lines, prev_all_same, next_all_same with
+                  | true, true, false -> Unified (next_ar, move_kind)
+                  | true, false, true -> Unified (prev_ar, move_kind)
+                  | false, _, _ | _, false, false -> Replace (prev_ar, next_ar, move_kind)
+                  | _ -> assert false))
           in
-          let prev_all_same = all_same sub_prev in
-          let next_all_same = all_same sub_next in
-          let produce_unified_lines =
-            produce_unified_lines
-            && (((not (ranges_are_just_whitespace sub_prev)) && next_all_same)
-                || ((not (ranges_are_just_whitespace sub_next)) && prev_all_same))
-          in
-          (* Collapse the pieces back into lines *)
-          let prev_next_pairs =
-            collapse_range ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind
-          in
-          List.map prev_next_pairs ~f:(fun (prev_ar, next_ar) ->
-            let range : _ Patience_diff.Range.t =
-              match prev_all_same, next_all_same with
-              | true, true -> Same (Array.map next_ar ~f:(fun x -> x, x))
-              | _ ->
-                (match prev_ar, next_ar with
-                 (* Ugly hack that takes care of empty files *)
-                 | [| line |], next_ar when line_is_ws line ->
-                   Replace ([||], next_ar, move_kind)
-                 | prev_ar, [| line |] when line_is_ws line ->
-                   Replace (prev_ar, [||], move_kind)
-                 | prev_ar, next_ar ->
-                   (match produce_unified_lines, prev_all_same, next_all_same with
-                    | true, true, false -> Unified (next_ar, move_kind)
-                    | true, false, true -> Unified (prev_ar, move_kind)
-                    | false, _, _ | _, false, false ->
-                      Replace (prev_ar, next_ar, move_kind)
-                    | _ -> assert false))
-            in
-            range))
+          range))
+    in
+    let refine_range : _ Patience_diff.Range.t -> a Patience_diff.Range.t list = function
+      | (Next _ | Prev _ | Same _ | Unified _) as range -> map_non_replace ~keep_ws range
+      | Replace (prev_ar, next_ar, move_kind) ->
+        let arrays = words_break_hueristic prev_ar next_ar ~keep_ws in
+        List.concat_map arrays ~f:(fun (prev_ar, next_ar) ->
+          handle_replace (Array.to_list prev_ar) (Array.to_list next_ar) move_kind)
     in
     hunks
     |> List.map ~f:(fun hunk ->

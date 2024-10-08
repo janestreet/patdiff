@@ -872,17 +872,15 @@ let light_bg =
         |> On_disk.V2.to_v3))
 ;;
 
-let%test_module _ =
-  (module struct
-    (* Ensure both sexps are parseable *)
-    let%test_unit _ =
-      let dark = Lazy.force dark_bg in
-      let light = Lazy.force light_bg in
-      ignore (dark : t);
-      ignore (light : t)
-    ;;
-  end)
-;;
+module%test _ = struct
+  (* Ensure both sexps are parseable *)
+  let%test_unit _ =
+    let dark = Lazy.force dark_bg in
+    let light = Lazy.force light_bg in
+    ignore (dark : t);
+    ignore (light : t)
+  ;;
+end
 
 let load_sexp_conv f conv = Result.try_with (fun () -> Sexp.load_sexp_conv_exn f conv)
 
