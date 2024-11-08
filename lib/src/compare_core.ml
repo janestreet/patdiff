@@ -66,6 +66,7 @@ let print hunks ~file_names ~(config : Configuration.t) =
         ~location_style:config.location_style
     | Structured_hunks hunks ->
       Patdiff_core.print_side_by_side
+        ?width_override:config.width_override
         hunks
         ~file_names
         ~rules

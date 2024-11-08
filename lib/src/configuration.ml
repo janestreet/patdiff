@@ -139,6 +139,7 @@ module On_disk = struct
       ; warn_if_no_trailing_newline_in_both : bool
            [@default warn_if_no_trailing_newline_in_both_default]
            [@sexp_drop_default.equal]
+      ; width_override : int option [@sexp.option]
       }
     [@@deriving quickcheck, sexp]
   end
@@ -250,6 +251,7 @@ module On_disk = struct
       ; word_new
       ; location_style
       ; warn_if_no_trailing_newline_in_both
+      ; width_override = None
       }
     ;;
   end
@@ -690,6 +692,7 @@ let parse
    ; word_new
    ; location_style
    ; warn_if_no_trailing_newline_in_both
+   ; width_override
    } :
     On_disk.t)
   =
@@ -810,6 +813,7 @@ let parse
       (match output with
        | `side_by_side wrap_or_truncate -> Some wrap_or_truncate
        | _ -> None)
+    ~width_override
 ;;
 
 let%test_unit "default Config.t sexp matches default Configuration.t" =
@@ -868,17 +872,15 @@ let light_bg =
         |> On_disk.V2.to_v3))
 ;;
 
-let%test_module _ =
-  (module struct
-    (* Ensure both sexps are parseable *)
-    let%test_unit _ =
-      let dark = Lazy.force dark_bg in
-      let light = Lazy.force light_bg in
-      ignore (dark : t);
-      ignore (light : t)
-    ;;
-  end)
-;;
+module%test _ = struct
+  (* Ensure both sexps are parseable *)
+  let%test_unit _ =
+    let dark = Lazy.force dark_bg in
+    let light = Lazy.force light_bg in
+    ignore (dark : t);
+    ignore (light : t)
+  ;;
+end
 
 let load_sexp_conv f conv = Result.try_with (fun () -> Sexp.load_sexp_conv_exn f conv)
 
