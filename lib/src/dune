@@ -1,7 +1,7 @@
 (library
  (name patdiff)
  (public_name patdiff)
- (libraries core_kernel.composition_infix core core_unix core_unix.linux_ext
+ (libraries base.composition_infix core core_unix core_unix.linux_ext
    patdiff_kernel patience_diff core_unix.sys_unix)
  (preprocess
   (pps ppx_jane)))

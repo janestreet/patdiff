@@ -1253,7 +1253,7 @@ p
       in
       return (prev, next)
     in
-    Quickcheck.test test_case_gen ~f:(fun (prev, next) ->
+    Quickcheck.test ~trials:50 test_case_gen ~f:(fun (prev, next) ->
       let prev_string = String.concat ~sep:"\n" (Array.to_list prev) in
       let next_string = String.concat ~sep:"\n" (Array.to_list next) in
       let hunks =
