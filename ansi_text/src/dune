@@ -1,0 +1,6 @@
+(library
+ (name ansi_text)
+ (public_name patdiff.ansi_text)
+ (libraries core uucp)
+ (preprocess
+  (pps ppx_jane)))

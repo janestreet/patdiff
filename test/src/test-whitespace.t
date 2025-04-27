@@ -35,27 +35,27 @@ Expect no spurious diffs.
 Expect whitespace changes should be detected.
 
   $ patdiff -default prev next -keep-whitespace | visible_colors
-  (fg:red)------ (+bold)prev
-  (fg:green)++++++ (+bold)next
-  (fg:black)@|(+bold)-1,1 +1,17(off) ============================================================
-  (fg:black bg:red)-|(off)this is(fg:red +reverse) (off)a file(fg:red +reverse) (off)with(fg:red +reverse) (off)whitespace(fg:red +reverse) (off)variously(fg:red +reverse) (off)applied(fg:red +reverse) (off)hg(fg:red +reverse) (off)across the(fg:red +reverse) (off)lines in an arbitrary(fg:red +reverse) (off)manner
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|(fg:green +reverse) (off)this is(fg:green +reverse)  (off)a file(fg:green +reverse) 	(off)with(fg:green +reverse)  	  (off)whitespace
-  (fg:black bg:green)+|(fg:green +reverse) (off)variously(fg:green +reverse)  (off)applied
-  (fg:black bg:green)+|(off)hg
-  (fg:black bg:green)+|(off)across the
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|
-  (fg:black bg:green)+|(off)lines in an arbitrary
-  (fg:black bg:green)+|(off)manner
+  (fg:red)------ (fg:default +bold)prev(-weight)
+  (fg:green)++++++ (fg:default +bold)next(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,17(-weight) ============================================================
+  (bg:red fg:black)-|(off fg:gray-12)this is(+invert fg:red) (-invert fg:gray-12)a file(+invert fg:red) (-invert fg:gray-12)with(+invert fg:red) (-invert fg:gray-12)whitespace(+invert fg:red) (-invert fg:gray-12)variously(+invert fg:red) (-invert fg:gray-12)applied(+invert fg:red) (-invert fg:gray-12)hg(+invert fg:red) (-invert fg:gray-12)across the(+invert fg:red) (-invert fg:gray-12)lines in an arbitrary(+invert fg:red) (-invert fg:gray-12)manner(fg:default)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off +invert fg:green) (-invert fg:default)this is(+invert fg:green)  (-invert fg:default)a file(+invert fg:green) 	(-invert fg:default)with(+invert fg:green)  	  (-invert fg:default)whitespace
+  (bg:green fg:black)+|(off +invert fg:green) (-invert fg:default)variously(+invert fg:green)  (-invert fg:default)applied
+  (bg:green fg:black)+|(off)hg
+  (bg:green fg:black)+|(off)across the
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)
+  (bg:green fg:black)+|(off)lines in an arbitrary
+  (bg:green fg:black)+|(off)manner
 
 Note that some whitespace changes are still ignored, just not those involving substituting a newline for a space.
 
@@ -79,11 +79,11 @@ Create some python files with the .py extension
   >   print("hello")
   > EOF
   $ patdiff prev.py next.py | visible_colors
-  (fg:red)------ (+bold)prev.py
-  (fg:green)++++++ (+bold)next.py
-  (fg:black)@|(+bold)-1,1 +1,2(off) ============================================================
-  (fg:black bg:yellow)!|(fg:green)if True:
-  (fg:black bg:yellow)!|(fg:green +reverse)  (off)print("hello")
+  (fg:red)------ (fg:default +bold)prev.py(-weight)
+  (fg:green)++++++ (fg:default +bold)next.py(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,2(-weight) ============================================================
+  (bg:yellow fg:black)!|(bg:default fg:green)if True:(fg:default)
+  (bg:yellow fg:black)!|(bg:default +invert fg:green)  (-invert fg:default)print("hello")
 
 Create some python files that get detected with the shebang
   $ cat - > prev <<EOF
@@ -96,9 +96,9 @@ Create some python files that get detected with the shebang
   >   print("hello")
   > EOF
   $ patdiff prev next | visible_colors
-  (fg:red)------ (+bold)prev
-  (fg:green)++++++ (+bold)next
-  (fg:black)@|(+bold)-1,2 +1,3(off) ============================================================
-  (fg:black) |(off)#!/usr/bin/python
-  (fg:black bg:yellow)!|(fg:green)if True:
-  (fg:black bg:yellow)!|(fg:green +reverse)  (off)print("hello")
+  (fg:red)------ (fg:default +bold)prev(-weight)
+  (fg:green)++++++ (fg:default +bold)next(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,2 +1,3(-weight) ============================================================
+  (bg:gray fg:black) |(bg:default fg:default)#!/usr/bin/python
+  (bg:yellow fg:black)!|(bg:default fg:green)if True:(fg:default)
+  (bg:yellow fg:black)!|(bg:default +invert fg:green)  (-invert fg:default)print("hello")

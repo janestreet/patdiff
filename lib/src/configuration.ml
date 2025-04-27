@@ -531,41 +531,58 @@ end
 let line_same_default =
   { On_disk.Line_rule.default with
     prefix =
-      Some { On_disk.Affix.text = Some " |"; style = Some [ Bg Bright_black; Fg Black ] }
+      Some
+        { On_disk.Affix.text = Some " |"
+        ; style = Some [ Bg (Bright Black); Fg (Standard Black) ]
+        }
   }
 ;;
 
 let line_old_default =
   { On_disk.Line_rule.default with
-    prefix = Some { On_disk.Affix.text = Some "-|"; style = Some [ Bg Red; Fg Black ] }
-  ; style = Some [ Fg Red ]
-  ; word_same = Some [ Dim ]
+    prefix =
+      Some
+        { On_disk.Affix.text = Some "-|"
+        ; style = Some [ Bg (Standard Red); Fg (Standard Black) ]
+        }
+  ; style = Some [ Fg (Standard Red) ]
+  ; word_same = Some [ Fg (Gray24 (Ansi_text.Color.Gray24.of_level_exn 12)) ]
   }
 ;;
 
 let line_new_default =
   { On_disk.Line_rule.default with
-    prefix = Some { On_disk.Affix.text = Some "+|"; style = Some [ Bg Green; Fg Black ] }
-  ; style = Some [ Fg Green ]
+    prefix =
+      Some
+        { On_disk.Affix.text = Some "+|"
+        ; style = Some [ Bg (Standard Green); Fg (Standard Black) ]
+        }
+  ; style = Some [ Fg (Standard Green) ]
   }
 ;;
 
 let line_unified_default =
   { On_disk.Line_rule.default with
-    prefix = Some { On_disk.Affix.text = Some "!|"; style = Some [ Bg Yellow; Fg Black ] }
+    prefix =
+      Some
+        { On_disk.Affix.text = Some "!|"
+        ; style = Some [ Bg (Standard Yellow); Fg (Standard Black) ]
+        }
   }
 ;;
 
 let header_old_default =
   { On_disk.Line_rule.default with
-    prefix = Some { On_disk.Affix.text = Some "------ "; style = Some [ Fg Red ] }
+    prefix =
+      Some { On_disk.Affix.text = Some "------ "; style = Some [ Fg (Standard Red) ] }
   ; style = Some [ Bold ]
   }
 ;;
 
 let header_new_default =
   { On_disk.Line_rule.default with
-    prefix = Some { On_disk.Affix.text = Some "++++++ "; style = Some [ Fg Green ] }
+    prefix =
+      Some { On_disk.Affix.text = Some "++++++ "; style = Some [ Fg (Standard Green) ] }
   ; style = Some [ Bold ]
   }
 ;;
@@ -573,35 +590,54 @@ let header_new_default =
 let line_from_old_default =
   { On_disk.Line_rule.default with
     prefix =
-      Some { On_disk.Affix.text = Some "<|"; style = Some [ Bg Magenta; Fg Black ] }
-  ; style = Some [ Fg Magenta ]
+      Some
+        { On_disk.Affix.text = Some "<|"
+        ; style = Some [ Bg (Standard Magenta); Fg (Standard Black) ]
+        }
+  ; style = Some [ Fg (Standard Magenta) ]
   }
 ;;
 
 let line_to_new_default =
   { On_disk.Line_rule.default with
-    prefix = Some { On_disk.Affix.text = Some ">|"; style = Some [ Bg Cyan; Fg Black ] }
-  ; style = Some [ Fg Cyan ]
+    prefix =
+      Some
+        { On_disk.Affix.text = Some ">|"
+        ; style = Some [ Bg (Standard Cyan); Fg (Standard Black) ]
+        }
+  ; style = Some [ Fg (Standard Cyan) ]
   }
 ;;
 
 let line_removed_in_move_default =
   { On_disk.Line_rule.default with
-    prefix = Some { On_disk.Affix.text = Some ">|"; style = Some [ Bg Red; Fg Black ] }
-  ; style = Some [ Fg Red ]
+    prefix =
+      Some
+        { On_disk.Affix.text = Some ">|"
+        ; style = Some [ Bg (Standard Red); Fg (Standard Black) ]
+        }
+  ; style = Some [ Fg (Standard Red) ]
   }
 ;;
 
 let line_added_in_move_default =
   { On_disk.Line_rule.default with
-    prefix = Some { On_disk.Affix.text = Some ">|"; style = Some [ Bg Green; Fg Black ] }
-  ; style = Some [ Fg Green ]
+    prefix =
+      Some
+        { On_disk.Affix.text = Some ">|"
+        ; style = Some [ Bg (Standard Green); Fg (Standard Black) ]
+        }
+  ; style = Some [ Fg (Standard Green) ]
   }
 ;;
 
 let line_unified_in_move_default =
   { On_disk.Line_rule.default with
-    prefix = Some { On_disk.Affix.text = Some ">|"; style = Some [ Bg Yellow; Fg Black ] }
+    prefix =
+      Some
+        { On_disk.Affix.text = Some ">|"
+        ; style = Some [ Bg (Standard Yellow); Fg (Standard Black) ]
+        }
   }
 ;;
 
@@ -629,7 +665,7 @@ let default_string =
  (header_new %s)
 
  (hunk
-  ((prefix ((text "@|") (style ((bg bright_black) (fg black)))))
+  ((prefix ((text "@|") (style ((bg (Bright Black)) (Fg (Standard Black))))))
    (suffix ((text " ============================================================") (style ())))
    (style (bold))))
 
@@ -830,12 +866,12 @@ let dark_bg =
 ((context 8)
  (line_same ())
  (line_changed
-  ((prefix_old ((text "-|") (style (Bold (Fg Red)))))
-   (prefix_new ((text "+|") (style (Bold (Fg Green)))))))
+  ((prefix_old ((text "-|") (style (Bold (Fg (Standard Red))))))
+   (prefix_new ((text "+|") (style (Bold (Fg (Standard Green))))))))
  (word_same ((style_old ())
              (style_new ())))
- (word_changed ((style_old (Bold Underline (Fg Red)))
-                (style_new ((Fg Green)))))
+ (word_changed ((style_old (Bold Underline (Fg (Standard Red))))
+                (style_new ((Fg (Standard Green))))))
  (chunk
   ((prefix ((text "@@@@@@@@@@ ") (style (Bold (Fg blue)))))
    (suffix ((text " @@@@@@@@@@") (style (Bold (Fg blue)))))
@@ -856,13 +892,13 @@ let light_bg =
        Sexp.of_string
          {|
 ((context 8)
- (line_same (dim))
- (line_changed ((prefix_old ((text "-|") (style (bold (fg red)))))
-                (prefix_new ((text "+|") (style (bold (fg green)))))))
+ (line_same (Faint))
+ (line_changed ((prefix_old ((text "-|") (style (bold (Fg (Standard Red))))))
+                (prefix_new ((text "+|") (style (bold (Fg (Standard Green))))))))
  (word_same ((style_old ((bg white)))
-             (style_new ((bg yellow)))))
+             (style_new ((Bg (Standard Yellow))))))
  (word_changed ((style_old ((bg white) bold))
-                (style_new ((bg yellow) bold))))
+                (style_new ((Bg (Standard Yellow)) bold))))
  )|}
      in
      parse

@@ -13,7 +13,7 @@ let pipe commands =
 
 let links =
   [ "../../bin/main.exe", `In_path_as, "patdiff"
-  ; "../../../ansicodes/bin/main.exe", `In_path_as, "ansicodes"
+  ; "../../../ansi_text/bin/main.exe", `In_path_as, "ansi_text"
   ]
 ;;
 
@@ -31,7 +31,7 @@ let patdiff_dir ~extra_flags ~prev ~next =
     in
     pipe
       [ "patdiff", [ "-default"; "prev"; "next" ] @ extra_flags
-      ; "ansicodes", [ "visualize"; "-minimize" ]
+      ; "ansi_text", [ "visualize"; "-minimize" ]
       ])
 ;;
 

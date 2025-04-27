@@ -20,7 +20,7 @@ module%test _ = struct
     [%expect
       {|
       -1,1 +1,1
-      [0;1;33m!|[0mFoo[0;31m bar[0m buzz
+      [1;33m!|[22;39mFoo[31m bar[39m buzz
       |}]
   ;;
 
@@ -76,9 +76,9 @@ module%test _ = struct
     [%expect
       {|
       -1,0 +1,3
-      [0;1;32m+|[0m[0;32m[0m
-      [0;1;32m+|[0m[0;32m[0m
-      [0;1;32m+|[0m[0;32m[0m
+      [1;32m+|[22;39m[32m[39m
+      [1;32m+|[22;39m[32m[39m
+      [1;32m+|[22;39m[32m[39m
       |}]
   ;;
 
@@ -96,9 +96,9 @@ module%test _ = struct
     [%expect
       {|
       -1,0 +1,3
-      [0;1;32m+|[0m[0;7;32m  [0m
-      [0;1;32m+|[0m[0;7;32m  [0m
-      [0;1;32m+|[0m[0;7;32m  [0m
+      [1;32m+|[22;39m[7;32m  [27;39m
+      [1;32m+|[22;39m[7;32m  [27;39m
+      [1;32m+|[22;39m[7;32m  [27;39m
       |}]
   ;;
 
@@ -201,8 +201,8 @@ module%test [@name "python"] _ = struct
     [%expect
       {|
       -1,1 +1,2
-      [0;1;33m!|[0m[0;32mif True:[0m
-      [0;1;33m!|[0m[0;7;32m    [0mprint(5)
+      [1;33m!|[22;39m[32mif True:[39m
+      [1;33m!|[22;39m[7;32m    [27;39mprint(5)
       |}]
   ;;
 
@@ -1089,6 +1089,118 @@ p
         n
         o
         p
+      |}]
+  ;;
+
+  let%expect_test "test moves when nesting changes" =
+    test_moves
+      ~prev:
+        {|
+let foo = 3
+
+let bar = 4
+
+let rec test x =
+  if x > 0
+  then test (x-1)
+  else x
+;;
+
+let message =
+  "This is a message"
+;;
+
+let call_the_server () =
+  Server.call {
+      user;
+      password;
+      request
+  }
+;;
+
+let read_the_file () =
+  Reader.load_sexp "some-really-long file-path.sexp"
+;;
+|}
+      ~next:
+        {|
+module Server = struct
+  let call_the_server () =
+    Server.call {
+        user;
+        password;
+        request
+    }
+  ;;
+
+  let read_the_file () =
+    Reader.load_sexp
+       "some-really-long file-path.sexp"
+  ;;
+end
+
+let foo = 3
+
+let bar = 4
+
+let rec test x =
+  if x > 0
+  then test (x-1)
+  else x
+;;
+
+let message =
+  "This is a message"
+;;
+
+include Server
+|};
+    [%expect
+      {|
+      -1,26 +1,31
+      +|
+      +|module Server = struct
+      >|  let call_the_server () =
+      >|    Server.call {
+      >|        user;
+      >|        password;
+      >|        request
+      >|    }
+      >|  ;;
+      >|
+      >|  let read_the_file () =
+      >-  Reader.load_sexp "some-really-long file-path.sexp"
+      >+    Reader.load_sexp
+      >+       "some-really-long file-path.sexp"
+      >|  ;;
+      +|end
+
+        let foo = 3
+
+        let bar = 4
+
+        let rec test x =
+          if x > 0
+          then test (x-1)
+          else x
+        ;;
+
+        let message =
+          "This is a message"
+        ;;
+
+      <|let call_the_server () =
+      <|  Server.call {
+      <|      user;
+      <|      password;
+      <|      request
+      <|  }
+      <|;;
+      <|
+      <|let read_the_file () =
+      <|  Reader.load_sexp "some-really-long file-path.sexp"
+      <|;;
+      +|include Server
       |}]
   ;;
 

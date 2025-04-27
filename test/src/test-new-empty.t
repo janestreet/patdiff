@@ -11,15 +11,15 @@ Test diffing against empty files.
 Expect all red.
 
   $ patdiff -default prev next | visible_colors
-  (fg:red)------ (+bold)prev
-  (fg:green)++++++ (+bold)next
-  (fg:black)@|(+bold)-1,1 +1,0(off) ============================================================
-  (fg:black bg:red)-|(fg:red)oneline
+  (fg:red)------ (fg:default +bold)prev(-weight)
+  (fg:green)++++++ (fg:default +bold)next(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,0(-weight) ============================================================
+  (bg:red fg:black)-|(bg:default fg:red)oneline(fg:default)
 
 Expect all green.
 
   $ patdiff -default next prev | visible_colors
-  (fg:red)------ (+bold)next
-  (fg:green)++++++ (+bold)prev
-  (fg:black)@|(+bold)-1,0 +1,1(off) ============================================================
-  (fg:black bg:green)+|(fg:green)oneline
+  (fg:red)------ (fg:default +bold)next(-weight)
+  (fg:green)++++++ (fg:default +bold)prev(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,0 +1,1(-weight) ============================================================
+  (bg:green fg:black)+|(bg:default fg:green)oneline(fg:default)
