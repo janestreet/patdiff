@@ -1,99 +1,7 @@
 open! Core
 open! Import
-
-module Color = struct
-  module RGB6 : sig
-    type t = private
-      { r : int
-      ; g : int
-      ; b : int
-      }
-    [@@deriving compare, quickcheck, sexp]
-
-    val create_exn : r:int -> g:int -> b:int -> t
-  end = struct
-    type t =
-      { r : int
-      ; g : int
-      ; b : int
-      }
-    [@@deriving compare, quickcheck, sexp]
-
-    let create_exn ~r ~g ~b =
-      let check x = 0 <= x && x < 6 in
-      if not (check r && check g && check b)
-      then invalid_arg "RGB6 (r, g, b) -- expected (0 <= r, g, b < 6)";
-      { r; g; b }
-    ;;
-  end
-
-  module Gray24 : sig
-    type t = private { level : int } [@@deriving compare, sexp, quickcheck]
-
-    val create_exn : level:int -> t
-  end = struct
-    type t = { level : int } [@@deriving compare, quickcheck, sexp]
-
-    let create_exn ~level =
-      if not (0 <= level && level < 24)
-      then invalid_arg "Gray24 level -- expected (0 <= level < 24)";
-      { level }
-    ;;
-  end
-
-  module T = struct
-    type t =
-      | Black
-      | Red
-      | Green
-      | Yellow
-      | Blue
-      | Magenta
-      | Cyan
-      | White
-      | Default
-      | Gray
-      | Bright_black
-      | Bright_red
-      | Bright_green
-      | Bright_yellow
-      | Bright_blue
-      | Bright_magenta
-      | Bright_cyan
-      | Bright_white
-      | RGB6 of RGB6.t
-      | Gray24 of Gray24.t
-    [@@deriving compare, quickcheck, sexp]
-  end
-
-  include T
-  include Comparable.Make (T)
-
-  let rgb6_exn (r, g, b) = RGB6 (RGB6.create_exn ~r ~g ~b)
-  let gray24_exn level = Gray24 (Gray24.create_exn ~level)
-end
-
-module Style = struct
-  module T = struct
-    type t =
-      | Bold
-      | Underline
-      | Emph
-      | Blink
-      | Dim
-      | Inverse
-      | Hide
-      | Reset
-      | Foreground of Color.t
-      | Fg of Color.t
-      | Background of Color.t
-      | Bg of Color.t
-    [@@deriving compare, quickcheck, sexp]
-  end
-
-  include T
-  include Comparable.Make (T)
-end
+module Color = Ansi_text.Color
+module Style = Ansi_text.Attr
 
 module Rule = struct
   module Affix = struct
@@ -158,41 +66,41 @@ module Rules = struct
   [@@deriving compare, fields ~iterators:map, sexp_of]
 
   let inner_line_change text color =
-    let style = Style.[ Fg color ] in
-    let pre = Rule.Affix.create ~styles:Style.[ Bold; Fg color ] text in
+    let style = [ Ansi_text.Attr.Fg color ] in
+    let pre = Rule.Affix.create ~styles:[ Bold; Fg color ] text in
     Rule.create ~pre style
   ;;
 
   let line_unified ~is_move =
     let pre =
       Rule.Affix.create
-        ~styles:Style.[ Bold; Fg Color.Yellow ]
+        ~styles:[ Bold; Ansi_text.(Attr.Fg (Color.Standard Color.Sgr8.Yellow)) ]
         (if is_move then ">|" else "!|")
     in
     Rule.create ~pre []
   ;;
 
-  let word_change color = Rule.create Style.[ Fg color ]
+  let word_change color = Rule.create [ Fg color ]
 
   let default =
     let open Rule in
     { line_same = unstyled_prefix "  "
-    ; line_prev = inner_line_change "-|" Color.Red
-    ; line_next = inner_line_change "+|" Color.Green
+    ; line_prev = inner_line_change "-|" Ansi_text.Color.(Standard Sgr8.Red)
+    ; line_next = inner_line_change "+|" Ansi_text.Color.(Standard Sgr8.Green)
     ; line_unified = line_unified ~is_move:false
     ; word_same_prev = blank
     ; word_same_next = blank
     ; word_same_unified = blank
     ; word_same_unified_in_move = blank
-    ; word_prev = word_change Color.Red
-    ; word_next = word_change Color.Green
+    ; word_prev = word_change Ansi_text.Color.(Standard Sgr8.Red)
+    ; word_next = word_change Ansi_text.Color.(Standard Sgr8.Green)
     ; hunk = blank
     ; header_prev = blank
     ; header_next = blank
-    ; moved_from_prev = inner_line_change "<|" Color.Magenta
-    ; moved_to_next = inner_line_change ">|" Color.Cyan
-    ; removed_in_move = inner_line_change ">|" Color.Red
-    ; added_in_move = inner_line_change ">|" Color.Green
+    ; moved_from_prev = inner_line_change "<|" Ansi_text.Color.(Standard Sgr8.Magenta)
+    ; moved_to_next = inner_line_change ">|" Ansi_text.Color.(Standard Sgr8.Cyan)
+    ; removed_in_move = inner_line_change ">|" Ansi_text.Color.(Standard Sgr8.Red)
+    ; added_in_move = inner_line_change ">|" Ansi_text.Color.(Standard Sgr8.Green)
     ; line_unified_in_move = line_unified ~is_move:true
     }
   ;;
@@ -241,7 +149,7 @@ module Location_style = struct
     | "omake" -> Omake
     | "none" -> None
     | "separator" -> Separator
-    | other -> failwiths ~here:[%here] "invalid location style" other [%sexp_of: string]
+    | other -> failwiths "invalid location style" other [%sexp_of: string]
   ;;
 
   let omake_style_error_message_start ~file ~line =

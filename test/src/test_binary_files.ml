@@ -18,13 +18,13 @@ let%expect_test "message when non-ASCII text files differ" =
   let%bind () = patdiff ~prev ~next ~extra_flags:[ "-location-style"; "omake" ] in
   [%expect
     {|
-    (fg:red)------ (+bold)prev/file
-    (fg:green)++++++ (+bold)next/file
+    (fg:red)------ (fg:default +bold)prev/file(-weight)
+    (fg:green)++++++ (fg:default +bold)next/file(-weight)
     File "prev/file", line 2, characters 0-1:
-    (fg:black) |(off)┌Signals──┐┌Values───┐┌Waves─────────┐
-    (fg:black bg:red)-|(fg:red)      │clock(off)    ││         ││┌───┐   ┌───┐ │
-    (fg:black bg:green)+|(fg:green)      │clock2(off)   ││         ││┌───┐   ┌───┐ │
-    (fg:black) |(off)      │         ││         ││    └───┘   └─│
+    (bg:gray fg:black) |(bg:default fg:default)┌Signals──┐┌Values───┐┌Waves─────────┐
+    (bg:red fg:black)-|(off fg:red)      │clock(fg:gray-12)    ││         ││┌───┐   ┌───┐ │(fg:default)
+    (bg:green fg:black)+|(off fg:green)      │clock2(fg:default)   ││         ││┌───┐   ┌───┐ │
+    (bg:gray fg:black) |(bg:default fg:default)      │         ││         ││    └───┘   └─│
     ("Unclean exit" (Exit_non_zero 1))
     |}];
   return ()

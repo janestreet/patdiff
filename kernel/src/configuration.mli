@@ -6,20 +6,20 @@ val default_context : int
 
 (** The following constants were all chosen empirically. *)
 
-(** Default cutoff for line-level semantic cleanup.  Any match of [default_line_big_enough]
+(** Default cutoff for line-level semantic cleanup. Any match of [default_line_big_enough]
     or more will not be deleted, even if it's surrounded by large inserts and deletes.
-    Raising this quantity can only decrease the number of matches, and lowering it
-    can only increase the number of matches. *)
+    Raising this quantity can only decrease the number of matches, and lowering it can
+    only increase the number of matches. *)
 val default_line_big_enough : int
 
 (** Analogous to {!default_line_big_enough}, but for word-level refinement *)
 val default_word_big_enough : int
 
-(** Governs the behavior of [split_for_readability].  We will only split ranges around
-    matches of size greater than [too_short_to_split].  Note that this should always
-    be at least 1, otherwise we will split on a single `Newline token.
-    Raising this quantity will result in less ranges being split, and setting it to
-    infinity is the same as passing in [~interleave:false]. *)
+(** Governs the behavior of [split_for_readability]. We will only split ranges around
+    matches of size greater than [too_short_to_split]. Note that this should always be at
+    least 1, otherwise we will split on a single `Newline token. Raising this quantity
+    will result in less ranges being split, and setting it to infinity is the same as
+    passing in [~interleave:false]. *)
 val too_short_to_split : int
 
 val warn_if_no_trailing_newline_in_both_default : bool

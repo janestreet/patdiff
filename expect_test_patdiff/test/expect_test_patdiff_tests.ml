@@ -1,0 +1,2 @@
+module Test_diff_printer = Test_diff_printer
+module Test_expect_test_patdiff = Test_expect_test_patdiff

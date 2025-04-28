@@ -37,16 +37,16 @@ let%expect_test "patdiff-git-wrapper" =
       |}];
     (* Diff according to instructions in the script. *)
     Unix.putenv ~key:"GIT_EXTERNAL_DIFF" ~data:"patdiff-git-wrapper";
-    let%bind () = system "git diff | ansicodes visualize -minimize" in
+    let%bind () = system "git diff | ansi_text visualize -minimize" in
     [%expect
       {|
       (+bold)patdiff -git a/foo b/foo
       (+bold)index 1aeaedb..0000000 100644
-      (fg:red)------ (+bold) a/foo
-      (fg:green)++++++ (+bold) b/foo
-      (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
-      (fg:black bg:red)-|(off)foo(fg:red) bar(off) baz
-      (fg:black bg:green)+|(off)foo baz(fg:green) quux
+      (+bold fg:red)------ (fg:default) a/foo(-weight)
+      (+bold fg:green)++++++ (fg:default) b/foo(-weight)
+      (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,1(-weight) ============================================================
+      (bg:red fg:black)-|(off fg:gray-12)foo(fg:red) bar(fg:gray-12) baz(fg:default)
+      (bg:green fg:black)+|(off)foo baz(fg:green) quux(fg:default)
       |}];
     return ())
 ;;

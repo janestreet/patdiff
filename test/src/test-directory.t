@@ -17,51 +17,51 @@ Test recursive diff of directories.
 
   $ patdiff -default prev next | visible_colors
   Only in prev: this-goes-away
-  (fg:red)------ (+bold)prev/this-goes-away
-  (fg:green)++++++ (+bold)/dev/null
-  (fg:black)@|(+bold)-1,1 +1,0(off) ============================================================
-  (fg:black bg:red)-|(fg:red).
+  (fg:red)------ (fg:default +bold)prev/this-goes-away(-weight)
+  (fg:green)++++++ (fg:default +bold)/dev/null(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,0(-weight) ============================================================
+  (bg:red fg:black)-|(bg:default fg:red).(fg:default)
   Only in next: this-appears
-  (fg:red)------ (+bold)/dev/null
-  (fg:green)++++++ (+bold)next/this-appears
-  (fg:black)@|(+bold)-1,0 +1,1(off) ============================================================
-  (fg:black bg:green)+|(fg:green).
+  (fg:red)------ (fg:default +bold)/dev/null(-weight)
+  (fg:green)++++++ (fg:default +bold)next/this-appears(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,0 +1,1(-weight) ============================================================
+  (bg:green fg:black)+|(bg:default fg:green).(fg:default)
   Files prev/foo and next/foo are not the same type
-  (fg:red)------ (+bold)prev/subdir/this-changes-in-subdir
-  (fg:green)++++++ (+bold)next/subdir/this-changes-in-subdir
-  (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
-  (fg:black bg:red)-|(fg:red)prev
-  (fg:black bg:green)+|(fg:green)next
-  (fg:red)------ (+bold)prev/this-changes
-  (fg:green)++++++ (+bold)next/this-changes
-  (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
-  (fg:black bg:red)-|(fg:red)prev
-  (fg:black bg:green)+|(fg:green)next
+  (fg:red)------ (fg:default +bold)prev/subdir/this-changes-in-subdir(-weight)
+  (fg:green)++++++ (fg:default +bold)next/subdir/this-changes-in-subdir(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,1(-weight) ============================================================
+  (bg:red fg:black)-|(off fg:red)prev(fg:default)
+  (bg:green fg:black)+|(off fg:green)next(fg:default)
+  (fg:red)------ (fg:default +bold)prev/this-changes(-weight)
+  (fg:green)++++++ (fg:default +bold)next/this-changes(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,1(-weight) ============================================================
+  (bg:red fg:black)-|(off fg:red)prev(fg:default)
+  (bg:green fg:black)+|(off fg:green)next(fg:default)
 
 Test behavior of -alt-prev and -alt-next.
 
   $ patdiff -default prev next -alt-prev a -alt-next b | visible_colors
   Only in a: this-goes-away
-  (fg:red)------ (+bold)a/this-goes-away
-  (fg:green)++++++ (+bold)/dev/null
-  (fg:black)@|(+bold)-1,1 +1,0(off) ============================================================
-  (fg:black bg:red)-|(fg:red).
+  (fg:red)------ (fg:default +bold)a/this-goes-away(-weight)
+  (fg:green)++++++ (fg:default +bold)/dev/null(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,0(-weight) ============================================================
+  (bg:red fg:black)-|(bg:default fg:red).(fg:default)
   Only in b: this-appears
-  (fg:red)------ (+bold)/dev/null
-  (fg:green)++++++ (+bold)b/this-appears
-  (fg:black)@|(+bold)-1,0 +1,1(off) ============================================================
-  (fg:black bg:green)+|(fg:green).
+  (fg:red)------ (fg:default +bold)/dev/null(-weight)
+  (fg:green)++++++ (fg:default +bold)b/this-appears(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,0 +1,1(-weight) ============================================================
+  (bg:green fg:black)+|(bg:default fg:green).(fg:default)
   Files a/foo and b/foo are not the same type
-  (fg:red)------ (+bold)a/subdir/this-changes-in-subdir
-  (fg:green)++++++ (+bold)b/subdir/this-changes-in-subdir
-  (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
-  (fg:black bg:red)-|(fg:red)prev
-  (fg:black bg:green)+|(fg:green)next
-  (fg:red)------ (+bold)a/this-changes
-  (fg:green)++++++ (+bold)b/this-changes
-  (fg:black)@|(+bold)-1,1 +1,1(off) ============================================================
-  (fg:black bg:red)-|(fg:red)prev
-  (fg:black bg:green)+|(fg:green)next
+  (fg:red)------ (fg:default +bold)a/subdir/this-changes-in-subdir(-weight)
+  (fg:green)++++++ (fg:default +bold)b/subdir/this-changes-in-subdir(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,1(-weight) ============================================================
+  (bg:red fg:black)-|(off fg:red)prev(fg:default)
+  (bg:green fg:black)+|(off fg:green)next(fg:default)
+  (fg:red)------ (fg:default +bold)a/this-changes(-weight)
+  (fg:green)++++++ (fg:default +bold)b/this-changes(-weight)
+  (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,1(-weight) ============================================================
+  (bg:red fg:black)-|(off fg:red)prev(fg:default)
+  (bg:green fg:black)+|(off fg:green)next(fg:default)
 
   $ rm -r prev; rm -r next
   $ mkdir dir

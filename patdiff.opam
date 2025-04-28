@@ -18,7 +18,7 @@ depends: [
   "expect_test_helpers_core"
   "patience_diff"
   "ppx_jane"
-  "dune"                     {>= "3.11.0"}
+  "dune"                     {>= "3.17.0"}
   "re"                       {>= "1.8.0"}
   "uucp"
 ]

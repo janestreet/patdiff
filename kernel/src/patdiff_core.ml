@@ -2,6 +2,9 @@ open! Core
 open! Import
 include Patdiff_core_intf
 
+let default_width = 80
+let min_col_width = 60
+
 include struct
   open Configuration
 
@@ -74,13 +77,25 @@ end
 module Make (Output_impls : Output_impls) = struct
   module Output_ops = struct
     module Rule = struct
-      let apply text ~rule ~output ~refined =
+      let apply ~rule ~output ~refined text =
         let (module O) = Output_impls.implementation output in
-        O.Rule.apply text ~rule ~refined
+        O.Rule.apply ~rule ~refined text
       ;;
     end
 
-    module Rules = struct
+    let output_width ?width_override () =
+      match width_override, Output_impls.console_width (), am_running_test with
+      (* Since we often render diffs indented-by-one (whenever we have multiple hunks to
+         display), subtracting 1 helps to ensure that we don't exceed the width of the
+         terminal we're printing to. *)
+      | Some override, Ok console, false when override >= console -> override - 1
+      | Some override, _, _ -> override
+      | None, Ok console, false -> console - 1
+      | None, Ok console, true -> console
+      | None, Error _, _ -> default_width
+    ;;
+
+    module Single_column = struct
       let to_string (rules : Format.Rules.t) output
         : string Patience_diff.Range.t -> string Patience_diff.Range.t
         =
@@ -147,357 +162,262 @@ module Make (Output_impls : Output_impls) = struct
       ;;
 
       let apply hunks ~rules ~output = map_ranges hunks ~f:(to_string rules output)
-    end
 
-    let print ~print_global_header ~file_names ~rules ~output ~print ~location_style hunks
-      =
-      let formatted_hunks = Rules.apply ~rules ~output hunks in
-      let (module O) = Output_impls.implementation output in
-      O.print
+      let print
         ~print_global_header
         ~file_names
         ~rules
+        ~output
         ~print
         ~location_style
-        formatted_hunks
-    ;;
+        hunks
+        =
+        let formatted_hunks = apply ~rules ~output hunks in
+        let (module O) = Output_impls.implementation output in
+        O.print
+          ~print_global_header
+          ~file_names
+          ~rules
+          ~print
+          ~location_style
+          formatted_hunks
+      ;;
+    end
 
-    let wrap_or_truncate_line_contents
-      ~wrap_or_truncate
-      ~width
-      (line_contents : ([ `Prev | `Same | `Next ] * string) list)
-      : (([ `Prev | `Same | `Next ] * string) list * [ `Columns_left of int ]) list
-      =
-      if width <= 1 then raise_s [%sexp "Screen is too narrow"];
-      let lines = Queue.create () in
-      let current_line = Deque.create () in
-      let columns_used_current_line = ref 0 in
-      let start_word_type word_type = Deque.enqueue_back current_line (word_type, []) in
-      let add_char word_type uchar char_width =
-        (match Deque.dequeue_back current_line with
-         | None -> Deque.enqueue_back current_line (word_type, [ uchar ])
-         | Some (prev_word_type, rev_char_list) ->
-           if [%equal: [ `Prev | `Same | `Next ]] prev_word_type word_type
-           then Deque.enqueue_back current_line (word_type, uchar :: rev_char_list)
-           else (
-             Deque.enqueue_back current_line (prev_word_type, rev_char_list);
-             Deque.enqueue_back current_line (word_type, [ uchar ])));
-        columns_used_current_line := !columns_used_current_line + char_width
-      in
-      let am_done = ref false in
-      let finish_line () =
-        (match wrap_or_truncate with
-         | `truncate -> am_done := true
-         | `wrap -> ());
-        let line =
-          Deque.to_list current_line
-          |> List.map ~f:(fun (word_type, rev_char_list) ->
-            let str =
-              String.Utf8.of_list (List.rev rev_char_list) |> String.Utf8.to_string
-            in
-            word_type, str)
+    module Double_column = struct
+      (* Converts a number to a right-aligned string followed by a space. *)
+      let line_num_text ~len line_num =
+        let n =
+          match line_num with
+          | None -> ""
+          | Some n -> Int.to_string n
         in
-        if (not (List.is_empty line)) || Queue.is_empty lines
-        then (
-          let columns_left = width - !columns_used_current_line in
-          Queue.enqueue lines (line, `Columns_left columns_left));
-        Deque.clear current_line;
-        columns_used_current_line := 0
-      in
-      let rec loop = function
-        | [] -> ()
-        | (word_type, word) :: rest ->
-          start_word_type word_type;
-          let char_list_with_widths =
-            String.Utf8.to_list (String.Utf8.sanitize word)
-            |> List.map ~f:(fun uchar ->
-              let columns = Uucp.Break.tty_width_hint uchar in
-              uchar, columns)
+        String.pad_left n ~char:' ' ~len ^ " "
+      ;;
+
+      let max_line_number (hunks : 'a Patience_diff.Hunk.t list) =
+        List.fold hunks ~init:0 ~f:(fun m hunk ->
+          max m (hunk.prev_start + hunk.prev_size - 1)
+          |> max (hunk.next_start + hunk.next_size - 1))
+      ;;
+
+      let create_padding len = String.init len ~f:(Fn.const ' ')
+
+      let get_gutters
+        ?(wrapped = false)
+        ~(rules : Format.Rules.t)
+        ~output
+        (line : Side_by_side.Line_info.t)
+        =
+        let prefix_column_width = String.length rules.line_same.pre.text in
+        let empty = create_padding prefix_column_width in
+        if wrapped
+        then empty, empty (* No gutter if the text wrapped from a previous line. *)
+        else (
+          let gutter_for rule = Rule.apply "" ~rule ~output ~refined:false in
+          match line with
+          | Same (prev, next) ->
+            let unified_line =
+              Side_by_side.Line.any_non_same prev || Side_by_side.Line.any_non_same next
+            in
+            let gutter =
+              if unified_line
+              then gutter_for rules.line_unified
+              else gutter_for rules.line_same
+            in
+            gutter, gutter
+          | Prev (_, None) -> gutter_for rules.line_prev, empty
+          | Prev (_, _) -> gutter_for rules.moved_from_prev, empty
+          | Next (_, None) -> empty, gutter_for rules.line_next
+          | Next (_, _) -> empty, gutter_for rules.moved_to_next)
+      ;;
+
+      let get_diff_style
+        ~(rules : Format.Rules.t)
+        ~output
+        (line : Side_by_side.Line_info.t)
+        =
+        let apply ~rule str = Rule.apply ~rule ~output ~refined:false str in
+        let basic_diff_style = function
+          | `Prev -> apply ~rule:rules.word_prev
+          | `Same -> apply ~rule:rules.word_same_unified
+          | `Next -> apply ~rule:rules.word_next
+        in
+        match line with
+        | Same _ | Prev (_, None) | Next (_, None) -> basic_diff_style
+        | Prev (_, Some _move_id) ->
+          (function
+            | `Prev -> apply ~rule:rules.word_prev
+            | `Same -> apply ~rule:(Format.Rule.strip_prefix rules.moved_from_prev)
+            | `Next -> Fn.id (* Shouldn't be called, but returning the word seems safe. *))
+        | Next (_, Some _move_id) ->
+          (function
+            | `Prev -> Fn.id (* Shouldn't be called, but returning the word seems safe. *)
+            | `Same -> apply ~rule:(Format.Rule.strip_prefix rules.moved_to_next)
+            | `Next -> apply ~rule:rules.word_next)
+      ;;
+
+      let render_side_by_side_line
+        ?(line_num_width = 0)
+        ~(rules : Format.Rules.t)
+        ~output
+        ~wrap_or_truncate
+        ~pane_cols
+        (line : Side_by_side.Line_info.t)
+        =
+        let prefix_column_width = String.length rules.line_same.pre.text in
+        let width =
+          if line_num_width <= 0
+          then pane_cols - prefix_column_width
+          else pane_cols - prefix_column_width - line_num_width - 1
+        in
+        let lines =
+          match wrap_or_truncate with
+          | `wrap ->
+            Side_by_side.Line_info.wrap line ~width
+            |> List.map ~f:Side_by_side.Line_info.lines
+          | `truncate ->
+            let left, right =
+              Side_by_side.Line_info.truncate line ~width |> Side_by_side.Line_info.lines
+            in
+            [ left, right ]
+          | `neither ->
+            let left, right = Side_by_side.Line_info.lines line in
+            [ left, right ]
+        in
+        let style = get_diff_style line ~rules ~output in
+        List.mapi lines ~f:(fun i (left, right) ->
+          let lnum, rnum =
+            if line_num_width <= 0
+            then "", ""
+            else
+              ( line_num_text (Side_by_side.Line.line_number left) ~len:line_num_width
+              , line_num_text (Side_by_side.Line.line_number right) ~len:line_num_width )
           in
-          List.iter char_list_with_widths ~f:(fun (uchar, char_width) ->
-            if char_width > width then raise_s [%sexp "Screen is too narrow"];
-            if char_width + !columns_used_current_line > width then finish_line ();
-            if !am_done then () else add_char word_type uchar char_width);
-          if !am_done then () else loop rest
-      in
-      loop line_contents;
-      finish_line ();
-      Queue.to_list lines
-    ;;
+          let lgut, rgut = get_gutters ~wrapped:(i > 0) ~rules ~output line in
+          let lpad = create_padding (Int.max 0 (width - Side_by_side.Line.width left)) in
+          let ltext = Side_by_side.Line.styled_string ~output ~style left in
+          let rtext = Side_by_side.Line.styled_string ~output ~style right in
+          let left = lnum ^ lgut ^ ltext ^ lpad in
+          let right = rnum ^ rgut ^ rtext |> String.rstrip in
+          left, right)
+      ;;
 
-    let create_padding len = String.init len ~f:(Fn.const ' ')
-
-    let render_line
-      (line : Side_by_side.Line_info.t)
-      ~(rules : Format.Rules.t)
-      ~output
-      ~pane_cols
-      ~line_number_size
-      ~left_or_right
-      ~prefix_column_width
-      ~wrap_or_truncate
-      =
-      let apply ~rule str = Rule.apply str ~rule ~output ~refined:false in
-      let line_and_styles =
-        let diff_style ~first_word_style = function
-          | `Prev -> Some (first_word_style, apply ~rule:rules.word_prev)
-          | `Same -> Some (first_word_style, apply ~rule:rules.word_same_unified)
-          | `Next -> Some (first_word_style, apply ~rule:rules.word_next)
+      let build_side_by_side
+        ?width_override
+        ?f_hunk_break
+        ?file_names
+        ?(include_line_numbers = true)
+        ~(rules : Format.Rules.t)
+        ~wrap_or_truncate
+        ~output
+        original_hunks
+        =
+        let blocks_rev = ref [] in
+        (* Need one character for the center divider *)
+        let pane_cols = (output_width ?width_override () - 1) / 2 in
+        let pane_cols = max pane_cols min_col_width in
+        (* The rule prefixes should have the same padding so using any should be fine. *)
+        let prefix_column_width = String.length rules.line_same.pre.text in
+        let line_num_width =
+          match include_line_numbers with
+          | true -> String.length (Int.to_string (max_line_number original_hunks))
+          | false -> 0
         in
-        let any_non_same =
-          List.exists ~f:(fun (style, _) ->
-            match style with
-            | `Next | `Prev -> true
-            | `Same -> false)
+        let columns_left_for_text =
+          match include_line_numbers with
+          | true -> pane_cols - prefix_column_width - line_num_width - 1
+          | false -> pane_cols - prefix_column_width
         in
-        match left_or_right with
-        | `Left ->
-          (match line with
-           | Same (prev, next) ->
-             let unified_line =
-               any_non_same prev.contents || any_non_same next.contents
-             in
-             Some
-               ( prev
-               , diff_style
-                   ~first_word_style:
-                     (apply
-                        ~rule:
-                          (if unified_line then rules.line_unified else rules.line_same))
-               )
-           | Prev (prev, move_id) ->
-             Some
-               ( prev
-               , match move_id with
-                 | None ->
-                   let first_word_style = apply ~rule:rules.line_prev in
-                   diff_style ~first_word_style
-                 | Some _ ->
-                   (function
-                     | `Prev ->
-                       Some
-                         ( apply
-                             ~rule:
-                               (Format.Rule.use_prefix_text_from
-                                  rules.removed_in_move
-                                  ~this_prefix:rules.moved_from_prev)
-                         , apply ~rule:rules.word_prev )
-                     | `Same ->
-                       Some
-                         ( apply ~rule:rules.moved_from_prev
-                         , apply ~rule:(Format.Rule.strip_prefix rules.moved_from_prev) )
-                     | `Next -> None) )
-           | Next _ -> None)
-        | `Right ->
-          (match line with
-           | Same (prev, next) ->
-             let unified_line =
-               any_non_same prev.contents || any_non_same next.contents
-             in
-             Some
-               ( next
-               , diff_style
-                   ~first_word_style:
-                     (apply
-                        ~rule:
-                          (if unified_line then rules.line_unified else rules.line_same))
-               )
-           | Next (next, move_id) ->
-             Some
-               ( next
-               , match move_id with
-                 | None ->
-                   let first_word_style = apply ~rule:rules.line_next in
-                   diff_style ~first_word_style
-                 | Some _ ->
-                   (function
-                     | `Prev -> None
-                     | `Same ->
-                       Some
-                         ( apply ~rule:rules.moved_to_next
-                         , apply ~rule:(Format.Rule.strip_prefix rules.moved_to_next) )
-                     | `Next ->
-                       Some (apply ~rule:rules.added_in_move, apply ~rule:rules.word_next))
-               )
-           | Prev _ -> None)
-      in
-      let style_line ~apply_first_word ~styles structured_line =
-        let gutter_style =
-          if apply_first_word
-          then (
-            match styles `Same with
-            | None -> ""
-            | Some (first_word_style, _) -> first_word_style "")
-          else ""
+        let apply ~rule str = Rule.apply str ~rule ~output ~refined:false in
+        let render_file_name ~rule file =
+          let line_number_padding = create_padding (line_num_width + 1) in
+          let file = String.prefix (File_name.display_name file) columns_left_for_text in
+          String.concat
+            [ line_number_padding
+            ; apply ~rule ""
+            ; file
+            ; create_padding (columns_left_for_text - String.length file)
+            ]
         in
-        let styled_lines =
-          gutter_style
-          :: List.map structured_line ~f:(fun (word_type, word) ->
-            match styles word_type with
-            | None -> word
-            | Some (_, word_style) -> word_style word)
-        in
-        String.concat styled_lines
-      in
-      let line_number, lines_to_render =
-        match line_and_styles with
-        | None -> None, [ create_padding (pane_cols - line_number_size) ]
-        | Some (line, styles) ->
-          let (line : Side_by_side.Line.t) = line in
-          ( Some line.line_number
-          , let width = pane_cols - line_number_size - prefix_column_width - 1 in
-            let structured_lines =
-              wrap_or_truncate_line_contents ~wrap_or_truncate ~width line.contents
+        (match file_names with
+         | None -> ()
+         | Some (prev_file, next_file) ->
+           (* Add a header block with the file names. *)
+           let prev = render_file_name ~rule:rules.line_prev prev_file in
+           let next = render_file_name ~rule:rules.line_next next_file in
+           blocks_rev := [ prev, next ] :: !blocks_rev);
+        let line_info_hunks = Side_by_side.hunks_to_lines original_hunks in
+        let original_hunks = Array.of_list original_hunks in
+        Array.iteri line_info_hunks ~f:(fun hunk_index hunk ->
+          let hunk_lines_rev = ref [] in
+          let () =
+            match f_hunk_break with
+            | None -> ()
+            | Some f_hunk_break ->
+              let original_hunk = original_hunks.(hunk_index) in
+              let l_header, r_header =
+                f_hunk_break
+                  ~width:pane_cols
+                  (original_hunk.prev_start, original_hunk.prev_size)
+                  (original_hunk.next_start, original_hunk.next_size)
+              in
+              hunk_lines_rev
+              := List.zip_exn (List.rev l_header) (List.rev r_header) @ !hunk_lines_rev;
+              ()
+          in
+          Array.iter hunk ~f:(fun line ->
+            (* We may get back multiple lines if we are wrapping long lines. *)
+            let new_lines =
+              render_side_by_side_line
+                line
+                ~rules
+                ~output
+                ~pane_cols
+                ~line_num_width
+                ~wrap_or_truncate
             in
-            List.mapi
-              structured_lines
-              ~f:(fun line_index (structured_line, `Columns_left columns_left) ->
-                style_line ~apply_first_word:(line_index = 0) ~styles structured_line
-                ^ create_padding columns_left) )
-      in
-      let line_number_padding = create_padding line_number_size in
-      let line_number_text =
-        match line_number with
-        | None -> line_number_padding
-        | Some line_number ->
-          let line_number_as_string = Int.to_string line_number in
-          (* Add a space after the line number so it isn't cluttered *)
-          sprintf
-            "%s%s "
-            (create_padding (line_number_size - String.length line_number_as_string))
-            line_number_as_string
-      in
-      List.mapi lines_to_render ~f:(fun line_index line_to_render ->
-        String.concat
-          [ (if line_index = 0 then line_number_text else line_number_padding)
-          ; line_to_render
-          ])
-    ;;
+            hunk_lines_rev := List.rev_append new_lines !hunk_lines_rev);
+          blocks_rev := List.rev !hunk_lines_rev :: !blocks_rev);
+        List.rev !blocks_rev
+      ;;
 
-    let print_side_by_side
-      ?width_override
-      ?f_hunk_break
-      original_hunks
-      ~(rules : Format.Rules.t)
-      ~wrap_or_truncate
-      ~output
-      ~file_names
-      ~print
-      =
-      let middle_divider =
-        match output with
+      let make_divider = function
         | Output.Ansi | Html -> "│"
         | Ascii -> "|"
-      in
-      (* The rule prefixes should already be padding so using anyone should be fine *)
-      let prefix_column_width = String.length rules.line_same.pre.text in
-      let max_line_number = ref 0 in
-      let console_width =
-        Option.value_or_thunk width_override ~default:(fun () ->
-          match Output_impls.console_width () with
-          | Error _ -> 80
-          | Ok width -> width)
-      in
-      (* Need one character for the center divider *)
-      let pane_cols = (console_width - 1) / 2 in
-      let hunks = Side_by_side.hunks_to_lines original_hunks in
-      let original_hunks = Array.of_list original_hunks in
-      Array.iter hunks ~f:(fun hunk ->
-        Array.iter hunk ~f:(function
-          | Same (prev, next) ->
-            max_line_number := max !max_line_number prev.line_number;
-            max_line_number := max !max_line_number next.line_number
-          | Prev (prev, _) -> max_line_number := max !max_line_number prev.line_number
-          | Next (next, _) -> max_line_number := max !max_line_number next.line_number));
-      let line_number_size = String.length (Int.to_string !max_line_number) in
-      let pane_padding = create_padding pane_cols in
-      let apply ~rule str = Rule.apply str ~rule ~output ~refined:false in
-      let render_file_name ~rule file =
-        let line_number_padding = create_padding (line_number_size + 1) in
-        let columns_left_for_line =
-          pane_cols - line_number_size - prefix_column_width - 1
+      ;;
+
+      let print_side_by_side
+        ?width_override
+        ?f_hunk_break
+        ?file_names
+        ~(rules : Format.Rules.t)
+        ~wrap_or_truncate
+        ~output
+        ~print
+        original_hunks
+        =
+        let middle_divider = make_divider output in
+        let blocks =
+          build_side_by_side
+            ?width_override
+            ?f_hunk_break
+            ?file_names
+            ~rules
+            ~wrap_or_truncate
+            ~output
+            original_hunks
         in
-        let file = String.prefix (File_name.display_name file) columns_left_for_line in
-        let columns_to_pad = columns_left_for_line - String.length file in
-        String.concat
-          [ line_number_padding; apply ~rule ""; file; create_padding columns_to_pad ]
-      in
-      (match output with
-       | Output.Ansi | Ascii -> ()
-       | Html -> print "<pre style=\"font-family:consolas,monospace\">");
-      (match file_names with
-       | None -> ()
-       | Some (prev_file, next_file) ->
-         print
-           (String.concat
-              [ render_file_name ~rule:rules.line_prev prev_file
-              ; middle_divider
-              ; render_file_name ~rule:rules.line_next next_file
-              ]));
-      Array.iteri hunks ~f:(fun hunk_index hunk ->
-        (match f_hunk_break with
-         | None -> ()
-         | Some f_hunk_break ->
-           let original_hunk = original_hunks.(hunk_index) in
-           f_hunk_break
-             (original_hunk.prev_start, original_hunk.prev_size)
-             (original_hunk.next_start, original_hunk.next_size));
-        Array.iter hunk ~f:(fun line ->
-          (* We may get back multiple lines if we are wrapping long lines. *)
-          let left_lines =
-            render_line
-              line
-              ~rules
-              ~output
-              ~pane_cols
-              ~line_number_size
-              ~left_or_right:`Left
-              ~prefix_column_width
-              ~wrap_or_truncate
-          in
-          let right_lines =
-            render_line
-              line
-              ~rules
-              ~output
-              ~pane_cols
-              ~line_number_size
-              ~left_or_right:`Right
-              ~prefix_column_width
-              ~wrap_or_truncate
-          in
-          let rec print_lines line_num left_lines right_lines =
-            let pad_non_first_lines line =
-              if line_num = 0
-              then line
-              else create_padding (prefix_column_width + 1) ^ line
-            in
-            match left_lines, right_lines with
-            | [], [] -> ()
-            | left_line :: rest_left, [] ->
-              print
-                (String.concat
-                   [ pad_non_first_lines left_line; middle_divider; pane_padding ]);
-              print_lines (line_num + 1) rest_left []
-            | [], right_line :: rest_right ->
-              print
-                (String.concat
-                   [ pane_padding; middle_divider; pad_non_first_lines right_line ]);
-              print_lines (line_num + 1) [] rest_right
-            | left_line :: rest_left, right_line :: rest_right ->
-              print
-                (String.concat
-                   [ pad_non_first_lines left_line
-                   ; middle_divider
-                   ; pad_non_first_lines right_line
-                   ]);
-              print_lines (line_num + 1) rest_left rest_right
-          in
-          print_lines 0 left_lines right_lines));
-      match output with
-      | Output.Ansi | Ascii -> ()
-      | Html -> print "</pre>"
-    ;;
+        (match output with
+         | Output.Ansi | Ascii -> ()
+         | Html -> print "<pre style=\"font-family:consolas,monospace\">");
+        List.iter (List.concat blocks) ~f:(fun (left, right) ->
+          String.concat [ left; middle_divider; right ] |> print);
+        match output with
+        | Output.Ansi | Ascii -> ()
+        | Html -> print "</pre>"
+      ;;
+    end
   end
 
   let indentation line =
@@ -645,7 +565,7 @@ module Make (Output_impls : Output_impls) = struct
       }
   end
 
-  let find_moves ~line_big_enough ~keep_ws (hunks : Hunks.t) =
+  let%template find_moves ~line_big_enough ~keep_ws (hunks : Hunks.t) =
     let minimum_match_perc = 0.7 in
     let minimum_lines = 3 in
     (* Rewrite [Replace] ranges as a [Prev] and [Next] so we can consider them for moves.
@@ -717,7 +637,7 @@ module Make (Output_impls : Output_impls) = struct
             Range_info.compare_by_size next_range_info prev_range_info)
           `Last_less_than_or_equal_to
           prev_location
-        |> Option.value_local ~default:(Array.length next_ranges - 1)
+        |> (Option.value [@mode local]) ~default:(Array.length next_ranges - 1)
       in
       let starting_index = if starting_index < 0 then 0 else starting_index in
       let left_index = ref starting_index in
@@ -785,7 +705,11 @@ module Make (Output_impls : Output_impls) = struct
           then find_best_next_range best_match_so_far
           else (
             let match_ratio =
-              Patience_diff.String.match_ratio prev_contents next_contents
+              (* [match_ratio] just does naive string comparisons per line so strip
+                 leading and trailing whitespace. *)
+              Patience_diff.String.match_ratio
+                (Array.map ~f:String.strip prev_contents)
+                (Array.map ~f:String.strip next_contents)
             in
             let select_hunk () =
               let hunk =
@@ -1370,12 +1294,6 @@ module Make (Output_impls : Output_impls) = struct
     (hunks : string Patience_diff.Hunk.t list)
     : a Patience_diff.Hunk.t list
     =
-    let console_width =
-      lazy
-        (match Output_impls.console_width () with
-         | Error _ -> 80
-         | Ok width -> width)
-    in
     let handle_replace prev_ar next_ar move_kind =
       (* Explode the arrays *)
       let prev_pieces = explode_internal prev_ar ~keep_ws in
@@ -1389,7 +1307,7 @@ module Make (Output_impls : Output_impls) = struct
         if not split_long_lines
         then [ sub_diff ]
         else (
-          let max_len = Int.max 20 (force console_width - 2) in
+          let max_len = Int.max 20 (Output_ops.output_width () - 2) in
           (* Accumulates the total length of the line so far, summing lengths
                of word tokens but resetting when newlines are hit *)
           let get_new_len_so_far ~len_so_far tokens_arr =
@@ -1522,8 +1440,9 @@ module Make (Output_impls : Output_impls) = struct
         in
         List.map prev_next_pairs ~f:(fun (prev_ar, next_ar) ->
           let range : _ Patience_diff.Range.t =
-            match prev_all_same, next_all_same with
-            | true, true -> Same (Array.map next_ar ~f:(fun x -> x, x))
+            match prev_all_same, next_all_same, move_kind with
+            (* Don't create a same range inside of a move *)
+            | true, true, None -> Same (Array.map next_ar ~f:(fun x -> x, x))
             | _ ->
               (match prev_ar, next_ar with
                (* Ugly hack that takes care of empty files *)
@@ -1571,9 +1490,9 @@ module Make (Output_impls : Output_impls) = struct
       hunks
       ~map_non_replace:(fun ~keep_ws range ->
         match range with
-        | Next (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws ->
+        | Next (a, None) when (not keep_ws) && Array.for_all a ~f:is_ws ->
           [ Same (Array.map a ~f:(fun line -> [ `Same, line ], [ `Same, line ])) ]
-        | Prev (a, _) when (not keep_ws) && Array.for_all a ~f:is_ws -> []
+        | Prev (a, None) when (not keep_ws) && Array.for_all a ~f:is_ws -> []
         | Next (lines, move_info) ->
           [ Next (Array.map lines ~f:(fun line -> [ `Same, line ]), move_info) ]
         | Prev (lines, move_info) ->
@@ -1585,14 +1504,17 @@ module Make (Output_impls : Output_impls) = struct
         | Unified (lines, move_info) ->
           [ Unified (Array.map lines ~f:(fun line -> [ `Same, line ]), move_info) ]
         | Replace _ -> assert false)
-      ~collapse_range:
-        (fun
-          ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind:_ ->
+      ~collapse_range:(fun ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind ->
         match prev_all_same, next_all_same with
         | true, true ->
-          let kind = `Next_only in
-          let next_ar = collapse_structured sub_next ~kind in
-          [ next_ar, next_ar ]
+          (match move_kind with
+           | None ->
+             let next_ar = collapse_structured sub_next ~kind:`Next_only in
+             [ next_ar, next_ar ]
+           | Some _ ->
+             let prev_ar = collapse_structured sub_prev ~kind:`Prev_only in
+             let next_ar = collapse_structured sub_next ~kind:`Next_only in
+             [ prev_ar, next_ar ])
         | true, false | false, true | false, false ->
           let kind = `Prev_only in
           let prev_ar = collapse_structured sub_prev ~kind in
@@ -1641,14 +1563,19 @@ module Make (Output_impls : Output_impls) = struct
       ~collapse_range:(fun ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind ->
         match prev_all_same, next_all_same with
         | true, true ->
-          let kind = `Next_only in
           let rule_same =
             match move_kind with
             | None -> rules.word_same_unified
             | Some _ -> rules.word_same_unified_in_move
           in
-          let next_ar = collapse sub_next ~rule_same ~kind in
-          [ next_ar, next_ar ]
+          (match move_kind with
+           | None ->
+             let next_ar = collapse sub_next ~rule_same ~kind:`Next_only in
+             [ next_ar, next_ar ]
+           | Some _ ->
+             let prev_ar = collapse sub_prev ~rule_same ~kind:`Prev_only in
+             let next_ar = collapse sub_next ~rule_same ~kind:`Next_only in
+             [ prev_ar, next_ar ])
         | false, true ->
           let kind = `Prev_only in
           let rule_same =
@@ -1690,7 +1617,7 @@ module Make (Output_impls : Output_impls) = struct
   ;;
 
   let print ~file_names ~rules ~output ~location_style hunks =
-    Output_ops.print
+    Output_ops.Single_column.print
       hunks
       ~rules
       ~output
@@ -1700,6 +1627,8 @@ module Make (Output_impls : Output_impls) = struct
       ~print_global_header:true
   ;;
 
+  let build_side_by_side = Output_ops.Double_column.build_side_by_side
+
   let print_side_by_side
     ?width_override
     ~file_names
@@ -1708,14 +1637,14 @@ module Make (Output_impls : Output_impls) = struct
     ~output
     hunks
     =
-    Output_ops.print_side_by_side
+    Output_ops.Double_column.print_side_by_side
       ?width_override
-      hunks
+      ~file_names
       ~rules
       ~wrap_or_truncate
       ~output
-      ~file_names:(Some file_names)
       ~print:(Printf.printf "%s\n")
+      hunks
   ;;
 
   let output_to_string
@@ -1727,7 +1656,7 @@ module Make (Output_impls : Output_impls) = struct
     hunks
     =
     let buf = Queue.create () in
-    Output_ops.print
+    Output_ops.Single_column.print
       hunks
       ~file_names
       ~location_style
@@ -1746,20 +1675,25 @@ module Make (Output_impls : Output_impls) = struct
     ~output
     hunks
     =
-    let buf = Queue.create () in
-    Output_ops.print_side_by_side
-      ?width_override
-      hunks
-      ~rules
-      ~wrap_or_truncate
-      ~output
-      ~file_names:(Some file_names)
-      ~print:(Queue.enqueue buf);
-    String.concat (Queue.to_list buf) ~sep:"\n"
+    let blocks =
+      Output_ops.Double_column.build_side_by_side
+        ?width_override
+        hunks
+        ~rules
+        ~wrap_or_truncate
+        ~output
+        ~file_names
+    in
+    let middle_divider = Output_ops.Double_column.make_divider output in
+    List.map (List.concat blocks) ~f:(fun (left, right) ->
+      String.concat [ left; middle_divider; right ])
+    |> String.concat ~sep:"\n"
   ;;
 
-  let iter_ansi ~rules ~f_hunk_break ~f_line hunks =
-    let hunks = Output_ops.Rules.apply hunks ~rules ~output:Ansi in
+  let output_width = Output_ops.output_width
+
+  let iter_output ~rules ~f_hunk_break ~f_line ?(output = Output.Ansi) hunks =
+    let hunks = Output_ops.Single_column.apply hunks ~rules ~output in
     Hunks.iter ~f_hunk_break ~f_line hunks
   ;;
 
@@ -1771,14 +1705,13 @@ module Make (Output_impls : Output_impls) = struct
     ~wrap_or_truncate
     hunks
     =
-    Output_ops.print_side_by_side
+    Output_ops.Double_column.print_side_by_side
       ?width_override
       ~f_hunk_break
       hunks
       ~output:Output.Ansi
       ~rules
       ~wrap_or_truncate
-      ~file_names:None
       ~print:f_line
   ;;
 
@@ -1834,7 +1767,7 @@ module Make (Output_impls : Output_impls) = struct
 end
 
 module Without_unix = Make (struct
-    let console_width () = Ok 80
+    let console_width () = Ok default_width
 
     let implementation : Output.t -> (module Output.S) = function
       | Ansi -> (module Ansi_output)

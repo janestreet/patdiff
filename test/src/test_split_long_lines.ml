@@ -39,26 +39,26 @@ let%expect_test "~split_long_lines:false" =
   let%bind () = patdiff ~prev ~next ~extra_flags:[] in
   [%expect
     {|
-    (fg:red)------ (+bold)prev/file
-    (fg:green)++++++ (+bold)next/file
-    (fg:black)@|(+bold)-1,11 +1,10(off) ============================================================
-    (fg:black bg:red)-|(off)_no_inline node(fg:red) transform(off)((fg:red)input(off) :  u32x4)
-    (fg:black bg:red)-|(off)  returns(fg:red) out(off) :  u32x4
-    (fg:black bg:green)+|(off)_no_inline node(fg:green) transform'(off)((fg:green)input'(off) :  u32x4)
-    (fg:black bg:green)+|(off)  returns(fg:green) out'(off) :  u32x4
-    (fg:black) |(off)vars
-    (fg:black bg:red)-|(fg:red)  x0(off) :  u32[4],
-    (fg:black bg:red)-|(fg:red)  x1(off) :  u32[3],
-    (fg:black bg:red)-|(fg:red)  x2(off) :  u32[4],
-    (fg:black bg:red)-|(fg:red)  x3(off) :  u32[3]
-    (fg:black bg:red)-|
-    (fg:black bg:green)+|(fg:green)  x0'(off) :  u32[4],
-    (fg:black bg:green)+|(fg:green)  x1'(off) :  u32[3],
-    (fg:black bg:green)+|(fg:green)  x2'(off) :  u32[4],
-    (fg:black bg:green)+|(fg:green)  x3'(off) :  u32[3]
-    (fg:black) |
-    (fg:black) |
-    (fg:black) |(off)z
+    (fg:red)------ (fg:default +bold)prev/file(-weight)
+    (fg:green)++++++ (fg:default +bold)next/file(-weight)
+    (bg:gray fg:black)@|(bg:default fg:default +bold)-1,11 +1,10(-weight) ============================================================
+    (bg:red fg:black)-|(off fg:gray-12)_no_inline node(fg:red) transform(fg:gray-12)((fg:red)input(fg:gray-12) :  u32x4)(fg:default)
+    (bg:red fg:black)-|(off fg:gray-12)  returns(fg:red) out(fg:gray-12) :  u32x4(fg:default)
+    (bg:green fg:black)+|(off)_no_inline node(fg:green) transform'(fg:default)((fg:green)input'(fg:default) :  u32x4)
+    (bg:green fg:black)+|(off)  returns(fg:green) out'(fg:default) :  u32x4
+    (bg:gray fg:black) |(bg:default fg:default)vars
+    (bg:red fg:black)-|(off fg:red)  x0(fg:gray-12) :  u32[4],(fg:default)
+    (bg:red fg:black)-|(off fg:red)  x1(fg:gray-12) :  u32[3],(fg:default)
+    (bg:red fg:black)-|(off fg:red)  x2(fg:gray-12) :  u32[4],(fg:default)
+    (bg:red fg:black)-|(off fg:red)  x3(fg:gray-12) :  u32[3](fg:default)
+    (bg:red fg:black)-|(off)
+    (bg:green fg:black)+|(off fg:green)  x0'(fg:default) :  u32[4],
+    (bg:green fg:black)+|(off fg:green)  x1'(fg:default) :  u32[3],
+    (bg:green fg:black)+|(off fg:green)  x2'(fg:default) :  u32[4],
+    (bg:green fg:black)+|(off fg:green)  x3'(fg:default) :  u32[3]
+    (bg:gray fg:black) |(bg:default fg:default)
+    (bg:gray fg:black) |(bg:default fg:default)
+    (bg:gray fg:black) |(bg:default fg:default)z
     ("Unclean exit" (Exit_non_zero 1))
     |}];
   return ()
@@ -68,26 +68,26 @@ let%expect_test "~split_long_lines:true" =
   let%bind () = patdiff ~prev ~next ~extra_flags:[ "-split-long-lines" ] in
   [%expect
     {|
-    (fg:red)------ (+bold)prev/file
-    (fg:green)++++++ (+bold)next/file
-    (fg:black)@|(+bold)-1,11 +1,10(off) ============================================================
-    (fg:black bg:red)-|(off)_no_inline node(fg:red) transform(off)((fg:red)input(off) :  u32x4)
-    (fg:black bg:red)-|(off)  returns(fg:red) out(off) :  u32x4
-    (fg:black bg:green)+|(off)_no_inline node(fg:green) transform'(off)((fg:green)input'(off) :  u32x4)
-    (fg:black bg:green)+|(off)  returns(fg:green) out'(off) :  u32x4
-    (fg:black) |(off)vars
-    (fg:black bg:red)-|(fg:red)  x0(off) :  u32[4],
-    (fg:black bg:red)-|(fg:red)  x1(off) :  u32[3],
-    (fg:black bg:red)-|(fg:red)  x2(off) :  u32[4],
-    (fg:black bg:red)-|(fg:red)  x3(off) :  u32[3]
-    (fg:black bg:red)-|
-    (fg:black bg:green)+|(fg:green)  x0'(off) :  u32[4],
-    (fg:black bg:green)+|(fg:green)  x1'(off) :  u32[3],
-    (fg:black bg:green)+|(fg:green)  x2'(off) :  u32[4],
-    (fg:black bg:green)+|(fg:green)  x3'(off) :  u32[3]
-    (fg:black) |
-    (fg:black) |
-    (fg:black) |(off)z
+    (fg:red)------ (fg:default +bold)prev/file(-weight)
+    (fg:green)++++++ (fg:default +bold)next/file(-weight)
+    (bg:gray fg:black)@|(bg:default fg:default +bold)-1,11 +1,10(-weight) ============================================================
+    (bg:red fg:black)-|(off fg:gray-12)_no_inline node(fg:red) transform(fg:gray-12)((fg:red)input(fg:gray-12) :  u32x4)(fg:default)
+    (bg:red fg:black)-|(off fg:gray-12)  returns(fg:red) out(fg:gray-12) :  u32x4(fg:default)
+    (bg:green fg:black)+|(off)_no_inline node(fg:green) transform'(fg:default)((fg:green)input'(fg:default) :  u32x4)
+    (bg:green fg:black)+|(off)  returns(fg:green) out'(fg:default) :  u32x4
+    (bg:gray fg:black) |(bg:default fg:default)vars
+    (bg:red fg:black)-|(off fg:red)  x0(fg:gray-12) :  u32[4],(fg:default)
+    (bg:red fg:black)-|(off fg:red)  x1(fg:gray-12) :  u32[3],(fg:default)
+    (bg:red fg:black)-|(off fg:red)  x2(fg:gray-12) :  u32[4],(fg:default)
+    (bg:red fg:black)-|(off fg:red)  x3(fg:gray-12) :  u32[3](fg:default)
+    (bg:red fg:black)-|(off)
+    (bg:green fg:black)+|(off fg:green)  x0'(fg:default) :  u32[4],
+    (bg:green fg:black)+|(off fg:green)  x1'(fg:default) :  u32[3],
+    (bg:green fg:black)+|(off fg:green)  x2'(fg:default) :  u32[4],
+    (bg:green fg:black)+|(off fg:green)  x3'(fg:default) :  u32[3]
+    (bg:gray fg:black) |(bg:default fg:default)
+    (bg:gray fg:black) |(bg:default fg:default)
+    (bg:gray fg:black) |(bg:default fg:default)z
     ("Unclean exit" (Exit_non_zero 1))
     |}];
   return ()

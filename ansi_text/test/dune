@@ -1,0 +1,5 @@
+(library
+ (name ansi_text_test)
+ (libraries ansi_text async core expect_test_helpers_core)
+ (preprocess
+  (pps ppx_jane)))

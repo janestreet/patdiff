@@ -3,30 +3,35 @@ open! Import
 include Html_output_intf
 
 module Make (Mtime : Mtime) = struct
-  let string_of_color : Format.Color.t -> string = function
-    | Black -> "#000000"
-    | Red -> "#880000"
-    | Green -> "#008800"
-    | Yellow -> "#888800"
-    | Blue -> "#000088"
-    | Magenta -> "#880088"
-    | Cyan -> "#008888"
-    | White | Default -> "#ffffff"
-    | Gray -> "#c0c0c0"
-    | Bright_black -> "#c0c0c0"
-    | Bright_red -> "#FF0000"
-    | Bright_green -> "#00FF00"
-    | Bright_yellow -> "#FFFF00"
-    | Bright_blue -> "#0000FF"
-    | Bright_magenta -> "#FF00FF"
-    | Bright_cyan -> "#00FFFF"
-    | Bright_white -> "#FFFFFF"
-    | RGB6 { r; g; b } ->
-      let percent x = float (x * 100) /. 5.0 in
-      sprintf "rgb(%f%%,%f%%,%f%%)" (percent r) (percent g) (percent b)
-    | Gray24 { level } ->
-      let percent = float (level * 100) /. 23.0 in
-      sprintf "rgb(%f%%,%f%%,%f%%)" percent percent percent
+  let string_of_color ?(background = false) : Format.Color.t -> string = function
+    | Standard Black -> "#000000"
+    | Standard Red -> "#880000"
+    | Standard Green -> "#008800"
+    | Standard Yellow -> "#888800"
+    | Standard Blue -> "#000088"
+    | Standard Magenta -> "#880088"
+    | Standard Cyan -> "#008888"
+    | Standard White -> "#ffffff"
+    | Default -> if background then "#000000" else "#ffffff"
+    | Bright Black -> "#c0c0c0"
+    | Bright Red -> "#FF0000"
+    | Bright Green -> "#00FF00"
+    | Bright Yellow -> "#FFFF00"
+    | Bright Blue -> "#0000FF"
+    | Bright Magenta -> "#FF00FF"
+    | Bright Cyan -> "#00FFFF"
+    | Bright White -> "#FFFFFF"
+    | Rgb6 rgb ->
+      let r, g, b = Ansi_text.Color.Rgb6.to_rgb rgb in
+      let scaled x = x * 255 / 5 in
+      sprintf "rgb(%d,%d,%d)" (scaled r) (scaled g) (scaled b)
+    | Gray24 gray ->
+      let level = Ansi_text.Color.Gray24.to_level gray in
+      let scaled = level * 255 / 23 in
+      sprintf "rgb(%d,%d,%d)" scaled scaled scaled
+    | Rgb256 rgb ->
+      let r, g, b = Ansi_text.Color.Rgb256.to_rgb rgb in
+      sprintf "rgb(%d,%d,%d)" r g b
   ;;
 
   module Style = struct
@@ -36,19 +41,20 @@ module Make (Mtime : Mtime) = struct
           match (style : Format.Style.t) with
           | Bold -> "<span style=\"font-weight:bold\">" :: s, "</span>" :: e
           | Reset -> s, e
-          | Foreground c | Fg c ->
+          | Fg c ->
             sprintf "<span style=\"color:%s\">" (string_of_color c) :: s, "</span>" :: e
-          | Background c | Bg c ->
+          | Bg c ->
             ( sprintf "<span style=\"background-color:%s\">" (string_of_color c) :: s
             , "</span>" :: e )
-          | Underline | Emph -> "<u>" :: s, "</u>" :: e
+          | Underline | Italic -> "<u>" :: s, "</u>" :: e
           | Blink -> "<span style=\"text-decoration:blink\">" :: s, "</span>" :: e
-          | Inverse -> s, e
+          | Invert -> s, e
           | Hide -> "<!-- " :: s, " -->" :: e
-          | Dim ->
+          | Faint ->
             (* "<span style=\"font-weight:lighter\">"::s, "</span>"::e *)
-            ( sprintf "<span style=\"color:%s\">" (string_of_color Gray) :: s
-            , "</span>" :: e ))
+            ( sprintf "<span style=\"color:%s\">" (string_of_color (Bright Black)) :: s
+            , "</span>" :: e )
+          | _ -> s, e)
       in
       let lst = start_tags @ [ text ] @ end_tags in
       String.concat ~sep:"" lst
@@ -73,9 +79,7 @@ module Make (Mtime : Mtime) = struct
       sprintf
         "%s%s%s"
         (apply rule.pre.styles rule.pre.text)
-        (if refined
-         then apply [ Format.Style.Reset ] text
-         else apply rule.styles (html_escape text))
+        (if refined then apply [ Reset ] text else apply rule.styles (html_escape text))
         (apply rule.suf.styles rule.suf.text)
     ;;
   end
