@@ -11,7 +11,7 @@ type t =
   (** A name corresponding to a real file on disk. [alt_name] is used to display the file
       name and for file extension heuristics. *)
   | Fake of string (** A name not necessarily corresponding to a real file. *)
-[@@deriving compare, equal]
+[@@deriving compare ~localize, equal ~localize]
 
 (** The name used to access the file system. May differ from the name used for display. *)
 val real_name_exn : t -> string

@@ -26,7 +26,7 @@ module type Output = sig
     | Ansi
     | Ascii
     | Html
-  [@@deriving compare, sexp]
+  [@@deriving compare ~localize, sexp]
 
   val implies_unrefined : t -> bool
 end

@@ -5,9 +5,9 @@ type range =
   ; end_ : int
   ; style : Style.t
   }
-[@@deriving compare, equal, quickcheck, sexp]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
-type t = range list [@@deriving compare, equal, quickcheck, sexp]
+type t = range list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 let identify text_with_styles =
   let unmatched_opens, ranges, _ =

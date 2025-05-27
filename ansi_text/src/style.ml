@@ -1,6 +1,6 @@
 open! Core
 
-type t = Attr.t list [@@deriving compare, equal, quickcheck, sexp]
+type t = Attr.t list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 let of_string_exn esc_str =
   let codes =

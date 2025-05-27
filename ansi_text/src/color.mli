@@ -16,7 +16,7 @@ module Sgr8 : sig
     | Magenta (* 5 *)
     | Cyan (* 6 *)
     | White (* 7 *)
-  [@@deriving compare, equal, quickcheck, sexp]
+  [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
   (** code in 0-7 *)
   val of_code_exn : int -> t
@@ -29,7 +29,7 @@ end
 
 (** Models the rgb subset of the codes under "38;5" and "48;5". *)
 module Rgb6 : sig
-  type t [@@deriving compare, equal, quickcheck, sexp]
+  type t [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
   (** r,g,b in 0-5 *)
   val of_rgb_exn : int * int * int -> t
@@ -46,7 +46,7 @@ end
 
 (** Models the grayscale subset of the codes under "38;5" and "48;5". *)
 module Gray24 : sig
-  type t [@@deriving compare, equal, quickcheck, sexp]
+  type t [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
   (** level in 0-23 *)
   val of_level_exn : int -> t
@@ -63,7 +63,7 @@ end
 
 (** Models the rgb codes under "38;2" and "48;2". *)
 module Rgb256 : sig
-  type t [@@deriving compare, equal, quickcheck, sexp]
+  type t [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
   (** r,g,b in 0-255 *)
   val of_rgb_exn : int * int * int -> t
@@ -82,7 +82,7 @@ type t =
   | Rgb6 of Rgb6.t
   | Gray24 of Gray24.t
   | Rgb256 of Rgb256.t
-[@@deriving compare, equal, quickcheck, sexp]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 val to_fg_code : t -> int list
 val to_bg_code : t -> int list

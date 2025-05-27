@@ -1,5 +1,5 @@
 (** Represents a string that doesn't contain ANSI codes, but may contain unicode chars. *)
-type t [@@deriving compare, equal, quickcheck, sexp]
+type t [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (** Printable width, as estimated using [Uucp_break.tty_width_hint]. *)
 val width : t -> int

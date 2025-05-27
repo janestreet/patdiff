@@ -7,7 +7,7 @@ type t =
       ; alt_name : string option
       }
   | Fake of string
-[@@deriving compare, equal]
+[@@deriving compare ~localize, equal ~localize]
 
 let real_name_exn = function
   | Real { real_name; alt_name = _ } -> real_name

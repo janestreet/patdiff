@@ -4,7 +4,7 @@ type t =
   { text : Text.t
   ; ranges : Style_ranges.t
   }
-[@@deriving compare, equal, quickcheck, sexp]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 let width t = Text.width t.text
 let is_empty t = Text.is_empty t.text

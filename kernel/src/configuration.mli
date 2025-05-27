@@ -49,7 +49,7 @@ type t = private
   ; side_by_side : [ `wrap | `truncate ] option
   ; width_override : int option
   }
-[@@deriving compare, fields ~getters, sexp_of]
+[@@deriving compare ~localize, fields ~getters, sexp_of]
 
 include Invariant.S with type t := t
 

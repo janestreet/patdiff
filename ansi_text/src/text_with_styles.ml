@@ -3,9 +3,9 @@ open! Core
 type element =
   | Style of Style.t
   | Text of Text.t
-[@@deriving compare, equal, quickcheck, sexp]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
-type t = element list [@@deriving compare, equal, quickcheck, sexp]
+type t = element list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 let width t =
   List.sum

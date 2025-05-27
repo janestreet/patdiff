@@ -6,7 +6,7 @@ type t =
   | Ansi
   | Ascii
   | Html
-[@@deriving compare, sexp]
+[@@deriving compare ~localize, sexp]
 
 let implies_unrefined t =
   match t with

@@ -1,4 +1,5 @@
-type t = Text_with_styles.t [@@deriving compare, equal, quickcheck, sexp]
+type t = Text_with_styles.t
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (** Identify ANSI style codes in a string to construct a [With_styles Ansi_text.t]. *)
 val parse : string -> Text_with_styles.t

@@ -1,7 +1,7 @@
 open! Core
 
 (** Models an ANSI escape sequence that can modify several attributes. *)
-type t = Attr.t list [@@deriving compare, equal, quickcheck, sexp]
+type t = Attr.t list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (** Gives a style that turns off all attributes that are turned on by the given style. *)
 val turn_off : t -> t

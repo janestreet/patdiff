@@ -47,7 +47,7 @@ type t =
   ; side_by_side : [ `wrap | `truncate ] option
   ; width_override : int option
   }
-[@@deriving compare, fields ~iterators:(iter, map), sexp_of]
+[@@deriving compare ~localize, fields ~iterators:(iter, map), sexp_of]
 
 let invariant t =
   Invariant.invariant t [%sexp_of: t] (fun () ->

@@ -1,6 +1,7 @@
 open! Core
 
-type t = Text_with_styles.t [@@deriving compare, equal, quickcheck, sexp]
+type t = Text_with_styles.t
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (* If the string starts with an ANSI escape sequence, split it off. *)
 let split_leading_style str =

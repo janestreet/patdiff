@@ -9,7 +9,7 @@ module Rule = struct
       { text : string
       ; styles : Style.t list
       }
-    [@@deriving compare, sexp_of]
+    [@@deriving compare ~localize, sexp_of]
 
     let create ?(styles = []) text = { text; styles }
     let blank = create ""
@@ -21,7 +21,7 @@ module Rule = struct
     ; suf : Affix.t
     ; styles : Style.t list
     }
-  [@@deriving compare, fields ~iterators:map, sexp_of]
+  [@@deriving compare ~localize, fields ~iterators:map, sexp_of]
 
   let create ?(pre = Affix.blank) ?(suf = Affix.blank) styles = { pre; suf; styles }
   let blank = create []
@@ -63,7 +63,7 @@ module Rules = struct
     ; added_in_move : Rule.t
     ; line_unified_in_move : Rule.t
     }
-  [@@deriving compare, fields ~iterators:map, sexp_of]
+  [@@deriving compare ~localize, fields ~iterators:map, sexp_of]
 
   let inner_line_change text color =
     let style = [ Ansi_text.Attr.Fg color ] in
@@ -135,7 +135,7 @@ module Location_style = struct
     | Omake
     | None
     | Separator
-  [@@deriving bin_io, compare, quickcheck, enumerate, equal, sexp]
+  [@@deriving bin_io, compare ~localize, quickcheck, enumerate, equal ~localize, sexp]
 
   let to_string = function
     | Diff -> "diff"
