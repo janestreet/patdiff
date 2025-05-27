@@ -62,7 +62,7 @@ module Rules : sig
     ; added_in_move : Rule.t
     ; line_unified_in_move : Rule.t
     }
-  [@@deriving compare, sexp_of]
+  [@@deriving compare ~localize, sexp_of]
 
   val default : t
   val strip_styles : t -> t
@@ -74,7 +74,7 @@ module Location_style : sig
     | Omake
     | None
     | Separator
-  [@@deriving bin_io, compare, quickcheck, enumerate, equal, sexp]
+  [@@deriving bin_io, compare ~localize, quickcheck, enumerate, equal ~localize, sexp]
 
   include Stringable.S with type t := t
 

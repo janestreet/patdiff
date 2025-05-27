@@ -10,7 +10,7 @@ module Sgr8 = struct
     | Magenta
     | Cyan
     | White
-  [@@deriving compare, equal, quickcheck, sexp]
+  [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
   let of_code_exn code =
     match code with
@@ -54,7 +54,7 @@ module Rgb6 = struct
     ; g : int
     ; b : int
     }
-  [@@deriving compare, equal, quickcheck, sexp]
+  [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
   let of_rgb_exn (r, g, b) =
     let check c = 0 <= c && c < 6 in
@@ -76,7 +76,8 @@ module Rgb6 = struct
 end
 
 module Gray24 = struct
-  type t = { level : int } [@@deriving compare, equal, quickcheck, sexp]
+  type t = { level : int }
+  [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
   let of_level_exn level =
     if not (0 <= level && level < 24)
@@ -101,7 +102,7 @@ module Rgb256 = struct
     ; g : int
     ; b : int
     }
-  [@@deriving compare, equal, quickcheck, sexp]
+  [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
   let of_rgb_exn (r, g, b) =
     let check c = 0 <= c && c < 256 in
@@ -122,7 +123,7 @@ module T = struct
     | Rgb6 of Rgb6.t
     | Gray24 of Gray24.t
     | Rgb256 of Rgb256.t
-  [@@deriving compare, equal, quickcheck, sexp]
+  [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 end
 
 include T

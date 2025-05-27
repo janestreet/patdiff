@@ -30,7 +30,7 @@ type t =
   | Bg of Color.t
   | Ul_color of Color.t
   | Other of int
-[@@deriving compare, equal, quickcheck, sexp]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (** Gives an attribute that turns off the given atribute (if applicable). *)
 val turn_off : t -> t option

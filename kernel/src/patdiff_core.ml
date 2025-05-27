@@ -16,8 +16,34 @@ end
 (* Strip whitespace from a string by stripping and replacing with spaces *)
 let ws_rex = lazy (Re.compile Re.(rep1 space))
 let ws_rex_anchored = lazy (Re.compile Re.(seq [ bol; rep space; eol ]))
-let ws_sub = " "
-let remove_ws s = String.strip (Re.replace_string (force ws_rex) s ~by:ws_sub)
+
+let remove_ws =
+  (* This is often called over and over on each line so try to reuse the same array every
+     time *)
+  let arr = ref (Array.create ~len:500 ' ') in
+  fun s ->
+    if Array.length !arr < String.length s
+    then arr := Array.create ~len:(String.length s) ' ';
+    let i = ref 0 in
+    let in_ws = ref false in
+    let found_char = ref false in
+    String.iter s ~f:(fun ch ->
+      if Char.is_whitespace ch
+      then in_ws := true
+      else (
+        if !in_ws && !found_char
+        then (
+          !arr.(!i) <- ' ';
+          !arr.(!i + 1) <- ch;
+          i := !i + 2)
+        else (
+          !arr.(!i) <- ch;
+          Int.incr i);
+        in_ws := false;
+        found_char := true));
+    String.init !i ~f:(fun i -> !arr.(i))
+;;
+
 let is_ws s = Re.execp (force ws_rex_anchored) s
 
 (* This regular expression describes the delimiters on which to split the string *)
@@ -547,7 +573,7 @@ module Make (Output_impls : Output_impls) = struct
         ; size_of_range : int
         ; replace_id : int option
         }
-      [@@deriving compare, hash, sexp_of, fields ~getters]
+      [@@deriving compare ~localize, hash, sexp_of, fields ~getters]
 
       let compare_by_size = Comparable.lift Int.compare ~f:size_of_range
     end
@@ -621,269 +647,277 @@ module Make (Output_impls : Output_impls) = struct
             }
           , range_contents )
       | _ -> ());
-    let prevs_used = Range_info.Table.create () in
-    let nexts_to_replace = Range_info.Table.create () in
-    (* Find ranges that are similar enough to be moves *)
-    let next_ranges =
-      Array.init (Pairing_heap.length next_ranges) ~f:(fun _ ->
-        Pairing_heap.pop_exn next_ranges)
-    in
-    let move_id = ref Patience_diff.Move_id.zero in
-    Queue.iter prev_ranges ~f:(fun (prev_location, prev_contents) ->
-      let starting_index =
-        Array.binary_search
-          next_ranges
-          ~compare:(fun (next_range_info, _next_contents) prev_range_info ->
-            Range_info.compare_by_size next_range_info prev_range_info)
-          `Last_less_than_or_equal_to
-          prev_location
-        |> (Option.value [@mode local]) ~default:(Array.length next_ranges - 1)
+    if Queue.length prev_ranges * Pairing_heap.length next_ranges > 40_000
+    then (* bail out if too expensive *)
+      hunks
+    else (
+      let prevs_used = Range_info.Table.create () in
+      let nexts_to_replace = Range_info.Table.create () in
+      (* Find ranges that are similar enough to be moves *)
+      let next_ranges =
+        Array.init (Pairing_heap.length next_ranges) ~f:(fun _ ->
+          Pairing_heap.pop_exn next_ranges)
       in
-      let starting_index = if starting_index < 0 then 0 else starting_index in
-      let left_index = ref starting_index in
-      let right_index = ref (starting_index + 1) in
-      let max_similarity range_a range_b =
-        let a_size = Int.to_float range_a.Range_info.size_of_range in
-        let b_size = Int.to_float range_b.Range_info.size_of_range in
-        Float.min a_size b_size /. Float.max a_size b_size
-      in
-      let next_closest_range () =
-        let left_range =
-          if !left_index < 0 || !left_index >= Array.length next_ranges
-          then None
-          else Some next_ranges.(!left_index)
+      let move_id = ref Patience_diff.Move_id.zero in
+      Queue.iter prev_ranges ~f:(fun (prev_location, prev_contents) ->
+        let starting_index =
+          Array.binary_search
+            next_ranges
+            ~compare:(fun (next_range_info, _next_contents) prev_range_info ->
+              Range_info.compare_by_size next_range_info prev_range_info)
+            `Last_less_than_or_equal_to
+            prev_location
+          |> (Option.value [@mode local]) ~default:(Array.length next_ranges - 1)
         in
-        let right_range =
-          if !right_index < 0 || !right_index >= Array.length next_ranges
-          then None
-          else Some next_ranges.(!right_index)
+        let starting_index = if starting_index < 0 then 0 else starting_index in
+        let left_index = ref starting_index in
+        let right_index = ref (starting_index + 1) in
+        let max_similarity range_a range_b =
+          let a_size = Int.to_float range_a.Range_info.size_of_range in
+          let b_size = Int.to_float range_b.Range_info.size_of_range in
+          Float.min a_size b_size /. Float.max a_size b_size
         in
-        match left_range, right_range with
-        | None, None -> None
-        | Some left_range, None ->
-          Int.decr left_index;
-          Some left_range
-        | None, Some right_range ->
-          Int.incr right_index;
-          Some right_range
-        | Some (left_info, left_range), Some (right_info, right_range) ->
-          if Float.compare
-               (max_similarity left_info prev_location)
-               (max_similarity right_info prev_location)
-             >= 0
-          then (
+        let next_closest_range () =
+          let left_range =
+            if !left_index < 0 || !left_index >= Array.length next_ranges
+            then None
+            else Some next_ranges.(!left_index)
+          in
+          let right_range =
+            if !right_index < 0 || !right_index >= Array.length next_ranges
+            then None
+            else Some next_ranges.(!right_index)
+          in
+          match left_range, right_range with
+          | None, None -> None
+          | Some left_range, None ->
             Int.decr left_index;
-            Some (left_info, left_range))
-          else (
+            Some left_range
+          | None, Some right_range ->
             Int.incr right_index;
-            Some (right_info, right_range))
-      in
-      let rec find_best_next_range best_match_so_far =
-        let finish () =
-          match best_match_so_far with
-          | None -> ()
-          | Some (_, select_hunk) -> select_hunk ()
+            Some right_range
+          | Some (left_info, left_range), Some (right_info, right_range) ->
+            if Float.compare
+                 (max_similarity left_info prev_location)
+                 (max_similarity right_info prev_location)
+               >= 0
+            then (
+              Int.decr left_index;
+              Some (left_info, left_range))
+            else (
+              Int.incr right_index;
+              Some (right_info, right_range))
         in
-        match next_closest_range () with
-        | None -> finish ()
-        | Some (next_location, next_contents) ->
-          let max_similarity = max_similarity prev_location next_location in
-          (* If this range can't possibly have the required similarity then none of the
+        let rec find_best_next_range best_match_so_far =
+          let finish () =
+            match best_match_so_far with
+            | None -> ()
+            | Some (_, select_hunk) -> select_hunk ()
+          in
+          match next_closest_range () with
+          | None -> finish ()
+          | Some (next_location, next_contents) ->
+            let max_similarity = max_similarity prev_location next_location in
+            (* If this range can't possibly have the required similarity then none of the
              subsequent ranges can either so stop our search here *)
-          if Float.(max_similarity < minimum_match_perc)
-             ||
-             match best_match_so_far with
-             | None -> false
-             | Some (best_match_ratio, _) -> Float.(max_similarity < best_match_ratio)
-          then finish ()
-          else if Hashtbl.mem nexts_to_replace next_location
-                  (* Don't use the two parts of a the same replace for moves *)
-                  ||
-                  match next_location.replace_id, prev_location.replace_id with
-                  | Some next_id, Some prev_id when next_id = prev_id -> true
-                  | _ -> false
-          then find_best_next_range best_match_so_far
-          else (
-            let match_ratio =
-              (* [match_ratio] just does naive string comparisons per line so strip
+            if Float.(max_similarity < minimum_match_perc)
+               ||
+               match best_match_so_far with
+               | None -> false
+               | Some (best_match_ratio, _) -> Float.(max_similarity < best_match_ratio)
+            then finish ()
+            else if Hashtbl.mem nexts_to_replace next_location
+                    (* Don't use the two parts of a the same replace for moves *)
+                    ||
+                    match next_location.replace_id, prev_location.replace_id with
+                    | Some next_id, Some prev_id when next_id = prev_id -> true
+                    | _ -> false
+            then find_best_next_range best_match_so_far
+            else (
+              let match_ratio =
+                (* [match_ratio] just does naive string comparisons per line so strip
                  leading and trailing whitespace. *)
-              Patience_diff.String.match_ratio
-                (Array.map ~f:String.strip prev_contents)
-                (Array.map ~f:String.strip next_contents)
-            in
-            let select_hunk () =
-              let hunk =
-                let transform = if keep_ws then Fn.id else remove_ws in
-                Patience_diff.String.get_hunks
-                  ~transform
-                  ~context:(-1)
-                  ~big_enough:line_big_enough
-                  ~max_slide:100
-                  ~score:score_line
-                  ~prev:prev_contents
-                  ~next:next_contents
-                  ()
-                (* Negative [context] returns a singleton hunk *)
-                |> List.hd_exn
+                Patience_diff.String.match_ratio
+                  (Array.map ~f:String.strip prev_contents)
+                  (Array.map ~f:String.strip next_contents)
               in
-              let move_index = !move_id in
-              Hashtbl.add_exn prevs_used ~key:prev_location ~data:(move_index, None, None);
-              move_id := Patience_diff.Move_id.succ !move_id;
-              let num_ranges = List.length hunk.ranges in
-              let range_index_is_on_edge range_index =
-                range_index = 0 || range_index = num_ranges - 1
+              let select_hunk () =
+                let hunk =
+                  let transform = if keep_ws then Fn.id else remove_ws in
+                  Patience_diff.String.get_hunks
+                    ~transform
+                    ~context:(-1)
+                    ~big_enough:line_big_enough
+                    ~max_slide:100
+                    ~score:score_line
+                    ~prev:prev_contents
+                    ~next:next_contents
+                    ()
+                  (* Negative [context] returns a singleton hunk *)
+                  |> List.hd_exn
+                in
+                let move_index = !move_id in
+                Hashtbl.add_exn
+                  prevs_used
+                  ~key:prev_location
+                  ~data:(move_index, None, None);
+                move_id := Patience_diff.Move_id.succ !move_id;
+                let num_ranges = List.length hunk.ranges in
+                let range_index_is_on_edge range_index =
+                  range_index = 0 || range_index = num_ranges - 1
+                in
+                Hashtbl.add_exn
+                  nexts_to_replace
+                  ~key:next_location
+                  ~data:
+                    (List.filter_mapi hunk.ranges ~f:(fun range_index_within_move range ->
+                       match range with
+                       | Same contents ->
+                         Some
+                           (Patience_diff.Range.Next
+                              (Array.map ~f:snd contents, Some (Move move_index)))
+                       | Replace (prev, next, _) ->
+                         Some (Replace (prev, next, Some move_index))
+                       | Prev (prev, _) ->
+                         if range_index_is_on_edge range_index_within_move
+                         then (
+                           Hashtbl.update prevs_used prev_location ~f:(function
+                             | Some (move_index, beg_lines, end_lines) ->
+                               ( move_index
+                               , (if range_index_within_move = 0
+                                  then Some (Array.length prev)
+                                  else beg_lines)
+                               , if range_index_within_move = num_ranges - 1
+                                 then Some (Array.length prev)
+                                 else end_lines )
+                             (* We should have added this prev range above *)
+                             | None -> assert false);
+                           None)
+                         else Some (Prev (prev, Some (Within_move move_index)))
+                       | Next (next, _) ->
+                         Some
+                           (Next
+                              ( next
+                              , if range_index_is_on_edge range_index_within_move
+                                then None
+                                else Some (Within_move move_index) ))
+                       | Unified (contents, _) ->
+                         Some (Unified (contents, Some move_index))))
               in
-              Hashtbl.add_exn
-                nexts_to_replace
-                ~key:next_location
-                ~data:
-                  (List.filter_mapi hunk.ranges ~f:(fun range_index_within_move range ->
-                     match range with
-                     | Same contents ->
-                       Some
-                         (Patience_diff.Range.Next
-                            (Array.map ~f:snd contents, Some (Move move_index)))
-                     | Replace (prev, next, _) ->
-                       Some (Replace (prev, next, Some move_index))
-                     | Prev (prev, _) ->
-                       if range_index_is_on_edge range_index_within_move
-                       then (
-                         Hashtbl.update prevs_used prev_location ~f:(function
-                           | Some (move_index, beg_lines, end_lines) ->
-                             ( move_index
-                             , (if range_index_within_move = 0
-                                then Some (Array.length prev)
-                                else beg_lines)
-                             , if range_index_within_move = num_ranges - 1
-                               then Some (Array.length prev)
-                               else end_lines )
-                           (* We should have added this prev range above *)
-                           | None -> assert false);
-                         None)
-                       else Some (Prev (prev, Some (Within_move move_index)))
-                     | Next (next, _) ->
-                       Some
-                         (Next
-                            ( next
-                            , if range_index_is_on_edge range_index_within_move
-                              then None
-                              else Some (Within_move move_index) ))
-                     | Unified (contents, _) -> Some (Unified (contents, Some move_index))))
-            in
-            let best_match_so_far =
-              match best_match_so_far with
-              | None when Float.(match_ratio >= minimum_match_perc) ->
-                Some (match_ratio, select_hunk)
-              | None -> None
-              | Some (best_match_ratio, _) ->
-                if Float.(match_ratio > best_match_ratio)
-                then Some (match_ratio, select_hunk)
-                else best_match_so_far
-            in
-            find_best_next_range best_match_so_far)
-      in
-      find_best_next_range None);
-    let prevs_by_range_index =
-      Hashtbl.to_alist prevs_used
-      |> List.map ~f:(fun (range_info, move_info) ->
-        range_info.Range_info.range_index, move_info)
-      |> Int.Table.of_alist_exn
-    in
-    let nexts_by_range_index =
-      Hashtbl.to_alist nexts_to_replace
-      |> List.map ~f:(fun (range_info, ranges_to_insert) ->
-        range_info.Range_info.range_index, ranges_to_insert)
-      |> Int.Table.of_alist_exn
-    in
-    (* update the [Next] ranges *)
-    let ranges =
-      Queue.mapi all_ranges ~f:(fun range_index (range_data, range) ->
-        match
-          ( Hashtbl.find prevs_by_range_index range_index
-          , Hashtbl.find nexts_by_range_index range_index )
-        with
-        (* This means we think the range is both a next and prev which is impossible *)
-        | Some _, Some _ -> assert false
-        | None, None -> [ range_data, range ]
-        | Some (move_id, lines_to_trim_at_beg, lines_to_trim_at_end), None ->
-          (match range with
-           | Patience_diff.Range.Prev (contents, None) ->
-             let lines_to_trim_at_beg = Option.value lines_to_trim_at_beg ~default:0 in
-             let lines_to_trim_at_end = Option.value lines_to_trim_at_end ~default:0 in
-             List.filter_opt
-               [ (if lines_to_trim_at_beg = 0
-                  then None
-                  else
-                    Some
-                      ( { range_data with range_type = `Original }
-                      , Patience_diff.Range.Prev
-                          (Array.sub contents ~pos:0 ~len:lines_to_trim_at_beg, None) ))
-               ; Some
-                   ( { range_data with range_type = `Move }
-                   , Patience_diff.Range.Prev
-                       ( Array.sub
-                           contents
-                           ~pos:lines_to_trim_at_beg
-                           ~len:
-                             (Array.length contents
-                              - lines_to_trim_at_beg
-                              - lines_to_trim_at_end)
-                       , Some (Move move_id) ) )
-               ; (if lines_to_trim_at_end = 0
-                  then None
-                  else
-                    Some
-                      ( { range_data with range_type = `Original }
-                      , Patience_diff.Range.Prev
-                          ( Array.sub
-                              contents
-                              ~pos:(Array.length contents - lines_to_trim_at_end)
-                              ~len:lines_to_trim_at_end
-                          , None ) ))
-               ]
-           | _ ->
-             (* we should never reference anything except a [Prev] that hasn't been moved *)
-             assert false)
-        | None, Some ranges_to_replace ->
-          let range_data = { range_data with range_type = `Move } in
-          List.map ranges_to_replace ~f:(fun range -> range_data, range))
-      |> Queue.to_list
-      |> List.concat
-    in
-    (* Recover any [Replace] ranges we broke up if we didn't use them for moves. *)
-    let final_ranges = Queue.create () in
-    let rec recover_replaces = function
-      | ( { Range_with_replaces_info.range_type = `Former_replace _; hunk_index }
-        , Patience_diff.Range.Prev (prev, None) )
-        :: ( { Range_with_replaces_info.range_type = `Former_replace _; hunk_index = _ }
-           , Next (next, None) )
-        :: rest_ranges ->
-        Queue.enqueue
-          final_ranges
-          ( { Range_with_replaces_info.range_type = `Original; hunk_index }
-          , Patience_diff.Range.Replace (prev, next, None) );
-        recover_replaces rest_ranges
-      | range :: rest_ranges ->
-        Queue.enqueue final_ranges range;
-        recover_replaces rest_ranges
-      | [] -> ()
-    in
-    recover_replaces ranges;
-    (* Place the ranges in the correct hunks *)
-    let final_hunks =
-      List.mapi hunks ~f:(fun hunk_index hunk ->
-        let ranges =
-          let hunk_ranges = Queue.create () in
-          Queue.drain
-            final_ranges
-            ~f:(fun (_, range) -> Queue.enqueue hunk_ranges range)
-            ~while_:(fun (range_data, _) ->
-              range_data.Range_with_replaces_info.hunk_index = hunk_index);
-          Queue.to_list hunk_ranges
+              let best_match_so_far =
+                match best_match_so_far with
+                | None when Float.(match_ratio >= minimum_match_perc) ->
+                  Some (match_ratio, select_hunk)
+                | None -> None
+                | Some (best_match_ratio, _) ->
+                  if Float.(match_ratio > best_match_ratio)
+                  then Some (match_ratio, select_hunk)
+                  else best_match_so_far
+              in
+              find_best_next_range best_match_so_far)
         in
-        { hunk with ranges })
-    in
-    final_hunks
+        find_best_next_range None);
+      let prevs_by_range_index =
+        Hashtbl.to_alist prevs_used
+        |> List.map ~f:(fun (range_info, move_info) ->
+          range_info.Range_info.range_index, move_info)
+        |> Int.Table.of_alist_exn
+      in
+      let nexts_by_range_index =
+        Hashtbl.to_alist nexts_to_replace
+        |> List.map ~f:(fun (range_info, ranges_to_insert) ->
+          range_info.Range_info.range_index, ranges_to_insert)
+        |> Int.Table.of_alist_exn
+      in
+      (* update the [Next] ranges *)
+      let ranges =
+        Queue.mapi all_ranges ~f:(fun range_index (range_data, range) ->
+          match
+            ( Hashtbl.find prevs_by_range_index range_index
+            , Hashtbl.find nexts_by_range_index range_index )
+          with
+          (* This means we think the range is both a next and prev which is impossible *)
+          | Some _, Some _ -> assert false
+          | None, None -> [ range_data, range ]
+          | Some (move_id, lines_to_trim_at_beg, lines_to_trim_at_end), None ->
+            (match range with
+             | Patience_diff.Range.Prev (contents, None) ->
+               let lines_to_trim_at_beg = Option.value lines_to_trim_at_beg ~default:0 in
+               let lines_to_trim_at_end = Option.value lines_to_trim_at_end ~default:0 in
+               List.filter_opt
+                 [ (if lines_to_trim_at_beg = 0
+                    then None
+                    else
+                      Some
+                        ( { range_data with range_type = `Original }
+                        , Patience_diff.Range.Prev
+                            (Array.sub contents ~pos:0 ~len:lines_to_trim_at_beg, None) ))
+                 ; Some
+                     ( { range_data with range_type = `Move }
+                     , Patience_diff.Range.Prev
+                         ( Array.sub
+                             contents
+                             ~pos:lines_to_trim_at_beg
+                             ~len:
+                               (Array.length contents
+                                - lines_to_trim_at_beg
+                                - lines_to_trim_at_end)
+                         , Some (Move move_id) ) )
+                 ; (if lines_to_trim_at_end = 0
+                    then None
+                    else
+                      Some
+                        ( { range_data with range_type = `Original }
+                        , Patience_diff.Range.Prev
+                            ( Array.sub
+                                contents
+                                ~pos:(Array.length contents - lines_to_trim_at_end)
+                                ~len:lines_to_trim_at_end
+                            , None ) ))
+                 ]
+             | _ ->
+               (* we should never reference anything except a [Prev] that hasn't been moved *)
+               assert false)
+          | None, Some ranges_to_replace ->
+            let range_data = { range_data with range_type = `Move } in
+            List.map ranges_to_replace ~f:(fun range -> range_data, range))
+        |> Queue.to_list
+        |> List.concat
+      in
+      (* Recover any [Replace] ranges we broke up if we didn't use them for moves. *)
+      let final_ranges = Queue.create () in
+      let rec recover_replaces = function
+        | ( { Range_with_replaces_info.range_type = `Former_replace _; hunk_index }
+          , Patience_diff.Range.Prev (prev, None) )
+          :: ( { Range_with_replaces_info.range_type = `Former_replace _; hunk_index = _ }
+             , Next (next, None) )
+          :: rest_ranges ->
+          Queue.enqueue
+            final_ranges
+            ( { Range_with_replaces_info.range_type = `Original; hunk_index }
+            , Patience_diff.Range.Replace (prev, next, None) );
+          recover_replaces rest_ranges
+        | range :: rest_ranges ->
+          Queue.enqueue final_ranges range;
+          recover_replaces rest_ranges
+        | [] -> ()
+      in
+      recover_replaces ranges;
+      (* Place the ranges in the correct hunks *)
+      let final_hunks =
+        List.mapi hunks ~f:(fun hunk_index hunk ->
+          let ranges =
+            let hunk_ranges = Queue.create () in
+            Queue.drain
+              final_ranges
+              ~f:(fun (_, range) -> Queue.enqueue hunk_ranges range)
+              ~while_:(fun (range_data, _) ->
+                range_data.Range_with_replaces_info.hunk_index = hunk_index);
+            Queue.to_list hunk_ranges
+          in
+          { hunk with ranges })
+      in
+      final_hunks)
   ;;
 
   let diff ~context ~line_big_enough ~keep_ws ~find_moves:should_find_moves ~prev ~next =

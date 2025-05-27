@@ -7,3 +7,16 @@ open! Import
 *)
 let prefix_length = 8000
 let string s = String.contains s '\000' ~len:(Int.min prefix_length (String.length s))
+
+let array a =
+  Array.fold_until
+    a
+    ~init:0
+    ~finish:(fun _ -> false)
+    ~f:(fun len line ->
+      if string line
+      then Stop true
+      else (
+        let len = len + String.length line in
+        if len >= prefix_length then Stop false else Continue len))
+;;

@@ -6,7 +6,7 @@ type t =
   { text : Text.t
   ; ranges : Style_ranges.t
   }
-[@@deriving compare, equal, quickcheck, sexp]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 val width : t -> int
 val is_empty : t -> bool

@@ -26,7 +26,7 @@ module T = struct
     | Bg of Color.t
     | Ul_color of Color.t
     | Other of int
-  [@@deriving compare, equal, quickcheck, sexp]
+  [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 end
 
 include T

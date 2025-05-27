@@ -3,10 +3,10 @@ type range =
   ; end_ : int
   ; style : Style.t
   }
-[@@deriving compare, equal, quickcheck, sexp]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (*** An ordered collection of styles that each apply to a specific range of text. *)
-type t = range list [@@deriving compare, equal, quickcheck, sexp]
+type t = range list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (** Identify ranges for as many styles as possible. Also returns a list of the remaining
     unmatched styles. *)

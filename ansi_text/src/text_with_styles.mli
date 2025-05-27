@@ -3,11 +3,11 @@ open! Core
 type element =
   | Style of Style.t
   | Text of Text.t
-[@@deriving compare, equal, quickcheck, sexp]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (** The primary representation of text with ANSI codes. We should be able to parse any
     string into this type. *)
-type t = element list [@@deriving compare, equal, quickcheck, sexp]
+type t = element list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (** The total length of all [Text] elements in an [Ansi_text.t]. *)
 val width : t -> int

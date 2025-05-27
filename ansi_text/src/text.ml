@@ -6,7 +6,7 @@ type t =
   ; char_widths : (Uchar.t * int) list
   ; width : int
   }
-[@@deriving compare, equal, quickcheck, sexp]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 let width t = t.width
 let is_empty t = String.is_empty t.str

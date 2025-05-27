@@ -148,7 +148,7 @@ module Line_index = struct
       { hunk_index : int
       ; line_index : int
       }
-    [@@deriving compare, sexp_of]
+    [@@deriving compare ~localize, sexp_of]
   end
 
   include T
