@@ -34,10 +34,8 @@ let split t ~pos =
   in
   let prefix_char_widths, suffix_char_widths = List.split_n t.char_widths n in
   let prefix_byte_length =
-    List.sum
-      (module Int)
-      prefix_char_widths
-      ~f:(fun (char, _) -> Uchar.Utf8.byte_length char)
+    List.sum (module Int) prefix_char_widths ~f:(fun (char, _) ->
+      Uchar.Utf8.byte_length char)
   in
   let prefix = String.prefix t.str prefix_byte_length in
   let suffix = String.drop_prefix t.str prefix_byte_length in

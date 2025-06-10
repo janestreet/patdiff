@@ -10,14 +10,15 @@ type range =
 type t = range list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 let identify text_with_styles =
-  let unmatched_opens, ranges, _ =
+  let unmatched_opens, ranges, control_codes, _ =
     List.fold
       text_with_styles
-      ~init:([], [], 0)
-      ~f:(fun (open_ranges, closed_ranges, width) element ->
+      ~init:([], [], [], 0)
+      ~f:(fun (open_ranges, closed_ranges, control_codes, width) element ->
         match element with
-        | Text_with_styles.Text txt -> open_ranges, closed_ranges, width + Text.width txt
-        | Style new_style ->
+        | `Text txt -> open_ranges, closed_ranges, control_codes, width + Text.width txt
+        | `Control _ as ctl -> open_ranges, closed_ranges, ctl :: control_codes, width
+        | `Style new_style ->
           (match
              List.find_mapi open_ranges ~f:(fun i (start, old_style) ->
                if Style.closes ~new_style ~old_style
@@ -26,16 +27,19 @@ let identify text_with_styles =
            with
            | None ->
              let open_ranges = (width, new_style) :: open_ranges in
-             open_ranges, closed_ranges, width
+             open_ranges, closed_ranges, control_codes, width
            | Some (i, start, old_style) ->
              let open_ranges = List.take open_ranges i @ List.drop open_ranges (i + 1) in
              let closed_ranges =
                { start; end_ = width; style = old_style } :: closed_ranges
              in
-             open_ranges, closed_ranges, width))
+             open_ranges, closed_ranges, control_codes, width))
   in
-  let unmatched_styles = List.rev_map unmatched_opens ~f:snd in
-  List.sort ~compare:compare_range ranges, unmatched_styles
+  let ansi_codes_not_accounted_for =
+    List.rev_map unmatched_opens ~f:(fun (_, style) -> `Style style)
+    @ List.rev control_codes
+  in
+  List.sort ~compare:compare_range ranges, ansi_codes_not_accounted_for
 ;;
 
 let apply ~text t =
@@ -50,17 +54,15 @@ let apply ~text t =
       ~init:([], text, 0)
       ~f:(fun (acc, text_remaining, last_pos) (pos, style) ->
         if pos = last_pos
-        then Text_with_styles.Style style :: acc, text_remaining, pos
+        then `Style style :: acc, text_remaining, pos
         else (
           let text_before, text_remaining =
             Text.split text_remaining ~pos:(pos - last_pos)
           in
-          let acc =
-            Text_with_styles.Style style :: Text_with_styles.Text text_before :: acc
-          in
+          let acc = `Style style :: `Text text_before :: acc in
           acc, text_remaining, pos))
   in
-  List.rev (Text_with_styles.Text text_remaining :: acc)
+  List.rev (`Text text_remaining :: acc)
 ;;
 
 let adjust_by ?(start = 0) ?(end_ = 0) t =

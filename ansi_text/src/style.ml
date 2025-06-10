@@ -4,8 +4,8 @@ type t = Attr.t list [@@deriving compare ~localize, equal ~localize, quickcheck,
 
 let of_string_exn esc_str =
   let codes =
-    String.chop_prefix_if_exists ~prefix:"\027[" esc_str
-    |> String.chop_suffix_if_exists ~suffix:"m"
+    String.chop_prefix_exn ~prefix:"\027[" esc_str
+    |> String.chop_suffix_exn ~suffix:"m"
     |> String.split ~on:';'
     |> List.filter_map ~f:(function
       | "" -> None
@@ -53,6 +53,7 @@ let is_reset t =
   | _ -> false
 ;;
 
+(* If a reset is present, drop it and everything before. *)
 let after_reset (t : t) =
   let rec helper acc = function
     | [] -> acc
@@ -80,8 +81,8 @@ let update ~old_style ~added_style = old_style @ added_style |> compress
 let delta ~old_style ~added_style =
   let old_style = compress old_style in
   let added_style = compress added_style in
-  if includes_reset old_style && includes_reset added_style
-  then (
+  match `Old (includes_reset old_style), `New_ (includes_reset added_style) with
+  | `Old true, `New_ true ->
     (* Check whether the added style is shorter with or without the reset. *)
     let without_reset =
       let old_attrs = after_reset old_style in
@@ -100,8 +101,9 @@ let delta ~old_style ~added_style =
     in
     if List.length without_reset < List.length added_style
     then without_reset
-    else added_style)
-  else
+    else added_style
+  | `Old false, `New_ true -> Reset :: after_reset added_style
+  | `Old _, `New_ false ->
     List.filter added_style ~f:(fun new_attr ->
       let last_overridden =
         List.fold old_style ~init:None ~f:(fun found old_attr ->

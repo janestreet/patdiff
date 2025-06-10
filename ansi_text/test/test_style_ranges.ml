@@ -1,6 +1,7 @@
 open! Core
 open! Async
 open Expect_test_helpers_core
+open Ansi_text.Text_with_style_ranges
 
 let%expect_test "find ranges in a patdiff body" =
   let diff =
@@ -9,12 +10,9 @@ let%expect_test "find ranges in a patdiff body" =
 [42;30m+[49;39m[0m(** The wire[32m class[39m of a bricks log *)
 [42;30m+[49;39m[0mval[32m wire_class[39m : Log_wire.wire_[32mclass[39m|}
   in
-  let with_ranges =
-    Ansi_text.(parse diff |> Text_with_style_ranges.of_text_with_styles)
-    |> Option.value_exn
-  in
-  print_endline Ansi_text.(Text_with_style_ranges.to_unstyled with_ranges);
-  print_endline Ansi_text.(Text_with_style_ranges.to_string_hum with_ranges);
+  let with_ranges = Ansi_text.parse diff |> of_text_with_ansi |> Option.value_exn in
+  print_endline (to_unstyled with_ranges);
+  print_endline (to_string_hum with_ranges);
   [%expect
     {|
     -(** The wire kind of a bricks log *)
@@ -36,12 +34,9 @@ let header =
 ;;
 
 let%expect_test "find ranges in a patdiff4 header" =
-  let with_ranges =
-    Ansi_text.(parse header |> Text_with_style_ranges.of_text_with_styles)
-    |> Option.value_exn
-  in
-  print_endline Ansi_text.(Text_with_style_ranges.to_unstyled with_ranges);
-  print_endline Ansi_text.(Text_with_style_ranges.to_string_hum with_ranges);
+  let with_ranges = Ansi_text.parse header |> of_text_with_ansi |> Option.value_exn in
+  print_endline (to_unstyled with_ranges);
+  print_endline (to_string_hum with_ranges);
   [%expect
     {|
     @@@@@@@@      View 1/1 : feature-ddiff      @@@@@@@@
@@ -59,11 +54,8 @@ let%expect_test "find ranges in side-by-side patdiff4 output" =
     {|[1;48;2;200;100;0;37m!![22;49;39m[41;30m-[49;39m[0m[90mval[39m[1;31m kind[22;39m[90m :[48;2;80;40;80m B.Log[49m.wire_[39m[1;31mkind[22;39m               │[1;48;2;200;100;0;37m!![22;49;39m[41;30m-[49;39m[0m[90mval[39m[1;31m kind[22;39m[90m :[48;2;20;60;120m Log_wire[49m.wire_[39m[1;31mkind[22;39m
 [1;48;2;200;100;0;37m!![22;49;39m[42;30m+[49;39m[0mval[32m wire_class[39m :[48;2;80;40;80m B.Log[49m.wire_[32mclass[39m        │[1;48;2;200;100;0;37m!![22;49;39m[42;30m+[49;39m[0mval[32m wire_class[39m :[48;2;20;60;120m Log_wire[49m.wire_[32mclass[39m|}
   in
-  let with_ranges =
-    Ansi_text.(parse diff |> Text_with_style_ranges.of_text_with_styles)
-    |> Option.value_exn
-  in
-  print_endline Ansi_text.(Text_with_style_ranges.to_unstyled with_ranges);
+  let with_ranges = Ansi_text.parse diff |> of_text_with_ansi |> Option.value_exn in
+  print_endline (to_unstyled with_ranges);
   print_s [%sexp (with_ranges.ranges : Ansi_text.Style_ranges.t)];
   [%expect
     {|
@@ -219,14 +211,9 @@ let%expect_test "apply" =
 ;;
 
 let%expect_test "unstyle_between" =
-  let styled =
-    Ansi_text.(parse header |> Text_with_style_ranges.of_text_with_styles)
-    |> Option.value_exn
-  in
-  let partially_styled =
-    Ansi_text.Text_with_style_ranges.unstyle_between styled ~start:52 ~end_:104
-  in
-  print_endline Ansi_text.(Text_with_style_ranges.to_string_hum partially_styled);
+  let styled = Ansi_text.parse header |> of_text_with_ansi |> Option.value_exn in
+  let partially_styled = unstyle_between styled ~start:52 ~end_:104 in
+  print_endline (to_string_hum partially_styled);
   [%expect
     {|
     (+bold fg:bright-blue)@@@@@@@@(-weight fg:default)      (fg:magenta)View 1/1 : feature-ddiff(fg:default)      (+bold fg:bright-blue)@@@@@@@@
@@ -238,15 +225,11 @@ let%expect_test "unstyle_between" =
 
 let%expect_test "split" =
   let first, second =
-    Ansi_text.(
-      parse header
-      |> Text_with_style_ranges.of_text_with_styles
-      |> Option.value_exn
-      |> Text_with_style_ranges.split ~pos:52)
+    Ansi_text.parse header |> of_text_with_ansi |> Option.value_exn |> split ~pos:52
   in
-  print_endline Ansi_text.(Text_with_style_ranges.to_string_hum first);
+  print_endline (to_string_hum first);
   print_endline "";
-  print_endline Ansi_text.(Text_with_style_ranges.to_string_hum second);
+  print_endline (to_string_hum second);
   [%expect
     {|
     (+bold fg:bright-blue)@@@@@@@@(-weight fg:default)      (fg:magenta)View 1/1 : feature-ddiff(fg:default)      (+bold fg:bright-blue)@@@@@@@@

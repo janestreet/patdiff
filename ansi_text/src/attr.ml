@@ -200,7 +200,7 @@ let to_string_hum = function
   | Fg c -> "fg:" ^ Color.to_string_hum c
   | Bg c -> "bg:" ^ Color.to_string_hum c
   | Ul_color c -> "ul:" ^ Color.to_string_hum c
-  | Other c -> "ansi:" ^ Int.to_string c
+  | Other c -> "ANSI-SGR:" ^ Int.to_string c
 ;;
 
 let to_string = function
