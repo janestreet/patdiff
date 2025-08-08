@@ -14,7 +14,7 @@
   (bash "%{first_dep} patdiff")))
 
 (rule
- (alias DEFAULT)
+ (alias default)
  (deps
   (glob_files *.sh))
  (action

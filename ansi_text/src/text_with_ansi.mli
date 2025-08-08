@@ -1,8 +1,9 @@
 open! Core
 
 type element =
-  | Style of Style.t
-  | Text of Text.t
+  [ Ansi.t
+  | `Text of Text.t
+  ]
 [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (** The primary representation of text with ANSI codes. We should be able to parse any
@@ -24,8 +25,13 @@ val to_string_hum : t -> string
 (** A string where all ANSI codes have been removed. *)
 val to_unstyled : t -> string
 
-(** Map over the [Style] and/or [Text] elements. *)
-val map : ?f_style:(Style.t -> Style.t) -> ?f_text:(Text.t -> Text.t) -> t -> t
+(** Map over the [Style], [Control], and/or [Text] elements. *)
+val map
+  :  ?f_style:(Style.t -> Style.t)
+  -> ?f_text:(Text.t -> Text.t)
+  -> ?f_control:(Control.t -> Control.t)
+  -> element list
+  -> element list
 
 (** Best-effort to reduce the ansi-codes needed to express the same styles. *)
 val simplify_styles : t -> t
@@ -34,7 +40,5 @@ val simplify_styles : t -> t
     styles active at the start of the text. *)
 val style_at_end : t -> Style.t
 
-(** Split at an index in the printable text, terminating and restoring active styles;
-    [init] can specify additional styles that are active at the start of the text that
-    should be preserved by the split. *)
+(** Split at an index in the printable text, terminating and restoring active styles. *)
 val split : pos:int -> t -> t * t

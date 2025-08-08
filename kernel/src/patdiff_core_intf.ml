@@ -43,21 +43,18 @@ module type S = sig
     -> keep_ws:bool
     -> [ `Newline of int * string option | `Word of string ] array
 
-  (** Print a hunk list, usually from [diff] or [refine] *)
-  val print
-    :  file_names:File_name.t * File_name.t
-    -> rules:Format.Rules.t
+  (** Renders each line for a single-column diff, preserving the structure of the hunk
+      list (which usually comes from [diff] or [refine]). *)
+  val build_unified
+    :  rules:Format.Rules.t
     -> output:Output.t
-    -> location_style:Format.Location_style.t
     -> Hunks.t
-    -> unit
+    -> string list list
 
-  (** Builds the sides of the diff, returning a list of lines. Each line is a pair of
-      strings representing the contents of the left and right columns. *)
+  (** Renders both sides of each line for a double-column diff, preserving the structure
+      of the hunk list (which usually comes from [refine_structured]). *)
   val build_side_by_side
     :  ?width_override:int
-    -> ?f_hunk_break:(width:int -> int * int -> int * int -> string list * string list)
-    -> ?file_names:File_name.t * File_name.t
     -> ?include_line_numbers:bool
     -> rules:Format.Rules.t
     -> wrap_or_truncate:[ `wrap | `truncate | `neither ]
@@ -65,6 +62,16 @@ module type S = sig
     -> ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
     -> (string * string) list list
 
+  (** Print a hunk list (usually from [diff] or [refine]) as a single-column diff. *)
+  val print_unified
+    :  file_names:File_name.t * File_name.t
+    -> rules:Format.Rules.t
+    -> output:Output.t
+    -> location_style:Format.Location_style.t
+    -> Hunks.t
+    -> unit
+
+  (** Print a hunk list, usually from [refine], as a double-column diff. *)
   val print_side_by_side
     :  ?width_override:int
     -> file_names:File_name.t * File_name.t
@@ -92,26 +99,6 @@ module type S = sig
     -> output:Output.t
     -> ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
     -> string
-
-  (** Iter along the lines of the diff and the breaks between hunks. Offers more
-      flexibility regarding what the caller wants to do with the lines *)
-  val iter_output
-    :  rules:Format.Rules.t
-    -> f_hunk_break:(int * int -> int * int -> unit)
-    -> f_line:(string -> unit)
-    -> ?output:Output.t
-    -> Hunks.t
-    -> unit
-
-  (** Same as [iter_output] but for side-by-side diffs *)
-  val iter_side_by_side_ansi
-    :  ?width_override:int
-    -> rules:Format.Rules.t
-    -> f_hunk_break:(width:int -> int * int -> int * int -> string list * string list)
-    -> f_line:(string -> unit)
-    -> wrap_or_truncate:[ `truncate | `wrap ]
-    -> ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
-    -> unit
 
   val output_width : ?width_override:int -> unit -> int
 

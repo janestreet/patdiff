@@ -38,7 +38,7 @@ let%expect_test "test with diff_printer" =
   print_diff [%expect.output];
   [%expect
     {|
-    -9,3 +9,3
+    === DIFF HUNK ===
        (9  900)
     -| (10 1000)
     +| (10 999)
@@ -49,7 +49,7 @@ let%expect_test "test with diff_printer" =
   print_diff [%expect.output];
   [%expect
     {|
-    -1,2 +1,3
+    === DIFF HUNK ===
     -|((1  100)
     +|((0  -1)
     +| (1  100)
@@ -93,7 +93,7 @@ let%expect_test "test with diff_printer_s" =
   print_diff map;
   [%expect
     {|
-    -9,3 +9,3
+    === DIFF HUNK ===
        (9  900)
     -| (10 1000)
     +| (10 999)
@@ -103,7 +103,7 @@ let%expect_test "test with diff_printer_s" =
   print_diff map;
   [%expect
     {|
-    -1,2 +1,3
+    === DIFF HUNK ===
     -|((1  100)
     +|((0  -1)
     +| (1  100)
@@ -227,7 +227,7 @@ let%expect_test "passing [None] to diff_printer behaves like diff_printer, but d
   print_diff [%expect.output];
   [%expect
     {|
-    -9,3 +9,3
+    === DIFF HUNK ===
        (9  900)
     -| (10 1000)
     +| (10 999)
@@ -238,7 +238,7 @@ let%expect_test "passing [None] to diff_printer behaves like diff_printer, but d
   print_diff [%expect.output];
   [%expect
     {|
-    -1,2 +1,3
+    === DIFF HUNK ===
     -|((1  100)
     +|((0  -1)
     +| (1  100)
@@ -282,7 +282,7 @@ let%expect_test "passing [None] to diff_printer_s behaves like diff_printer_s, b
   print_diff map;
   [%expect
     {|
-    -9,3 +9,3
+    === DIFF HUNK ===
        (9  900)
     -| (10 1000)
     +| (10 999)
@@ -292,7 +292,7 @@ let%expect_test "passing [None] to diff_printer_s behaves like diff_printer_s, b
   print_diff map;
   [%expect
     {|
-    -1,2 +1,3
+    === DIFF HUNK ===
     -|((1  100)
     +|((0  -1)
     +| (1  100)

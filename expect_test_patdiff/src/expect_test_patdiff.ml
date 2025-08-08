@@ -9,7 +9,7 @@ let patdiff
   ?interleave
   ?keep_ws
   ?line_big_enough
-  ?location_style
+  ?(location_style = Format.Location_style.Separator)
   ?print_global_header
   ?rules
   ?word_big_enough
@@ -23,7 +23,7 @@ let patdiff
     ?interleave
     ?keep_ws
     ?line_big_enough
-    ?location_style
+    ~location_style
     ~output:Ascii
       (* without color, cannot produce the "!|" lines that mix add/keep/remove *)
     ~produce_unified_lines:false

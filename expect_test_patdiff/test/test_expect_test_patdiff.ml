@@ -15,7 +15,7 @@ let%expect_test "print_patdiff" =
   print_patdiff string1 string2;
   [%expect
     {|
-    -1,4 +1,4
+    === DIFF HUNK ===
     -|zero
       one
     +|three
@@ -26,11 +26,11 @@ let%expect_test "print_patdiff" =
   print_patdiff string2 string1 ~context:0;
   [%expect
     {|
-    -1,0 +1,1
+    === DIFF HUNK ===
     +|zero
-    -2,0 +3,1
+    === DIFF HUNK ===
     +|two
-    -3,2 +5,0
+    === DIFF HUNK ===
     -|two
     -|zero
     |}]
@@ -104,7 +104,7 @@ let%expect_test "print_patdiff_s" =
   print_patdiff_s sexp1 sexp2;
   [%expect
     {|
-    -1,12 +1,12
+    === DIFF HUNK ===
       (Node (
     -|  (left Leaf)
     -|  (key  one)
@@ -131,7 +131,7 @@ let%expect_test "print_patdiff_s" =
   print_patdiff_s sexp2 sexp1 ~context:0;
   [%expect
     {|
-    -2,9 +2,9
+    === DIFF HUNK ===
     -|  (left (
     -|    Node (
     -|      (left (
@@ -150,7 +150,7 @@ let%expect_test "print_patdiff_s" =
     +|      (right (
     +|        Node (
     +|          (left  Leaf)
-    -12,1 +12,1
+    === DIFF HUNK ===
     -|  (right Leaf)))
     +|          (right Leaf)))))))))
     |}]
@@ -163,7 +163,7 @@ let%expect_test "non-empty patdiff prints a newline" =
   [%expect
     {|
     ----------
-    -1,1 +1,1
+    === DIFF HUNK ===
     -|cat
     +|dog
     ----------

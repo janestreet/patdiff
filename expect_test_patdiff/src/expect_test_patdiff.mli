@@ -12,7 +12,7 @@ val patdiff
   -> ?interleave:bool
   -> ?keep_ws:bool
   -> ?line_big_enough:int
-  -> ?location_style:Format.Location_style.t
+  -> ?location_style:Format.Location_style.t (** default: Separator *)
   -> ?print_global_header:bool
   -> ?rules:Format.Rules.t
   -> ?word_big_enough:int

@@ -13,7 +13,7 @@
   patdiff-git-wrapper))
 
 (rule
- (alias DEFAULT)
+ (alias default)
  (deps
   (glob_files patdiff-git-wrapper))
  (action

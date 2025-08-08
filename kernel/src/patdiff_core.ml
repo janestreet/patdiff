@@ -2,7 +2,8 @@ open! Core
 open! Import
 include Patdiff_core_intf
 
-let default_width = 80
+let default_double_column_width = 121
+let default_refine_line_length = 78
 let min_col_width = 60
 
 include struct
@@ -118,7 +119,7 @@ module Make (Output_impls : Output_impls) = struct
       | Some override, _, _ -> override
       | None, Ok console, false -> console - 1
       | None, Ok console, true -> console
-      | None, Error _, _ -> default_width
+      | None, Error _, _ -> default_double_column_width
     ;;
 
     module Single_column = struct
@@ -183,13 +184,25 @@ module Make (Output_impls : Output_impls) = struct
           Replace (ar1, ar2, move_id)
       ;;
 
-      let map_ranges (hunks : _ Patience_diff.Hunk.t list) ~f =
-        List.map hunks ~f:(fun hunk -> { hunk with ranges = List.map hunk.ranges ~f })
+      let ranges_to_strings ~rules ~output (hunks : _ Patience_diff.Hunk.t list) =
+        List.map hunks ~f:(fun hunk ->
+          { hunk with ranges = List.map hunk.ranges ~f:(to_string rules output) })
       ;;
 
-      let apply hunks ~rules ~output = map_ranges hunks ~f:(to_string rules output)
+      let build_unified ~rules ~output (hunks : _ Patience_diff.Hunk.t list) =
+        let formatted_hunks = ranges_to_strings ~rules ~output hunks in
+        let blocks_rev = ref [] in
+        let f_line line =
+          match !blocks_rev with
+          | hd :: tl -> blocks_rev := (line :: hd) :: tl
+          | _ -> blocks_rev := [ line ] :: !blocks_rev
+        in
+        let f_hunk_break _ _ = blocks_rev := [] :: !blocks_rev in
+        Hunks.iter ~f_hunk_break ~f_line formatted_hunks;
+        List.rev_map !blocks_rev ~f:List.rev
+      ;;
 
-      let print
+      let print_unified
         ~print_global_header
         ~file_names
         ~rules
@@ -198,7 +211,7 @@ module Make (Output_impls : Output_impls) = struct
         ~location_style
         hunks
         =
-        let formatted_hunks = apply ~rules ~output hunks in
+        let formatted_hunks = ranges_to_strings ~rules ~output hunks in
         let (module O) = Output_impls.implementation output in
         O.print
           ~print_global_header
@@ -331,67 +344,23 @@ module Make (Output_impls : Output_impls) = struct
 
       let build_side_by_side
         ?width_override
-        ?f_hunk_break
-        ?file_names
         ?(include_line_numbers = true)
         ~(rules : Format.Rules.t)
         ~wrap_or_truncate
         ~output
-        original_hunks
+        hunks
         =
         let blocks_rev = ref [] in
         (* Need one character for the center divider *)
         let pane_cols = (output_width ?width_override () - 1) / 2 in
         let pane_cols = max pane_cols min_col_width in
-        (* The rule prefixes should have the same padding so using any should be fine. *)
-        let prefix_column_width = String.length rules.line_same.pre.text in
         let line_num_width =
           match include_line_numbers with
-          | true -> String.length (Int.to_string (max_line_number original_hunks))
+          | true -> String.length (Int.to_string (max_line_number hunks))
           | false -> 0
         in
-        let columns_left_for_text =
-          match include_line_numbers with
-          | true -> pane_cols - prefix_column_width - line_num_width - 1
-          | false -> pane_cols - prefix_column_width
-        in
-        let apply ~rule str = Rule.apply str ~rule ~output ~refined:false in
-        let render_file_name ~rule file =
-          let line_number_padding = create_padding (line_num_width + 1) in
-          let file = String.prefix (File_name.display_name file) columns_left_for_text in
-          String.concat
-            [ line_number_padding
-            ; apply ~rule ""
-            ; file
-            ; create_padding (columns_left_for_text - String.length file)
-            ]
-        in
-        (match file_names with
-         | None -> ()
-         | Some (prev_file, next_file) ->
-           (* Add a header block with the file names. *)
-           let prev = render_file_name ~rule:rules.line_prev prev_file in
-           let next = render_file_name ~rule:rules.line_next next_file in
-           blocks_rev := [ prev, next ] :: !blocks_rev);
-        let line_info_hunks = Side_by_side.hunks_to_lines original_hunks in
-        let original_hunks = Array.of_list original_hunks in
-        Array.iteri line_info_hunks ~f:(fun hunk_index hunk ->
+        Array.iter (Side_by_side.hunks_to_lines hunks) ~f:(fun hunk ->
           let hunk_lines_rev = ref [] in
-          let () =
-            match f_hunk_break with
-            | None -> ()
-            | Some f_hunk_break ->
-              let original_hunk = original_hunks.(hunk_index) in
-              let l_header, r_header =
-                f_hunk_break
-                  ~width:pane_cols
-                  (original_hunk.prev_start, original_hunk.prev_size)
-                  (original_hunk.next_start, original_hunk.next_size)
-              in
-              hunk_lines_rev
-              := List.zip_exn (List.rev l_header) (List.rev r_header) @ !hunk_lines_rev;
-              ()
-          in
           Array.iter hunk ~f:(fun line ->
             (* We may get back multiple lines if we are wrapping long lines. *)
             let new_lines =
@@ -413,9 +382,43 @@ module Make (Output_impls : Output_impls) = struct
         | Ascii -> "|"
       ;;
 
+      let render_filenames
+        ~prev_file
+        ~next_file
+        ~pane_cols
+        ~output
+        ~(rules : Format.Rules.t)
+        ~line_num_width
+        =
+        let cols_available = pane_cols - line_num_width in
+        let line_num_space = String.make line_num_width ' ' in
+        let middle_divider = make_divider output in
+        let render_file_name ~rule file =
+          let filename = File_name.display_name file in
+          String.concat [ Rule.apply ~rule ~output ~refined:false ""; filename ]
+        in
+        (* Add a header block with the file names. *)
+        let prev = render_file_name ~rule:rules.line_prev prev_file in
+        let next = render_file_name ~rule:rules.line_next next_file in
+        match output with
+        | Output.Ansi | Output.Ascii ->
+          List.map
+            (Ansi_text.to_double_column ~width:cols_available ~left:prev ~right:next)
+            ~f:(fun (left, right) ->
+              String.concat
+                [ line_num_space; left; middle_divider; line_num_space; right ])
+        | Output.Html ->
+          let buff =
+            String.make (pane_cols - String.length (File_name.display_name prev_file)) ' '
+          in
+          (* Don't try to use ansi_text to wrap HTML! *)
+          [ String.concat
+              [ line_num_space; prev; buff; middle_divider; line_num_space; next ]
+          ]
+      ;;
+
       let print_side_by_side
         ?width_override
-        ?f_hunk_break
         ?file_names
         ~(rules : Format.Rules.t)
         ~wrap_or_truncate
@@ -423,21 +426,40 @@ module Make (Output_impls : Output_impls) = struct
         ~print
         original_hunks
         =
-        let middle_divider = make_divider output in
-        let blocks =
+        let insert_filenames () =
+          match file_names with
+          | None -> ()
+          | Some (prev_file, next_file) ->
+            let line_num_width =
+              String.length (Int.to_string (max_line_number original_hunks)) + 1
+            in
+            let pane_cols = (output_width ?width_override () - 1) / 2 in
+            let filename_lines =
+              render_filenames
+                ~prev_file
+                ~next_file
+                ~pane_cols
+                ~output
+                ~rules
+                ~line_num_width
+            in
+            List.iter filename_lines ~f:print
+        in
+        let lines =
           build_side_by_side
             ?width_override
-            ?f_hunk_break
-            ?file_names
             ~rules
             ~wrap_or_truncate
             ~output
             original_hunks
+          |> List.concat
         in
         (match output with
          | Output.Ansi | Ascii -> ()
          | Html -> print "<pre style=\"font-family:consolas,monospace\">");
-        List.iter (List.concat blocks) ~f:(fun (left, right) ->
+        let middle_divider = make_divider output in
+        insert_filenames ();
+        List.iter lines ~f:(fun (left, right) ->
           String.concat [ left; middle_divider; right ] |> print);
         match output with
         | Output.Ansi | Ascii -> ()
@@ -1341,7 +1363,7 @@ module Make (Output_impls : Output_impls) = struct
         if not split_long_lines
         then [ sub_diff ]
         else (
-          let max_len = Int.max 20 (Output_ops.output_width () - 2) in
+          let max_len = default_refine_line_length in
           (* Accumulates the total length of the line so far, summing lengths
                of word tokens but resetting when newlines are hit *)
           let get_new_len_so_far ~len_so_far tokens_arr =
@@ -1650,8 +1672,8 @@ module Make (Output_impls : Output_impls) = struct
           [ prev_ar, next_ar ])
   ;;
 
-  let print ~file_names ~rules ~output ~location_style hunks =
-    Output_ops.Single_column.print
+  let print_unified ~file_names ~rules ~output ~location_style hunks =
+    Output_ops.Single_column.print_unified
       hunks
       ~rules
       ~output
@@ -1661,6 +1683,7 @@ module Make (Output_impls : Output_impls) = struct
       ~print_global_header:true
   ;;
 
+  let build_unified = Output_ops.Single_column.build_unified
   let build_side_by_side = Output_ops.Double_column.build_side_by_side
 
   let print_side_by_side
@@ -1690,7 +1713,7 @@ module Make (Output_impls : Output_impls) = struct
     hunks
     =
     let buf = Queue.create () in
-    Output_ops.Single_column.print
+    Output_ops.Single_column.print_unified
       hunks
       ~file_names
       ~location_style
@@ -1701,6 +1724,8 @@ module Make (Output_impls : Output_impls) = struct
     String.concat (Queue.to_list buf) ~sep:"\n"
   ;;
 
+  let output_width = Output_ops.output_width
+
   let output_to_string_side_by_side
     ?width_override
     ~file_names
@@ -1709,44 +1734,35 @@ module Make (Output_impls : Output_impls) = struct
     ~output
     hunks
     =
-    let blocks =
+    let prev_file, next_file = file_names in
+    let line_num_width =
+      String.length (Int.to_string (Output_ops.Double_column.max_line_number hunks)) + 1
+    in
+    let pane_cols = (output_width ?width_override () - 1) / 2 in
+    let filename_lines =
+      Output_ops.Double_column.render_filenames
+        ~prev_file
+        ~next_file
+        ~pane_cols
+        ~output
+        ~rules
+        ~line_num_width
+    in
+    let lines =
       Output_ops.Double_column.build_side_by_side
         ?width_override
         hunks
         ~rules
         ~wrap_or_truncate
         ~output
-        ~file_names
+      |> List.concat
     in
     let middle_divider = Output_ops.Double_column.make_divider output in
-    List.map (List.concat blocks) ~f:(fun (left, right) ->
-      String.concat [ left; middle_divider; right ])
-    |> String.concat ~sep:"\n"
-  ;;
-
-  let output_width = Output_ops.output_width
-
-  let iter_output ~rules ~f_hunk_break ~f_line ?(output = Output.Ansi) hunks =
-    let hunks = Output_ops.Single_column.apply hunks ~rules ~output in
-    Hunks.iter ~f_hunk_break ~f_line hunks
-  ;;
-
-  let iter_side_by_side_ansi
-    ?width_override
-    ~rules
-    ~f_hunk_break
-    ~f_line
-    ~wrap_or_truncate
-    hunks
-    =
-    Output_ops.Double_column.print_side_by_side
-      ?width_override
-      ~f_hunk_break
-      hunks
-      ~output:Output.Ansi
-      ~rules
-      ~wrap_or_truncate
-      ~print:f_line
+    let body_lines =
+      List.map lines ~f:(fun (left, right) ->
+        String.concat [ left; middle_divider; right ])
+    in
+    String.concat ~sep:"\n" (filename_lines @ body_lines)
   ;;
 
   let patdiff
@@ -1801,7 +1817,7 @@ module Make (Output_impls : Output_impls) = struct
 end
 
 module Without_unix = Make (struct
-    let console_width () = Ok default_width
+    let console_width () = Ok default_double_column_width
 
     let implementation : Output.t -> (module Output.S) = function
       | Ansi -> (module Ansi_output)

@@ -1057,7 +1057,7 @@ MNO
   [%expect
     {|
     <pre style="font-family:consolas,monospace">
-      <span style="color:#880000"><span style="font-weight:bold">-|</span></span><span style="color:#880000"></span>a                                                       │  <span style="color:#008800"><span style="font-weight:bold">+|</span></span><span style="color:#008800"></span>b
+      <span style="color:#880000"><span style="font-weight:bold">-|</span></span><span style="color:#880000"></span>a                                                │  <span style="color:#008800"><span style="font-weight:bold">+|</span></span><span style="color:#008800"></span>b
     1                                                           │1
     2   ABC                                                     │2   ABC
     3 <span style="color:#888800"><span style="font-weight:bold">!|</span></span>1 2 3 4 5 6 7 8<span style="color:#880000"> 9</span> 10 11 12 13 14 15 16 17 18 19 20<span style="color:#880000"></span>      │3 <span style="color:#888800"><span style="font-weight:bold">!|</span></span>1 2 3 4 5 6 7 8<span style="color:#008800"></span>
