@@ -22,7 +22,7 @@ let%expect_test "patdiff-git-wrapper" =
     (* Override whatever patdiff config the user has. *)
     let%bind () = run "patdiff" [ "-make-config"; ".patdiff" ] in
     [%expect {| Default configuration written to .patdiff |}];
-    Unix.putenv ~key:"HOME" ~data:".";
+    (Unix.putenv [@ocaml.alert "-unsafe_multidomain"]) ~key:"HOME" ~data:".";
     (* Standard git diff. *)
     let%bind () = run "git" [ "diff" ] in
     [%expect
@@ -36,7 +36,9 @@ let%expect_test "patdiff-git-wrapper" =
       +foo baz quux
       |}];
     (* Diff according to instructions in the script. *)
-    Unix.putenv ~key:"GIT_EXTERNAL_DIFF" ~data:"patdiff-git-wrapper";
+    (Unix.putenv [@ocaml.alert "-unsafe_multidomain"])
+      ~key:"GIT_EXTERNAL_DIFF"
+      ~data:"patdiff-git-wrapper";
     let%bind () = system "git diff | ansi_text visualize -minimize" in
     [%expect
       {|

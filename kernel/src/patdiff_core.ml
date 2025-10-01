@@ -1579,6 +1579,23 @@ module Make (Output_impls : Output_impls) = struct
           [ prev_ar, next_ar ])
   ;;
 
+  let unrefined_structured (hunks : string Patience_diff.Hunk.t list) =
+    let tag_array tag arr = Array.map arr ~f:(fun line -> [ tag, line ]) in
+    List.map hunks ~f:(fun hunk ->
+      { hunk with
+        ranges =
+          List.map hunk.ranges ~f:(function
+            | Same same ->
+              Patience_diff.Range.Same
+                (Array.map same ~f:(fun (prev, next) -> [ `Same, prev ], [ `Same, next ]))
+            | Prev (prev, move) -> Prev (tag_array `Prev prev, move)
+            | Next (next, move) -> Next (tag_array `Next next, move)
+            | Replace (prev, next, move) ->
+              Replace (tag_array `Prev prev, tag_array `Next next, move)
+            | Unified (lines, move) -> Unified (tag_array `Same lines, move))
+      })
+  ;;
+
   (* Refines the diff, splitting the lines into smaller arrays and diffing them, then
      collapsing them back into their initial lines after applying a format. *)
   let refine

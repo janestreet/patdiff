@@ -38,6 +38,12 @@ module type S = sig
     -> string Patience_diff.Hunk.t list
     -> ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
 
+  (** Useful if you want an unrefined diff and to produce the same structure as
+      [refine_structured] *)
+  val unrefined_structured
+    :  string Patience_diff.Hunk.t list
+    -> ([ `Next | `Prev | `Same ] * string) list Patience_diff.Hunk.t list
+
   val explode
     :  string array
     -> keep_ws:bool
