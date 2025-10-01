@@ -31,23 +31,7 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
          `Replace's would otherwise be later interpreted as refined output *)
       let hunks = Patience_diff.Hunks.unified hunks in
       match config.side_by_side with
-      | Some _ ->
-        let tag_array arr = Array.map arr ~f:(fun line -> [ `Same, line ]) in
-        `Structured_hunks
-          (List.map hunks ~f:(fun hunk ->
-             { hunk with
-               ranges =
-                 List.map hunk.ranges ~f:(function
-                   | Same same ->
-                     Patience_diff.Range.Same
-                       (Array.map same ~f:(fun (prev, next) ->
-                          [ `Same, prev ], [ `Same, next ]))
-                   | Prev (prev, move) -> Prev (tag_array prev, move)
-                   | Next (next, move) -> Next (tag_array next, move)
-                   | Replace (prev, next, move) ->
-                     Replace (tag_array prev, tag_array next, move)
-                   | Unified (lines, move) -> Unified (tag_array lines, move))
-             }))
+      | Some _ -> `Structured_hunks (Patdiff_core_arg.unrefined_structured hunks)
       | None -> `Hunks hunks)
     else (
       let rules = config.rules in

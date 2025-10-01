@@ -40,3 +40,8 @@ val minimize : string -> string
 
 (** Remove all ANSI style codes from a string. *)
 val strip : string -> string
+
+(** Prepares a pair of strings for printing as two columns in a single buffer. Wraps both
+    strings to the given width, then pads the shorter list to the same length with empty
+    strings, then pads each left-side line to the width with spaces. *)
+val to_double_column : width:int -> left:string -> right:string -> (string * string) list

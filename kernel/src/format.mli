@@ -64,7 +64,19 @@ module Rules : sig
     }
   [@@deriving compare ~localize, sexp_of]
 
+  module Color_palette : sig
+    type t =
+      { added : Color.t
+      ; removed : Color.t
+      ; moved_from_prev : Color.t
+      ; moved_to_next : Color.t
+      }
+
+    val default : t
+  end
+
   val default : t
+  val default_with_color_palette : Color_palette.t -> t
   val strip_styles : t -> t
 end
 

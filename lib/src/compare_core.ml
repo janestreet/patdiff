@@ -58,7 +58,7 @@ let print hunks ~file_names ~(config : Configuration.t) =
            ~next_file
            ~next_is_binary)
     | Hunks hunks ->
-      Patdiff_core.print
+      Patdiff_core.print_unified
         hunks
         ~file_names
         ~output

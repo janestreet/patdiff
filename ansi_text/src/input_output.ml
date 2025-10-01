@@ -87,3 +87,19 @@ let apply style str = Style.to_string style ^ str ^ Style.to_string (Style.turn_
 let visualize str = parse str |> Text_with_ansi.to_string_hum
 let minimize str = parse str |> Text_with_ansi.simplify_styles |> Text_with_ansi.to_string
 let strip str = parse str |> Text_with_ansi.to_unstyled
+
+let to_double_column ~width ~left ~right =
+  let left =
+    parse left
+    |> wrap ~width
+    |> List.map ~f:(fun l -> pad ~width l |> Text_with_ansi.to_string)
+  in
+  let right = parse right |> wrap ~width |> List.map ~f:Text_with_ansi.to_string in
+  let left_length = List.length left in
+  let right_length = List.length right in
+  let lines_to_add_left = max 0 (right_length - left_length) in
+  let lines_to_add_right = max 0 (left_length - right_length) in
+  let left = left @ List.init lines_to_add_left ~f:(fun _ -> String.make width ' ') in
+  let right = right @ List.init lines_to_add_right ~f:(fun _ -> "") in
+  List.zip_exn left right
+;;

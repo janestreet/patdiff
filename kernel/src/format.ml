@@ -65,6 +65,24 @@ module Rules = struct
     }
   [@@deriving compare ~localize, fields ~iterators:map, sexp_of]
 
+  module Color_palette = struct
+    type t =
+      { added : Color.t
+      ; removed : Color.t
+      ; moved_from_prev : Color.t
+      ; moved_to_next : Color.t
+      }
+
+    let default =
+      let open Ansi_text.Color in
+      { added = Standard Sgr8.Green
+      ; removed = Standard Sgr8.Red
+      ; moved_from_prev = Standard Sgr8.Magenta
+      ; moved_to_next = Standard Sgr8.Cyan
+      }
+    ;;
+  end
+
   let inner_line_change text color =
     let style = [ Ansi_text.Attr.Fg color ] in
     let pre = Rule.Affix.create ~styles:[ Bold; Fg color ] text in
@@ -82,28 +100,30 @@ module Rules = struct
 
   let word_change color = Rule.create [ Fg color ]
 
-  let default =
+  let default_with_color_palette (palette : Color_palette.t) =
     let open Rule in
     { line_same = unstyled_prefix "  "
-    ; line_prev = inner_line_change "-|" Ansi_text.Color.(Standard Sgr8.Red)
-    ; line_next = inner_line_change "+|" Ansi_text.Color.(Standard Sgr8.Green)
+    ; line_prev = inner_line_change "-|" palette.removed
+    ; line_next = inner_line_change "+|" palette.added
     ; line_unified = line_unified ~is_move:false
     ; word_same_prev = blank
     ; word_same_next = blank
     ; word_same_unified = blank
     ; word_same_unified_in_move = blank
-    ; word_prev = word_change Ansi_text.Color.(Standard Sgr8.Red)
-    ; word_next = word_change Ansi_text.Color.(Standard Sgr8.Green)
+    ; word_prev = word_change palette.removed
+    ; word_next = word_change palette.added
     ; hunk = blank
     ; header_prev = blank
     ; header_next = blank
-    ; moved_from_prev = inner_line_change "<|" Ansi_text.Color.(Standard Sgr8.Magenta)
-    ; moved_to_next = inner_line_change ">|" Ansi_text.Color.(Standard Sgr8.Cyan)
-    ; removed_in_move = inner_line_change ">|" Ansi_text.Color.(Standard Sgr8.Red)
-    ; added_in_move = inner_line_change ">|" Ansi_text.Color.(Standard Sgr8.Green)
+    ; moved_from_prev = inner_line_change "<|" palette.moved_from_prev
+    ; moved_to_next = inner_line_change ">|" palette.moved_to_next
+    ; removed_in_move = inner_line_change ">|" palette.removed
+    ; added_in_move = inner_line_change ">|" palette.added
     ; line_unified_in_move = line_unified ~is_move:true
     }
   ;;
+
+  let default = default_with_color_palette Color_palette.default
 
   let strip_styles t =
     let f field = Rule.strip_styles (Field.get field t) in
