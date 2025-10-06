@@ -19,7 +19,7 @@ depends: [
   "patience_diff"
   "ppx_jane"
   "dune"                     {>= "3.17.0"}
-  "re"                       {>= "1.8.0"}
+  "re"                       {= "1.14.0+ox"}
   "uucp"
 ]
 available: arch != "arm32" & arch != "x86_32"
