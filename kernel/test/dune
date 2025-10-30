@@ -1,6 +1,6 @@
 (library
  (name patdiff_kernel_test)
- (libraries ansi_text core expect_test_helpers_core patdiff_kernel
-   patience_diff expect_test_helpers_core.expect_test_helpers_base)
+ (libraries ansi_text core expect_test_helpers_core.expect_test_helpers_base
+   expect_test_helpers_core patdiff_kernel patience_diff)
  (preprocess
   (pps ppx_jane)))
