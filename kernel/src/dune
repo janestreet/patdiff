@@ -1,7 +1,7 @@
 (library
  (name patdiff_kernel)
  (public_name patdiff.kernel)
- (libraries ansi_text base.composition_infix core patience_diff
-   core_kernel.pairing_heap re)
+ (libraries ansi_text base.composition_infix core core_kernel.pairing_heap
+   patience_diff re)
  (preprocess
   (pps ppx_jane)))
