@@ -30,7 +30,8 @@ module type S = sig
 
   (** The same as [refine] except returns structured data. *)
   val refine_structured
-    :  produce_unified_lines:bool
+    :  ?mark_newline_changes:bool (** default is [false] *)
+    -> produce_unified_lines:bool
     -> keep_ws:bool
     -> split_long_lines:bool
     -> interleave:bool

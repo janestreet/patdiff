@@ -1330,8 +1330,8 @@ include Server
   ;;
 
   let%test_unit "ensure that our refinement heuristic does not drop any changes" =
-    (* To trigger the refinement heuristic we need all lines to be different
-         and there is at at least one word shared between the two *)
+    (* To trigger the refinement heuristic we need all lines to be different and there is
+       at at least one word shared between the two *)
     let test_case_gen =
       let open Quickcheck.Generator.Let_syntax in
       let%bind lines_prev = Int.gen_incl 200 500 in

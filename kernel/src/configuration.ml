@@ -13,11 +13,11 @@ let default_line_big_enough = 3
 (* Analogous to above, but for word-level refinement *)
 let default_word_big_enough = 7
 
-(* Governs the behavior of [split_for_readability].  We will only split ranges around
-   matches of size greater than [too_short_to_split].  Note that this should always
-   be at least 1, otherwise we will split on a single `Newline token.
-   Raising this quantity will result in less ranges being split, and setting it to
-   infinity is the same as passing in [~interleave:false]. *)
+(* Governs the behavior of [split_for_readability]. We will only split ranges around
+   matches of size greater than [too_short_to_split]. Note that this should always be at
+   least 1, otherwise we will split on a single `Newline token. Raising this quantity will
+   result in less ranges being split, and setting it to infinity is the same as passing in
+   [~interleave:false]. *)
 let too_short_to_split = 2
 let warn_if_no_trailing_newline_in_both_default = true
 

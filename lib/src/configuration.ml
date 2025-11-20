@@ -4,7 +4,7 @@ include Patdiff_kernel.Configuration
 
 module On_disk = struct
   module Affix = struct
-    (* Simply a prefix or a suffix.  Might come with an associated style. *)
+    (* Simply a prefix or a suffix. Might come with an associated style. *)
 
     type t =
       { text : string option [@sexp.option]
@@ -980,9 +980,9 @@ let get_config ?filename () =
         | `Yes -> Some f
         | `No | `Unknown -> None)
   in
-  (* load prints warnings to stderr. This is desired because [file] is only Some if it
-     was manually specified or if ~/.patdiff exists. The user should be notified of
-     errors if the file fails in both cases. *)
+  (* load prints warnings to stderr. This is desired because [file] is only Some if it was
+     manually specified or if ~/.patdiff exists. The user should be notified of errors if
+     the file fails in both cases. *)
   match Option.bind file ~f:load with
   | Some c -> c
   | None -> default

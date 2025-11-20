@@ -236,7 +236,7 @@ let to_string = function
 ;;
 
 (* For compatibility with legacy patdiff configs, which used the much-less-expressive
-    [Patdiff_kernel.Format.Style.t] type. *)
+   [Patdiff_kernel.Format.Style.t] type. *)
 let t_of_sexp sexp =
   match sexp with
   | Sexp.Atom "dim" -> Faint

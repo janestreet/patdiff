@@ -3,7 +3,7 @@ open! Import
 open Patdiff_kernel
 module Patdiff_core = Patdiff_core.Without_unix
 
-let test_refined_structured ~produce_unified_lines ~prev ~next =
+let test_refined_structured ?mark_newline_changes ~produce_unified_lines ~prev ~next () =
   let prev = String.split_lines prev |> Array.of_list in
   let next = String.split_lines next |> Array.of_list in
   let hunks =
@@ -17,6 +17,7 @@ let test_refined_structured ~produce_unified_lines ~prev ~next =
   in
   let refined_hunks =
     Patdiff_core.refine_structured
+      ?mark_newline_changes
       ~produce_unified_lines
       ~keep_ws:false
       ~split_long_lines:true
@@ -62,7 +63,7 @@ j
 k
 |}
   in
-  test_refined_structured ~produce_unified_lines:true ~prev ~next;
+  test_refined_structured ~produce_unified_lines:true ~prev ~next ();
   [%expect
     {|
     ((
@@ -202,7 +203,7 @@ eu, posuere in orci. Pellentesque gravida in purus eu ullamcorper. Nunc urna
 tortor, hendrerit nec eleifend et, dapibus sed dolor.
 |}
   in
-  test_refined_structured ~produce_unified_lines:true ~prev ~next;
+  test_refined_structured ~produce_unified_lines:true ~prev ~next ();
   [%expect
     {|
     ((
@@ -489,7 +490,7 @@ tortor, hendrerit nec eleifend et, dapibus sed dolor.
 let%expect_test "test generating a unified structured range" =
   let prev = {|Some really long line that will be unified after I make a small change|} in
   let next = {|Some really long line that will be unified after I make small change|} in
-  test_refined_structured ~produce_unified_lines:true ~prev ~next;
+  test_refined_structured ~produce_unified_lines:true ~prev ~next ();
   [%expect
     {|
     ((
@@ -505,5 +506,80 @@ let%expect_test "test generating a unified structured range" =
           (Prev " a")
           (Same " small change")))
         ())))))
+    |}]
+;;
+
+let%expect_test "test newline changes while ignoring whitespace" =
+  let prev =
+    {|Line one
+Some line that will be broken up over multiple lines
+Line two
+Line three
+|}
+  in
+  let next =
+    {|Line one
+Some line that will be
+broken up over
+multiple lines
+Line two
+Line three
+|}
+  in
+  test_refined_structured ~produce_unified_lines:false ~prev ~next ();
+  [%expect {| () |}]
+;;
+
+let%expect_test "test newline changes with [mark_newline_changes]" =
+  let prev =
+    {|Line one
+Some line that will be broken up over multiple lines
+Line two
+Line three
+|}
+  in
+  let next =
+    {|Line one
+Some line that will be
+broken up over
+multiple lines
+Line two
+Line three
+|}
+  in
+  test_refined_structured
+    ~mark_newline_changes:true
+    ~produce_unified_lines:false
+    ~prev
+    ~next
+    ();
+  (* With [mark_newline_changes], the single line that was broken up into multiple lines
+     should now be marked as a [Replace], with the difference being the added [Next ""]s
+     representing the newlines. *)
+  [%expect
+    {|
+    ((
+      (prev_start 1)
+      (prev_size  4)
+      (next_start 1)
+      (next_size  6)
+      (ranges (
+        (Same ((
+          ((Same "Line one"))
+          ((Same "Line one")))))
+        (Replace
+          ((
+            (Same "")
+            (Same "Some line that will be")
+            (Same " broken up over")
+            (Same " multiple lines")))
+          (((Same "") (Same "Some line that will be") (Next ""))
+           ((Next "") (Same "broken up over")         (Next ""))
+           ((Next "")
+            (Same "multiple lines")))
+          ())
+        (Same (
+          (((Same "Line two"))   ((Same "Line two")))
+          (((Same "Line three")) ((Same "Line three")))))))))
     |}]
 ;;

@@ -183,7 +183,7 @@ let to_ul_code = function
 ;;
 
 (* For compatibility with legacy patdiff configs, which used the much-less-expressive
-     [Patdiff_kernel.Format.Color.t] type. *)
+   [Patdiff_kernel.Format.Color.t] type. *)
 let t_of_sexp sexp =
   match sexp with
   | Sexp.Atom "black" | Atom "Black" -> Standard Black

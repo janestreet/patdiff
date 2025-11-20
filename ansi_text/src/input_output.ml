@@ -21,7 +21,7 @@ let split_initial_csi str =
   else None
 ;;
 
-(* Split a string at the start of each ["\027["] substring. *)
+(*=Split a string at the start of each ["\027["] substring. *)
 let split_on_escapes str =
   let esc = String.Search_pattern.create "\027[" in
   String.Search_pattern.split_on esc str

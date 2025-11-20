@@ -27,8 +27,8 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
     (* Refine if desired *)
     if config.unrefined
     then (
-      (* Turn `Replace ranges into `Prev and `Next ranges.
-         `Replace's would otherwise be later interpreted as refined output *)
+      (* Turn `Replace ranges into `Prev and `Next ranges. `Replace's would otherwise be
+         later interpreted as refined output *)
       let hunks = Patience_diff.Hunks.unified hunks in
       match config.side_by_side with
       | Some _ -> `Structured_hunks (Patdiff_core_arg.unrefined_structured hunks)

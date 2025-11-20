@@ -54,8 +54,8 @@ let words_rex =
      let delim = set {|"{}[]#,.;()_|} in
      let punct = rep1 (set {|=`+-/!@$%^&*:|<>|}) in
      let space = rep1 space in
-     (* We don't want to split up ANSI color sequences, so let's make sure they get through
-     intact. *)
+     (* We don't want to split up ANSI color sequences, so let's make sure they get
+        through intact. *)
      let ansi_sgr_sequence =
        let esc = char '\027' in
        seq [ esc; char '['; rep (alt [ char ';'; digit ]); char 'm' ]
@@ -63,8 +63,8 @@ let words_rex =
      compile (alt [ delim; punct; space; ansi_sgr_sequence ]))
 ;;
 
-(* Split a string into a list of string options delimited by words_rex
-   (delimiters included) *)
+(* Split a string into a list of string options delimited by words_rex (delimiters
+   included) *)
 let split s ~keep_ws =
   let s = if keep_ws then s else String.rstrip s in
   if String.is_empty s && keep_ws
@@ -81,9 +81,9 @@ let split s ~keep_ws =
 ;;
 
 (* This function ensures that the tokens passed to Patience diff do not include
-   whitespace.  Whitespace is appended to words, and then removed by [~transform] later
-   on. The point is to make the semantic cleanup go well -- we don't want whitespace
-   matches to "count" as part of the length of a match. *)
+   whitespace. Whitespace is appended to words, and then removed by [~transform] later on.
+   The point is to make the semantic cleanup go well -- we don't want whitespace matches
+   to "count" as part of the length of a match. *)
 let whitespace_ignorant_split s =
   if String.is_empty s
   then []
@@ -522,9 +522,9 @@ module Make (Output_impls : Output_impls) = struct
       then 0
       else
         (if i1 = i2
-            (* This funky thing hopefully us to prefer a diff like ‘end [ module ... end ]’
-           to one like ‘[ end module ... ] end’, where [] marks the boundary of the
-           diff. *)
+            (* This funky thing hopefully us to prefer a diff like ‘end
+               [ module ... end ]’ to one like ‘[ end module ... ] end’, where [] marks
+               the boundary of the diff. *)
          then (
            match side with
            | `left -> 1
@@ -535,7 +535,7 @@ module Make (Output_impls : Output_impls) = struct
     let bonus_for_chars =
       (* [bonus n line sides str] returns [n] if a bonus score applies, or 0 otherwise.
 
-         [line] can be [`above] or [`below].  [sides] can be [`left], [`right], or [`any].
+         [line] can be [`above] or [`below]. [sides] can be [`left], [`right], or [`any].
 
          The bonus score applies if [str] is found at the beginning of the line
          immediately [`above] or [`below] the boundary of the inserted/deleted region.
@@ -604,8 +604,8 @@ module Make (Output_impls : Output_impls) = struct
     include Hashable.Make_plain (T)
   end
 
-  (* Used to track the state of [Replace] ranges when we explode them into
-     a [Prev] and a [Next] *)
+  (* Used to track the state of [Replace] ranges when we explode them into a [Prev] and a
+     [Next] *)
   module Range_with_replaces_info = struct
     type t =
       { hunk_index : int
@@ -741,7 +741,7 @@ module Make (Output_impls : Output_impls) = struct
           | Some (next_location, next_contents) ->
             let max_similarity = max_similarity prev_location next_location in
             (* If this range can't possibly have the required similarity then none of the
-             subsequent ranges can either so stop our search here *)
+               subsequent ranges can either so stop our search here *)
             if Float.(max_similarity < minimum_match_perc)
                ||
                match best_match_so_far with
@@ -758,7 +758,7 @@ module Make (Output_impls : Output_impls) = struct
             else (
               let match_ratio =
                 (* [match_ratio] just does naive string comparisons per line so strip
-                 leading and trailing whitespace. *)
+                   leading and trailing whitespace. *)
                 Patience_diff.String.match_ratio
                   (Array.map ~f:String.strip prev_contents)
                   (Array.map ~f:String.strip next_contents)
@@ -898,7 +898,8 @@ module Make (Output_impls : Output_impls) = struct
                             , None ) ))
                  ]
              | _ ->
-               (* we should never reference anything except a [Prev] that hasn't been moved *)
+               (* we should never reference anything except a [Prev] that hasn't been
+                  moved *)
                assert false)
           | None, Some ranges_to_replace ->
             let range_data = { range_data with range_type = `Move } in
@@ -966,16 +967,11 @@ module Make (Output_impls : Output_impls) = struct
   (* Splits an array of lines into an array of pieces (`Newlines and R.Words) *)
   let explode_internal words ~keep_ws =
     let to_words l = List.map l ~f:(fun s -> `Word s) in
-    (*
-       [`Newline of (int * string option)]
+    (* [`Newline of (int * string option)]
 
        can be thought of as:
 
-       [`Newline of
-       ([`How_many_consecutive_newlines of int]
-     * [`Some_subsequent_whitespace of string
-       |`Empty_string
-       ])]
+       [`Newline of ([`How_many_consecutive_newlines of int] * [`Some_subsequent_whitespace of string |`Empty_string ])]
 
        This representation is used to try to collapse consecutive whitespace as tightly as
        possible, but it's not a great abstraction, so some consecutive whitespace does not
@@ -992,8 +988,8 @@ module Make (Output_impls : Output_impls) = struct
     in
     let words =
       List.fold_right words ~init:[] ~f:(fun x acc ->
-        (* look back at what we've accumulated so far to see if there's any whitespace that
-           can be collapsed. *)
+        (* look back at what we've accumulated so far to see if there's any whitespace
+           that can be collapsed. *)
         match acc with
         | `Word s :: tl -> x :: `Word s :: tl
         | `Newline (i, None) :: tl ->
@@ -1185,9 +1181,9 @@ module Make (Output_impls : Output_impls) = struct
       | _ -> true)
   ;;
 
-  (* Interleaves the display of minus lines and plus lines so that equal words are presented
-     close together.  There is some heuristic for when we think doing this improves the
-     diff. *)
+  (* Interleaves the display of minus lines and plus lines so that equal words are
+     presented close together. There is some heuristic for when we think doing this
+     improves the diff. *)
   let split_for_readability rangelist =
     let ans : _ Patience_diff.Range.t list list ref = ref [] in
     let pending_ranges : _ Patience_diff.Range.t list ref = ref [] in
@@ -1226,8 +1222,8 @@ module Make (Output_impls : Output_impls) = struct
        | _ :: _ as ranges -> List.rev ranges :: !ans)
   ;;
 
-  (* Turn lines into words and apply a heuristic to break up large blocks of lines
-     by relatively unique words. *)
+  (* Turn lines into words and apply a heuristic to break up large blocks of lines by
+     relatively unique words. *)
   let words_break_hueristic prev_ar next_ar ~keep_ws =
     let target_block_size = 100 in
     let target_num_blocks =
@@ -1339,6 +1335,7 @@ module Make (Output_impls : Output_impls) = struct
 
   let refine_internal
     (type a)
+    ?(mark_newline_changes = false)
     ~map_non_replace
     ~line_is_ws
     ~collapse_range
@@ -1364,18 +1361,17 @@ module Make (Output_impls : Output_impls) = struct
         then [ sub_diff ]
         else (
           let max_len = default_refine_line_length in
-          (* Accumulates the total length of the line so far, summing lengths
-               of word tokens but resetting when newlines are hit *)
+          (* Accumulates the total length of the line so far, summing lengths of word
+             tokens but resetting when newlines are hit *)
           let get_new_len_so_far ~len_so_far tokens_arr =
             Array.fold ~init:len_so_far tokens_arr ~f:(fun len_so_far token ->
               match token with
               | `Newline _ -> 0
               | `Word word -> len_so_far + String.length word)
           in
-          (* Iteratively split long lines up.
-               Produces a list of "range lists", where each range list should be displayed
-               all together in one unbroken piece before being followed by the next range
-               list, etc. *)
+          (* Iteratively split long lines up. Produces a list of "range lists", where each
+             range list should be displayed all together in one unbroken piece before
+             being followed by the next range list, etc. *)
           let rec split_lines len_so_far sub_diff rangeaccum rangelistaccum =
             match sub_diff with
             | [] ->
@@ -1389,8 +1385,8 @@ module Make (Output_impls : Output_impls) = struct
                  let range_of_tokens tokenpairs =
                    Patience_diff.Range.Same (Array.of_list tokenpairs)
                  in
-                 (* Keep taking tokens until we exceed max_len or hit a newline.
-                      Returns (new len_so_far, new range, remaining tokens, hit newline)
+                 (* Keep taking tokens until we exceed max_len or hit a newline. Returns
+                    (new len_so_far, new range, remaining tokens, hit newline)
                  *)
                  let rec take_until_max len_so_far tokenpairs accum =
                    match tokenpairs with
@@ -1409,8 +1405,8 @@ module Make (Output_impls : Output_impls) = struct
                  let make_newline () =
                    Patience_diff.Range.Same [| `Newline (1, None), `Newline (1, None) |]
                  in
-                 (* Keep taking ranges until all tokens exhausted.
-                      Returns (new len_so_far, range list) *)
+                 (* Keep taking ranges until all tokens exhausted. Returns (new
+                    len_so_far, range list) *)
                  let rec take_ranges_until_exhausted len_so_far tokenpairs accum =
                    match tokenpairs with
                    | [] -> len_so_far, List.rev accum
@@ -1419,8 +1415,8 @@ module Make (Output_impls : Output_impls) = struct
                        take_until_max len_so_far tokenpairs []
                      in
                      let new_accum = `Range new_range :: accum in
-                     (* If there are token pairs left, that means we hit the max_len,
-                          so add a break at this point *)
+                     (* If there are token pairs left, that means we hit the max_len, so
+                        add a break at this point *)
                      let new_accum =
                        match new_tokenpairs with
                        | _ :: _ when not hit_newline ->
@@ -1436,8 +1432,8 @@ module Make (Output_impls : Output_impls) = struct
                      []
                  in
                  (* Update rangeaccum and rangelistaccum according to the `Ranges and
-                      `Breaks. `Ranges accumulate on to the existing range list to be
-                      displayed contiguously, `Breaks start a new range list. *)
+                    `Breaks. `Ranges accumulate on to the existing range list to be
+                    displayed contiguously, `Breaks start a new range list. *)
                  let rangeaccum, rangelistaccum =
                    List.fold
                      new_ranges
@@ -1498,7 +1494,14 @@ module Make (Output_impls : Output_impls) = struct
           let range : _ Patience_diff.Range.t =
             match prev_all_same, next_all_same, move_kind with
             (* Don't create a same range inside of a move *)
-            | true, true, None -> Same (Array.map next_ar ~f:(fun x -> x, x))
+            | true, true, None ->
+              (* Changes that are purely newlines are ignored when [keep_ws] is [False],
+                 but codemirror needs this info to track line numbers in side by side
+                 diffs. *)
+              if mark_newline_changes
+                 && not (equal (Array.length prev_ar) (Array.length next_ar))
+              then Replace (prev_ar, next_ar, move_kind)
+              else Same (Array.map next_ar ~f:(fun x -> x, x))
             | _ ->
               (match prev_ar, next_ar with
                (* Ugly hack that takes care of empty files *)
@@ -1529,6 +1532,7 @@ module Make (Output_impls : Output_impls) = struct
   ;;
 
   let refine_structured
+    ?mark_newline_changes
     ~produce_unified_lines
     ~keep_ws
     ~split_long_lines
@@ -1537,6 +1541,7 @@ module Make (Output_impls : Output_impls) = struct
     (hunks : string Patience_diff.Hunk.t list)
     =
     refine_internal
+      ?mark_newline_changes
       ~produce_unified_lines
       ~line_is_ws:(const false)
       ~keep_ws
@@ -1560,17 +1565,14 @@ module Make (Output_impls : Output_impls) = struct
         | Unified (lines, move_info) ->
           [ Unified (Array.map lines ~f:(fun line -> [ `Same, line ]), move_info) ]
         | Replace _ -> assert false)
-      ~collapse_range:(fun ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind ->
+      ~collapse_range:
+        (fun
+          ~prev_all_same ~next_all_same ~sub_prev ~sub_next ~move_kind:_ ->
         match prev_all_same, next_all_same with
         | true, true ->
-          (match move_kind with
-           | None ->
-             let next_ar = collapse_structured sub_next ~kind:`Next_only in
-             [ next_ar, next_ar ]
-           | Some _ ->
-             let prev_ar = collapse_structured sub_prev ~kind:`Prev_only in
-             let next_ar = collapse_structured sub_next ~kind:`Next_only in
-             [ prev_ar, next_ar ])
+          let prev_ar = collapse_structured sub_prev ~kind:`Prev_only in
+          let next_ar = collapse_structured sub_next ~kind:`Next_only in
+          [ prev_ar, next_ar ]
         | true, false | false, true | false, false ->
           let kind = `Prev_only in
           let prev_ar = collapse_structured sub_prev ~kind in
