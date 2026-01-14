@@ -1,8 +1,9 @@
 (** Library for parsing text that contains ANSI escape codes.
 
-    Implements most of the standard Select Graphic Rendition (SGR) spec through the
-    [Style] module and most of the Control Sequence Introducer (CSI) spec through the
-    [Control] module.
+    Implements types for parsing the whole spec, but with a focus on representing Select
+    Graphic Rendition (SGR) codes through the [Style] module, Control Sequence Introducer
+    (CSI) codes through the [Control] module, and terminal hyperlinks (OSC-8) through the
+    [Hyperlink] module.
 
     More details on SGR:
     https://en.wikipedia.org/wiki/ANSI_escape_code#Select_Graphic_Rendition_parameters
@@ -11,7 +12,7 @@
     https://en.wikipedia.org/wiki/ANSI_escape_code#Control_Sequence_Introducer_commands
 
     The primary type [Ansi_text.t] is defined in [text_with_ansi.ml], and represents text
-    as a list of [`Text], [`Style], and [`Control] elements. The functions defined in
+    as a list of [`Text] and [Ansi.t] elements. The functions defined in [parser.ml] and
     [input_output.ml] handle parsing to/from strings. These serve three primary purposes:
     1) stripping out ANSI codes or rendering them in a more human-readable form for use in
        expect-tests.
@@ -52,4 +53,6 @@ module Text_with_style_ranges : sig
 end
 
 include module type of Text_with_ansi
+include module type of Parser
 include module type of Input_output
+module Unknown_esc = Unknown_esc

@@ -29,7 +29,7 @@ type t =
   | Fg of Color.t
   | Bg of Color.t
   | Ul_color of Color.t
-  | Other of int
+  | Other of int list
 [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (** Gives an attribute that turns off the given atribute (if applicable). *)
@@ -38,10 +38,10 @@ val turn_off : t -> t option
 (** Whether [new_attr] overrides the style effects of [old_attr]. *)
 val overrides : new_attr:t -> old_attr:t -> bool
 
-(** Creates an [Attr.t] from integers 0-255. Integers outside 0-255 produce an exception,
-    as do lists of length > 1 that don't correspond to a color code. Valid color codes
-    start with 38, 48, or 58, followed by either [5;n] or [2;r;g;b]. *)
-val of_code_exn : int list -> t
+(** Creates an [Attr.t] from a list of SGR parameter codes. Known codes (like [1] for bold
+    or [38;5;196] for 256-color red foreground) are parsed into specific variants.
+    Unrecognized [codes] are returned as [Other codes]. *)
+val of_codes : int list -> t
 
 (** Converts an [Attr.t] to an ANSI code. *)
 val to_code : t -> int list

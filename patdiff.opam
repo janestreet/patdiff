@@ -13,11 +13,13 @@ depends: [
   "ocaml" {>= "5.1.0"}
   "base"
   "core"
+  "core_extended"
   "core_kernel"
   "core_unix"
   "expect_test_helpers_core"
   "patience_diff"
   "ppx_jane"
+  "angstrom"                 {>= "0.15.0"}
   "dune"                     {>= "3.17.0"}
   "re"                       {= "1.14.0+ox"}
   "uucp"

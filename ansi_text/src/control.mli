@@ -22,14 +22,17 @@ type t =
   | Unknown of string
 [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
-(** Creates a [Control.t] from an ANSI-CSI string. For example:
-    {[
-      of_string_exn "\027[;5H" = CursorToPos (None, Some 5)
-    ]} *)
-val of_string_exn : string -> t
-
-(** Like [of_string_exn], but doesn't raise. *)
-val of_string_opt : string -> t option
+(** Make a [Control.t] from bytes extracted from a parsed string. For example the parser,
+    when handling:
+    {v "\027[;5H" v}
+    would invoke:
+    {v of_csi ~params:";5" ~terminal:'H' v}
+    yielding:
+    {v CursorToPos (None, Some 5) v} *)
+val of_csi
+  :  params:string (** CSI parameter bytes in 0x30-0x3F. Generaly digits and semicolons. *)
+  -> terminal:char (** CSI final byte in 0x40-0x7E *)
+  -> t
 
 (** Converts a [Control.t] back to an ANSI-CSI string. For example
     {[

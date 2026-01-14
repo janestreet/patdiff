@@ -25,13 +25,9 @@ val to_string_hum : t -> string
 (** A string where all ANSI codes have been removed. *)
 val to_unstyled : t -> string
 
-(** Map over the [Style], [Control], and/or [Text] elements. *)
-val map
-  :  ?f_style:(Style.t -> Style.t)
-  -> ?f_text:(Text.t -> Text.t)
-  -> ?f_control:(Control.t -> Control.t)
-  -> element list
-  -> element list
+(** Map over the elements; if [f] outputs [None] the element is unchanged. This makes it
+    easy to write an [f] that applies only to [`Style] elements, for example. *)
+val map : f:(element -> element option) -> t -> t
 
 (** Best-effort to reduce the ansi-codes needed to express the same styles. *)
 val simplify_styles : t -> t

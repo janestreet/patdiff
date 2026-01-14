@@ -1,9 +1,3 @@
-type t = Text_with_ansi.t
-[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
-
-(** Identify ANSI style codes in a string to construct a [With_styles Ansi_text.t]. *)
-val parse : string -> Text_with_ansi.t
-
 (** Pad the text to the given length with spaces or another character. *)
 val pad
   :  ?char:char

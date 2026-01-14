@@ -25,7 +25,7 @@ module T = struct
     | Fg of Color.t
     | Bg of Color.t
     | Ul_color of Color.t
-    | Other of int
+    | Other of int list [@quickcheck.do_not_generate]
   [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 end
 
@@ -56,13 +56,13 @@ let turn_off = function
   | Not_strike -> None
   | Not_overline -> None
   | Ul_color _ -> Ul_color Default |> Some
-  | Other c ->
-    (match c with
-     | c when Int.(11 <= c && c <= 20) -> Other 10 |> Some (* fonts *)
-     | c when Int.(c = 26) -> Other 50 |> Some (* proportional spacing *)
-     | c when Int.(c = 51 || c = 52) -> Other 54 |> Some (* framed, encircled *)
-     | c when Int.(60 <= c && c <= 64) -> Other 65 |> Some (* ideograms *)
-     | c when Int.(73 <= c && c <= 74) -> Other 75 |> Some (* sub/superscript *)
+  | Other codes ->
+    (match codes with
+     | [ c ] when Int.(11 <= c && c <= 20) -> Other [ 10 ] |> Some (* fonts *)
+     | [ c ] when Int.(c = 26) -> Other [ 50 ] |> Some (* proportional spacing *)
+     | [ c ] when Int.(c = 51 || c = 52) -> Other [ 54 ] |> Some (* framed, encircled *)
+     | [ c ] when Int.(60 <= c && c <= 64) -> Other [ 65 ] |> Some (* ideograms *)
+     | [ c ] when Int.(73 <= c && c <= 74) -> Other [ 75 ] |> Some (* sub/superscript *)
      | _ -> None)
 ;;
 
@@ -88,32 +88,33 @@ let overrides ~new_attr ~old_attr =
   | Fg _, Fg _ -> true
   | Bg _, Bg _ -> true
   | Ul_color _, Ul_color _ -> true
-  | Other o1, Other o2 when Int.(10 <= o1 && o1 <= 20 && 10 <= o2 && o2 <= 20) -> true
-  | Other o1, Other o2 when Int.((o1 = 26 || o1 = 50) && (o2 = 26 || o2 = 50)) -> true
-  | Other o1, Other o2
+  | Other [ o1 ], Other [ o2 ] when Int.(10 <= o1 && o1 <= 20 && 10 <= o2 && o2 <= 20) ->
+    true
+  | Other [ o1 ], Other [ o2 ] when Int.((o1 = 26 || o1 = 50) && (o2 = 26 || o2 = 50)) ->
+    true
+  | Other [ o1 ], Other [ o2 ]
     when Int.((o1 = 51 || o1 = 52 || o1 = 54) && (o2 = 51 || o2 = 52 || o2 = 54)) -> true
-  | Other o1, Other o2 when Int.(60 <= o1 && o1 <= 65 && 60 <= o2 && o2 <= 65) -> true
-  | Other o1, Other o2 when Int.(73 <= o1 && o1 <= 75 && 73 <= o2 && o2 <= 75) -> true
+  | Other [ o1 ], Other [ o2 ] when Int.(60 <= o1 && o1 <= 65 && 60 <= o2 && o2 <= 65) ->
+    true
+  | Other [ o1 ], Other [ o2 ] when Int.(73 <= o1 && o1 <= 75 && 73 <= o2 && o2 <= 75) ->
+    true
   | _ -> false
 ;;
 
-let of_color_code_exn code =
+let of_color_code code =
   let between n (low, high) = Int.between n ~low ~high in
   match code with
-  | [ 5; c ] when between c (0, 7) -> Color.sgr8_exn c
-  | [ 5; c ] when between c (8, 15) -> Color.sgr8_exn ~bright:true (c - 8)
-  | [ 5; c ] when between c (16, 231) -> Color.Rgb6 (Color.Rgb6.of_code_exn c)
-  | [ 5; c ] when between c (232, 256) -> Color.gray24_exn c
+  | [ 5; c ] when between c (0, 7) -> Some (Color.sgr8_exn c)
+  | [ 5; c ] when between c (8, 15) -> Some (Color.sgr8_exn ~bright:true (c - 8))
+  | [ 5; c ] when between c (16, 231) -> Some (Color.Rgb6 (Color.Rgb6.of_code_exn c))
+  | [ 5; c ] when between c (232, 255) -> Some (Color.gray24_exn c)
   | [ 2; r; g; b ] when between r (0, 255) && between g (0, 255) && between b (0, 255) ->
-    Color.rgb256_exn (r, g, b)
-  | _ -> invalid_arg "of_color_code_exn code -- expected [ 5; c ] or [ 2; r; g; b ]"
+    Some (Color.rgb256_exn (r, g, b))
+  | _ -> None
 ;;
 
-let of_code_exn codes =
+let of_codes codes =
   let between n (low, high) = Int.between n ~low ~high in
-  List.iter codes ~f:(fun c ->
-    if not (between c (0, 255))
-    then invalid_arg "Attr.of_code_exn [codes] -- expected 0 <= codes < 256");
   match codes with
   | [ 0 ] -> Reset
   | [ 1 ] -> Bold
@@ -138,15 +139,23 @@ let of_code_exn codes =
   | [ 39 ] -> Fg Color.Default
   | [ c ] when between c (30, 37) -> Fg (Color.sgr8_exn (c - 30))
   | [ c ] when between c (90, 97) -> Fg (Color.sgr8_exn ~bright:true (c - 90))
-  | 38 :: rest -> Fg (of_color_code_exn rest)
+  | 38 :: rest ->
+    (match of_color_code rest with
+     | Some color -> Fg color
+     | None -> Other codes)
   | [ 49 ] -> Bg Color.Default
   | [ c ] when between c (40, 47) -> Bg (Color.sgr8_exn (c - 40))
   | [ c ] when between c (100, 107) -> Bg (Color.sgr8_exn ~bright:true (c - 100))
-  | 48 :: rest -> Bg (of_color_code_exn rest)
-  | 58 :: rest -> Ul_color (of_color_code_exn rest)
+  | 48 :: rest ->
+    (match of_color_code rest with
+     | Some color -> Bg color
+     | None -> Other codes)
+  | 58 :: rest ->
+    (match of_color_code rest with
+     | Some color -> Ul_color color
+     | None -> Other codes)
   | [ 59 ] -> Ul_color Color.Default
-  | [ c ] -> Other c
-  | _ -> invalid_arg "Attr.of_code_exn -- expected length-1 list or color code"
+  | _ -> Other codes
 ;;
 
 let to_code = function
@@ -173,7 +182,7 @@ let to_code = function
   | Not_strike -> [ 29 ]
   | Not_overline -> [ 55 ]
   | Ul_color c -> Color.to_ul_code c
-  | Other c -> [ c ]
+  | Other codes -> codes
 ;;
 
 let to_string_hum = function
@@ -200,7 +209,8 @@ let to_string_hum = function
   | Fg c -> "fg:" ^ Color.to_string_hum c
   | Bg c -> "bg:" ^ Color.to_string_hum c
   | Ul_color c -> "ul:" ^ Color.to_string_hum c
-  | Other c -> "ANSI-SGR:" ^ Int.to_string c
+  | Other codes ->
+    "ANSI-SGR:" ^ (List.map codes ~f:Int.to_string |> String.concat ~sep:";")
 ;;
 
 let to_string = function
@@ -232,7 +242,7 @@ let to_string = function
   | Bg c -> Color.to_bg_code c |> List.map ~f:Int.to_string |> String.concat ~sep:";"
   | Ul_color c ->
     Color.to_ul_code c |> List.map ~f:Int.to_string |> String.concat ~sep:";"
-  | Other c -> Int.to_string c
+  | Other codes -> List.map codes ~f:Int.to_string |> String.concat ~sep:";"
 ;;
 
 (* For compatibility with legacy patdiff configs, which used the much-less-expressive

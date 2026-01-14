@@ -4,14 +4,14 @@ type clear_line =
   | To_line_end
   | To_line_start
   | Whole_line
-[@@deriving sexp, compare ~localize, equal ~localize, quickcheck]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 type clear_screen =
   | To_screen_end
   | To_screen_start
   | Whole_screen
   | Screen_and_scrollback
-[@@deriving sexp, compare ~localize, equal ~localize, quickcheck]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 type t =
   | CursorUp of int option
@@ -27,47 +27,76 @@ type t =
   | ScrollUp of int option
   | ScrollDown of int option
   | Unknown of string
-[@@deriving sexp, compare ~localize, equal ~localize, quickcheck]
+[@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
-let of_string_exn str =
-  let str = String.chop_prefix_exn str ~prefix:"\027[" in
-  let letter = String.suffix str 1 in
-  let numbers =
-    String.drop_suffix str 1 |> String.split ~on:';' |> List.map ~f:Int.of_string_opt
+(* Custom quickcheck generator that only produces valid CSI sequences. ANSI CSI parameters
+   must be non-negative integers. *)
+let quickcheck_generator =
+  let open Base_quickcheck.Generator in
+  let open Base_quickcheck.Generator.Let_syntax in
+  let nonneg_int_option = Option.quickcheck_generator (int_inclusive 0 999) in
+  let gen_unknown =
+    (* Generate only valid CSI parameter strings: digits, semicolons, and a final byte *)
+    let%bind params =
+      List.quickcheck_generator (int_inclusive 0 999)
+      |> map ~f:(fun ints -> String.concat ~sep:";" (List.map ints ~f:Int.to_string))
+    in
+    let%bind final = of_list [ 'p'; 'q'; 'r'; 's'; 't'; 'u' ] in
+    return (params ^ String.make 1 final)
   in
-  let n = List.hd numbers |> Option.join in
-  match letter with
-  | "A" -> CursorUp n
-  | "B" -> CursorDown n
-  | "C" -> CursorForward n
-  | "D" -> CursorBackward n
-  | "E" -> CursorNextLine n
-  | "F" -> CursorPrevLine n
-  | "G" -> CursorToCol n
-  | "H" ->
-    let m = List.nth numbers 1 |> Option.join in
-    CursorToPos (n, m)
-  | "J" ->
-    EraseDisplay
-      (match%map.Option n with
-       | 0 -> To_screen_end
-       | 1 -> To_screen_start
-       | 2 -> Whole_screen
-       | 3 -> Screen_and_scrollback
-       | _ -> invalid_arg "EraseDisplay requires n in 0-3")
-  | "K" ->
-    EraseLine
-      (match%map.Option n with
-       | 0 -> To_line_end
-       | 1 -> To_line_start
-       | 2 -> Whole_line
-       | _ -> invalid_arg "EraseLine requires n in 0-2")
-  | "S" -> ScrollUp n
-  | "T" -> ScrollDown n
-  | _ -> Unknown str
+  union
+    [ map nonneg_int_option ~f:(fun n -> CursorUp n)
+    ; map nonneg_int_option ~f:(fun n -> CursorDown n)
+    ; map nonneg_int_option ~f:(fun n -> CursorForward n)
+    ; map nonneg_int_option ~f:(fun n -> CursorBackward n)
+    ; map nonneg_int_option ~f:(fun n -> CursorNextLine n)
+    ; map nonneg_int_option ~f:(fun n -> CursorPrevLine n)
+    ; map nonneg_int_option ~f:(fun n -> CursorToCol n)
+    ; (let%bind n = nonneg_int_option in
+       let%bind m = nonneg_int_option in
+       return (CursorToPos (n, m)))
+    ; map [%quickcheck.generator: clear_screen option] ~f:(fun c -> EraseDisplay c)
+    ; map [%quickcheck.generator: clear_line option] ~f:(fun c -> EraseLine c)
+    ; map nonneg_int_option ~f:(fun n -> ScrollUp n)
+    ; map nonneg_int_option ~f:(fun n -> ScrollDown n)
+    ; map gen_unknown ~f:(fun s -> Unknown s)
+    ]
 ;;
 
-let of_string_opt str = Option.try_with (fun () -> of_string_exn str)
+let of_csi ~params ~terminal =
+  let numbers = String.split params ~on:';' |> List.map ~f:Int.of_string_opt in
+  let n = List.hd numbers |> Option.join in
+  let unknown () = Unknown (params ^ String.make 1 terminal) in
+  match terminal with
+  | 'A' -> CursorUp n
+  | 'B' -> CursorDown n
+  | 'C' -> CursorForward n
+  | 'D' -> CursorBackward n
+  | 'E' -> CursorNextLine n
+  | 'F' -> CursorPrevLine n
+  | 'G' -> CursorToCol n
+  | 'H' ->
+    let m = List.nth numbers 1 |> Option.join in
+    CursorToPos (n, m)
+  | 'J' ->
+    (match n with
+     | None -> EraseDisplay None
+     | Some 0 -> EraseDisplay (Some To_screen_end)
+     | Some 1 -> EraseDisplay (Some To_screen_start)
+     | Some 2 -> EraseDisplay (Some Whole_screen)
+     | Some 3 -> EraseDisplay (Some Screen_and_scrollback)
+     | Some _ -> unknown ())
+  | 'K' ->
+    (match n with
+     | None -> EraseLine None
+     | Some 0 -> EraseLine (Some To_line_end)
+     | Some 1 -> EraseLine (Some To_line_start)
+     | Some 2 -> EraseLine (Some Whole_line)
+     | Some _ -> unknown ())
+  | 'S' -> ScrollUp n
+  | 'T' -> ScrollDown n
+  | _ -> unknown ()
+;;
 
 let to_string = function
   | CursorUp None -> "\027[A"

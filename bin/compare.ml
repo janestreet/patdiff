@@ -262,33 +262,7 @@ let command =
        flag_no_arg
          "text"
          ~doc:" Treat all files as text (i.e. display diffs of binary file contents)"
-     and output =
-       choose_one
-         [ map
-             ~f:(function
-               | true -> Some (Some Output.Html)
-               | _ -> None)
-             (flag
-                "html"
-                no_arg
-                ~doc:
-                  " Output in HTML format instead of default (ASCII with ANSI escape \
-                   codes)")
-         ; map
-             ~f:(function
-               | true -> Some (Some Output.Ascii)
-               | _ -> None)
-             (flag
-                "ascii"
-                no_arg
-                ~doc:" Output in ASCII with no ANSI escape codes (implies -unrefined)")
-         ; map
-             ~f:(function
-               | true -> Some (Some Output.Ansi)
-               | _ -> None)
-             (flag "ansi" no_arg ~doc:" Output in ASCII with ANSI escape codes")
-         ]
-         ~if_nothing_chosen:(Default_to None)
+     and output = Output.flag
      and produce_unified_lines_opt =
        flag_no_arg
          ~inverted:true

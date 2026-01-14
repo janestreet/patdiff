@@ -10,13 +10,13 @@ type t = element list [@@deriving compare ~localize, equal ~localize, quickcheck
 
 let width t =
   List.sum (module Int) t ~f:(function
-    | `Style _ | `Control _ -> 0
+    | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> 0
     | `Text txt -> Text.width txt)
 ;;
 
 let is_empty t =
   List.for_all t ~f:(function
-    | `Style _ | `Control _ -> true
+    | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> true
     | `Text txt -> Text.is_empty txt)
 ;;
 
@@ -25,6 +25,8 @@ let to_string t =
     match text with
     | `Style sty -> Style.to_string sty
     | `Control ctl -> Control.to_string ctl
+    | `Hyperlink link -> Hyperlink.to_string link
+    | `Unknown unk -> Unknown_esc.to_string unk
     | `Text txt -> Text.to_string txt)
   |> String.concat
 ;;
@@ -34,22 +36,24 @@ let to_string_hum t =
     match text with
     | `Style sty -> Style.to_string_hum sty
     | `Control ctl -> Control.to_string_hum ctl
+    | `Hyperlink link -> Hyperlink.to_string_hum link
+    | `Unknown unk -> Unknown_esc.to_string_hum unk
     | `Text txt -> Text.to_string txt)
   |> String.concat
 ;;
 
 let to_unstyled t =
   List.filter_map t ~f:(function
-    | `Style _ | `Control _ -> None
+    | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> None
     | `Text txt -> Some (Text.to_string txt))
   |> String.concat
 ;;
 
-let map ?(f_style = Fn.id) ?(f_text = Fn.id) ?(f_control = Fn.id) t =
-  List.map t ~f:(function
-    | `Style sty -> `Style (f_style sty)
-    | `Control ctl -> `Control (f_control ctl)
-    | `Text txt -> `Text (f_text txt))
+let map ~(f : element -> element option) (t : t) : t =
+  List.map t ~f:(fun e ->
+    match f e with
+    | Some e' -> e'
+    | None -> e)
 ;;
 
 (* Combine adjacent [Text] elements or adjacent [Style] elements; compress all styles. *)
@@ -62,7 +66,7 @@ let compress (t : t) : t =
     | text_or_style :: rest -> text_or_style :: scan_to_combine rest
   in
   List.filter t ~f:(function
-    | `Style _ | `Control _ -> true
+    | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> true
     | `Text txt -> not Text.(is_empty txt))
   |> scan_to_combine
   |> List.filter_map ~f:(fun text_or_ansi ->
@@ -70,7 +74,7 @@ let compress (t : t) : t =
     | `Style sty ->
       let sty = Style.compress sty in
       if List.is_empty sty then None else Some (`Style sty)
-    | `Control _ | `Text _ -> Some text_or_ansi)
+    | `Control _ | `Hyperlink _ | `Unknown _ | `Text _ -> Some text_or_ansi)
 ;;
 
 let simplify_styles (t : t) =
@@ -80,7 +84,7 @@ let simplify_styles (t : t) =
       | `Style added_style ->
         let delta = Style.delta ~old_style ~added_style in
         Style.update ~old_style ~added_style, `Style delta
-      | `Control _ | `Text _ -> old_style, text_or_ansi)
+      | `Control _ | `Hyperlink _ | `Unknown _ | `Text _ -> old_style, text_or_ansi)
   in
   compress deltas
 ;;
@@ -89,7 +93,7 @@ let style_at_end t =
   List.fold t ~init:[] ~f:(fun old_style text_or_ansi ->
     match text_or_ansi with
     | `Style added_style -> Style.update ~old_style ~added_style
-    | `Control _ | `Text _ -> old_style)
+    | `Control _ | `Text _ | `Hyperlink _ | `Unknown _ -> old_style)
 ;;
 
 let split ~pos t =
@@ -99,7 +103,7 @@ let split ~pos t =
       ~init:(0, 0)
       ~f:(fun (idx, len) text_or_ansi ->
         match text_or_ansi with
-        | `Style _ | `Control _ -> Continue (idx + 1, len)
+        | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> Continue (idx + 1, len)
         | `Text txt ->
           let w = Text.width txt in
           if len + w >= pos then Stop (Some (idx, len)) else Continue (idx + 1, len + w))
@@ -109,7 +113,8 @@ let split ~pos t =
   | Some (idx, len) ->
     let at_boundary =
       match List.nth_exn t idx with
-      | `Style _ | `Control _ -> Text.of_string "" (* should be impossible *)
+      | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ ->
+        Text.of_string "" (* should be impossible *)
       | `Text txt -> txt
     in
     let before, after =

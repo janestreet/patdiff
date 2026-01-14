@@ -2,28 +2,28 @@ open! Core
 
 type t = Attr.t list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
-let of_string_exn esc_str =
+let of_sgr ~params =
   let codes =
-    String.chop_prefix_exn ~prefix:"\027[" esc_str
-    |> String.chop_suffix_exn ~suffix:"m"
-    |> String.split ~on:';'
+    String.split params ~on:';'
     |> List.filter_map ~f:(function
       | "" -> None
-      | i -> Some (Int.of_string i))
+      | i -> Int.of_string_opt i)
   in
+  (* Per ECMA-48, [{ESC [ m}] (no parameters) is equivalent to [{ESC [ 0 m}] (reset) *)
+  let codes = if List.is_empty codes then [ 0 ] else codes in
   let rec parse_several_codes acc codes =
     match codes with
     | [] -> List.rev acc
     | 38 :: 2 :: _ :: _ :: _ :: rest
     | 48 :: 2 :: _ :: _ :: _ :: rest
     | 58 :: 2 :: _ :: _ :: _ :: rest ->
-      let first = Attr.of_code_exn (List.take codes 5) in
+      let first = Attr.of_codes (List.take codes 5) in
       parse_several_codes (first :: acc) rest
     | 38 :: 5 :: _ :: rest | 48 :: 5 :: _ :: rest | 58 :: 5 :: _ :: rest ->
-      let first = Attr.of_code_exn (List.take codes 3) in
+      let first = Attr.of_codes (List.take codes 3) in
       parse_several_codes (first :: acc) rest
     | c :: rest ->
-      let first = Attr.of_code_exn [ c ] in
+      let first = Attr.of_codes [ c ] in
       parse_several_codes (first :: acc) rest
   in
   parse_several_codes [] codes

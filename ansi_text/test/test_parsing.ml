@@ -9,9 +9,9 @@ let%expect_test "simple visualize" =
   return ()
 ;;
 
-let%expect_test "visualize drops empty codes" =
+let%expect_test "ESC[m is equivalent to ESC[0m (reset)" =
   print_endline (visualize "\027[mfoo\027[0m");
-  [%expect {| foo(off) |}];
+  [%expect {| (off)foo(off) |}];
   return ()
 ;;
 
@@ -115,10 +115,22 @@ let%expect_test "strip all ANSI codes" =
   return ()
 ;;
 
-let%expect_test "strip known & unknown codes, but not malformed codes" =
+let%expect_test "strip known & unknown CSI codes" =
   let s = "\027[0;31;123mfoo\027[31;42mbar\027[32;42Qbaz\027[0;32;42m\027[0;32~;42m" in
   print_endline (strip s);
-  [%expect {| foobarbaz[0;32~;42m |}];
+  [%expect {| foobarbaz;42m |}];
+  return ()
+;;
+
+let%expect_test "preserve malformed CSI sequences as text" =
+  let s = "before\027[123\027[31mafter" in
+  print_endline (visualize s);
+  print_endline (strip s);
+  [%expect
+    {|
+    before(ANSI-Fe:[)123(fg:red)after
+    before123after
+    |}];
   return ()
 ;;
 
@@ -144,7 +156,7 @@ let%expect_test "all the attributes" =
 
 let%expect_test "apply turns on and off but doesn't simplify" =
   let str = "some \027[2;48;5;1m\027[1K text" in
-  let style = Style.of_string_exn "\027[1;2;3;4;38;5;250m" in
+  let style = Style.of_sgr ~params:"1;2;3;4;38;5;250" in
   let styled = apply style str in
   print_endline styled;
   print_endline (minimize styled);
@@ -242,5 +254,378 @@ let%expect_test "split handles unicode" =
     01234👋
     👋56789
     |}];
+  return ()
+;;
+
+let%expect_test "OSC 8 hyperlinks" =
+  let s = "\027]8;;https://example.com\027\\clickable text\027]8;;\027\\" in
+  print_endline (visualize s);
+  print_endline (minimize s);
+  print_endline (strip s);
+  [%expect
+    {|
+    (HREF:https://example.com)clickable text(/HREF)
+    ]8;;https://example.com\clickable text]8;;\
+    clickable text
+    |}];
+  return ()
+;;
+
+let%expect_test "OSC 8 hyperlink with bold text" =
+  let s = "\027]8;;https://example.com\027\\\027[1mbold link\027[0m\027]8;;\027\\" in
+  print_endline (visualize s);
+  print_endline (minimize s);
+  print_endline (strip s);
+  [%expect
+    {|
+    (HREF:https://example.com)(+bold)bold link(off)(/HREF)
+    ]8;;https://example.com\[1mbold link[0m]8;;\
+    bold link
+    |}];
+  return ()
+;;
+
+let%expect_test "OSC 8 hyperlink with colored text" =
+  let s =
+    "\027]8;;https://example.com\027\\\027[31mred link\027[0m\027]8;;\027\\ and \
+     \027]8;;https://other.com\027\\\027[42mgreen link\027[49m\027]8;;\027\\"
+  in
+  print_endline (visualize s);
+  print_endline (minimize s);
+  print_endline (strip s);
+  [%expect
+    {|
+    (HREF:https://example.com)(fg:red)red link(off)(/HREF) and (HREF:https://other.com)(bg:green)green link(bg:default)(/HREF)
+    ]8;;https://example.com\[31mred link[0m]8;;\ and ]8;;https://other.com\[42mgreen link[49m]8;;\
+    red link and green link
+    |}];
+  return ()
+;;
+
+let%expect_test "parse |> to_string appropriately preserves input" =
+  let round_trip s = print_endline (parse s |> to_string |> String.escaped) in
+  round_trip "plain text";
+  [%expect {| plain text |}];
+  round_trip "\027[31mred\027[0m";
+  [%expect {| \027[31mred\027[0m |}];
+  round_trip "\027[1;38;5;196mbold bright red\027[0m";
+  [%expect {| \027[1;38;5;196mbold bright red\027[0m |}];
+  round_trip "\027]8;;https://example.com\027\\link\027]8;;\027\\";
+  [%expect {| \027]8;;https://example.com\027\\link\027]8;;\027\\ |}];
+  round_trip "\027[0;32~;42m";
+  [%expect {| \027[0;32~;42m |}];
+  round_trip "before\027[1mbold\027[0mafter";
+  [%expect {| before\027[1mbold\027[0mafter |}];
+  round_trip "\027[1m\027[31m\027[42m";
+  [%expect {| \027[1m\027[31m\027[42m |}];
+  round_trip "text\027";
+  [%expect {| text\027 |}];
+  round_trip "\027c";
+  [%expect {| \027c |}];
+  return ()
+;;
+
+let%expect_test "ESC handling: structure and roundtripping" =
+  let test s =
+    let parsed = parse s in
+    let serialized = to_string parsed in
+    let as_ocaml = serialized |> String.escaped in
+    printf "input:      %s\n" (String.escaped s);
+    printf "serialized: %s\n" as_ocaml;
+    if not (String.equal s serialized) then printf "not equivalent!";
+    print_endline (visualize s);
+    print_newline ()
+  in
+  (* ESC at end of input *)
+  test "text\027";
+  [%expect
+    {|
+    input:      text\027
+    serialized: text\027
+    text(ESC)
+    |}];
+  (* ESC followed by ESC: each preserved separately *)
+  test "\027\027";
+  [%expect
+    {|
+    input:      \027\027
+    serialized: \027\027
+    (ESC)(ESC)
+    |}];
+  (* ESC-CSI-ESC: two incomplete ESCs surrounding valid CSI *)
+  test "\027\027[31m\027";
+  [%expect
+    {|
+    input:      \027\027[31m\027
+    serialized: \027\027[31m\027
+    (ESC)(fg:red)(ESC)
+    |}];
+  (* Simple Fe escape sequence *)
+  test "\027c";
+  [%expect
+    {|
+    input:      \027c
+    serialized: \027c
+    (ANSI-Fp:c)
+    |}];
+  (* Multiple Fe escapes followed by text *)
+  test "\027some\027text";
+  [%expect
+    {|
+    input:      \027some\027text
+    serialized: \027some\027text
+    (ANSI-Fp:s)ome(ANSI-Fp:t)ext
+    |}];
+  (* nF escape sequences roundtrip correctly. *)
+  test "before\027 Fbetween\027(Bafter";
+  [%expect
+    {|
+    input:      before\027 Fbetween\027(Bafter
+    serialized: before\027 Fbetween\027(Bafter
+    before(ANSI-nF: F)between(ANSI-nF:(B)after
+    |}];
+  return ()
+;;
+
+let%expect_test "CSI with non-alpha final bytes" =
+  (* Final bytes 0x40-0x7E are all valid per the spec *)
+  let test s =
+    print_endline (visualize s);
+    print_endline (parse s |> to_string |> String.escaped)
+  in
+  (* @ is 0x40, the start of the final byte range *)
+  test "\027[1@";
+  [%expect
+    {|
+    (ANSI-CSI:1@)
+    \027[1@
+    |}];
+  (* ~ is 0x7E, the end of the final byte range *)
+  test "\027[1~";
+  [%expect
+    {|
+    (ANSI-CSI:1~)
+    \027[1~
+    |}];
+  (* ` is 0x60 *)
+  test "\027[5`";
+  [%expect
+    {|
+    (ANSI-CSI:5`)
+    \027[5`
+    |}];
+  return ()
+;;
+
+let%expect_test "CSI with out-of-range parameters becomes Unknown" =
+  (* EraseDisplay only accepts 0-3, EraseLine only accepts 0-2 *)
+  let test s =
+    print_endline (visualize s);
+    print_endline (parse s |> to_string |> String.escaped)
+  in
+  (* Valid EraseDisplay *)
+  test "\027[2J";
+  [%expect
+    {|
+    (EraseScreen)
+    \027[2J
+    |}];
+  (* Invalid EraseDisplay parameter (5 is out of range) *)
+  test "\027[5J";
+  [%expect
+    {|
+    (ANSI-CSI:5J)
+    \027[5J
+    |}];
+  (* Valid EraseLine *)
+  test "\027[2K";
+  [%expect
+    {|
+    (EraseLine)
+    \027[2K
+    |}];
+  (* Invalid EraseLine parameter (5 is out of range) *)
+  test "\027[5K";
+  [%expect
+    {|
+    (ANSI-CSI:5K)
+    \027[5K
+    |}];
+  return ()
+;;
+
+let%expect_test "SGR with out-of-range 256-color code" =
+  (* 38;5;300 is syntactically valid but 300 is out of range for 256-color *)
+  let s = "\027[38;5;300mtext\027[0m" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (ANSI-SGR:38;5;300)text(off)
+    \027[38;5;300mtext\027[0m
+    |}];
+  return ()
+;;
+
+let%expect_test "SGR with unknown color type" =
+  (* 38;3;... is not a known color format (only 38;5;n and 38;2;r;g;b are) *)
+  let s = "\027[38;3;1;2;3mtext\027[0m" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (ANSI-SGR:38 +italic +bold +faint +italic)text(off)
+    \027[38;3;1;2;3mtext\027[0m
+    |}];
+  return ()
+;;
+
+let%expect_test "multiple valid codes interleaved with unknown codes" =
+  (* 1=bold, 110=unknown, 31=red fg, 38;5;300=invalid 256-color, 4=underline *)
+  let s = "\027[1;110;31;38;5;300;4mtext\027[0m" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (+bold ANSI-SGR:110 fg:red ANSI-SGR:38;5;300 +uline)text(off)
+    \027[1;110;31;38;5;300;4mtext\027[0m
+    |}];
+  return ()
+;;
+
+let%expect_test "complex SGR: many RGB colors" =
+  (* fg RGB, bg RGB, underline color RGB *)
+  let s = "\027[38;2;255;0;0;48;2;0;255;0;58;2;0;0;255mtext\027[0m" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (fg:rgb256-255-0-0 bg:rgb256-0-255-0 ul:rgb256-0-0-255)text(off)
+    \027[38;2;255;0;0;48;2;0;255;0;58;2;0;0;255mtext\027[0m
+    |}];
+  return ()
+;;
+
+let%expect_test "unterminated OSC followed by CSI" =
+  (* OSC without ST, immediately followed by a CSI sequence *)
+  let s = "\027]8;;url\027[31mred\027[0m" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (ANSI-Fe:])8;;url(fg:red)red(off)
+    \027]8;;url\027[31mred\027[0m
+    |}];
+  return ()
+;;
+
+(* Quickcheck tests for parsing.
+
+   Note: We do NOT guarantee exact byte-for-byte roundtripping for all inputs. Some escape
+   sequences normalize during parsing: semantically equivalent sequences may serialize to
+   a canonical form. Instead, we test that parsing is idempotent: once a string has been
+   parsed and serialized, parsing it again produces the same result. *)
+
+let%expect_test "quickcheck: parsing is idempotent (parse . to_string . parse = parse)" =
+  let string_with_escapes =
+    let open Quickcheck.Generator in
+    let char_gen =
+      weighted_union
+        [ 1.0, return '\027' (* ESC *)
+        ; 1.0, return '[' (* CSI introducer *)
+        ; 1.0, return ']' (* OSC introducer *)
+        ; 1.0, return '\\' (* ST terminator *)
+        ; 1.0, return 'm' (* SGR terminator *)
+        ; 0.5, return ';' (* parameter separator *)
+        ; 3.0, Char.gen_digit
+        ; 2.0, Char.gen_alpha
+        ; 1.0, Char.gen_print
+        ]
+    in
+    Int.gen_incl 0 50 >>= fun len -> String.gen_with_length len char_gen
+  in
+  Expect_test_helpers_core.quickcheck
+    ~sexp_of:[%sexp_of: string]
+    ~f:(fun s ->
+      let once = parse s in
+      let twice = parse (to_string once) in
+      if not (Ansi_text.equal once twice)
+      then
+        raise_s
+          [%message
+            "Parsing not idempotent"
+              (s : string)
+              (once : Ansi_text.t)
+              ~serialized:(to_string once : string)
+              (twice : Ansi_text.t)])
+    string_with_escapes;
+  [%expect {| |}];
+  return ()
+;;
+
+let%expect_test "quickcheck: to_string output always parses cleanly" =
+  (* Any Text_with_ansi.t, when serialized, should parse without becoming malformed text
+     (i.e., all escape sequences should be valid). *)
+  let has_malformed_text t =
+    List.exists t ~f:(function
+      | `Text text ->
+        let s = Ansi_text.Text.to_string text in
+        String.is_substring s ~substring:"\027["
+        || String.is_substring s ~substring:"\027]"
+      | _ -> false)
+  in
+  Expect_test_helpers_core.quickcheck
+    ~sexp_of:[%sexp_of: Ansi_text.t]
+    ~f:(fun t ->
+      let serialized = to_string t in
+      let reparsed = parse serialized in
+      if has_malformed_text reparsed
+      then
+        raise_s
+          [%message
+            "Serialization produced malformed escape sequences"
+              (t : Ansi_text.t)
+              (serialized : string)
+              (reparsed : Ansi_text.t)])
+    [%quickcheck.generator: Ansi_text.t];
+  [%expect {| |}];
+  return ()
+;;
+
+let%expect_test "quickcheck: parsing never puts ESC in text" =
+  (* Every ESC (0x1B) in the input should be captured by an escape sequence type, never
+     left as raw text. *)
+  let has_esc_in_text t =
+    List.exists t ~f:(function
+      | `Text text ->
+        let s = Ansi_text.Text.to_string text in
+        String.exists s ~f:(Char.equal '\027')
+      | _ -> false)
+  in
+  let string_with_escapes =
+    let open Quickcheck.Generator in
+    let char_gen =
+      weighted_union
+        [ 2.0, return '\027' (* ESC - higher weight to stress test *)
+        ; 1.0, return '[' (* CSI introducer *)
+        ; 1.0, return ']' (* OSC introducer *)
+        ; 1.0, return '\\' (* ST terminator *)
+        ; 1.0, return 'm' (* SGR terminator *)
+        ; 0.5, return ';' (* parameter separator *)
+        ; 2.0, Char.gen_digit
+        ; 2.0, Char.gen_alpha
+        ]
+    in
+    Int.gen_incl 0 50 >>= fun len -> String.gen_with_length len char_gen
+  in
+  Expect_test_helpers_core.quickcheck
+    ~sexp_of:[%sexp_of: string]
+    ~f:(fun s ->
+      let parsed = parse s in
+      if has_esc_in_text parsed
+      then
+        raise_s [%message "ESC found in text element" (s : string) (parsed : Ansi_text.t)])
+    string_with_escapes;
+  [%expect {| |}];
   return ()
 ;;

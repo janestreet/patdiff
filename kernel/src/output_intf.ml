@@ -29,4 +29,5 @@ module type Output = sig
   [@@deriving compare ~localize, sexp]
 
   val implies_unrefined : t -> bool
+  val flag : t option Command.Param.t
 end
