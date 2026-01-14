@@ -25,7 +25,7 @@ let patdiff
     ?line_big_enough
     ~location_style
     ~output:Ascii
-      (* without color, cannot produce the "!|" lines that mix add/keep/remove *)
+      (*=without color, cannot produce the "!|" lines that mix add/keep/remove *)
     ~produce_unified_lines:false
       (* line splitting produces confusing output in ASCII format *)
     ~split_long_lines:false

@@ -106,8 +106,8 @@ let rec diff_dirs_internal (config : Configuration.t) ~prev_dir ~next_dir ~file_
   assert (is_dir prev_dir);
   assert (is_dir next_dir);
   let set_of_dir dir =
-    (* Get a list of files for this directory only; do not descend farther
-       (We recursively call diff_dirs later if we need to descend.) *)
+    (* Get a list of files for this directory only; do not descend farther (We recursively
+       call diff_dirs later if we need to descend.) *)
     let file_filter =
       match file_filter with
       | None -> Fn.const true
@@ -118,9 +118,9 @@ let rec diff_dirs_internal (config : Configuration.t) ~prev_dir ~next_dir ~file_
       let x = File_name.real_name_exn dir ^/ x in
       match Unix.stat x with
       | exception Unix.Unix_error (ENOENT, _, _) ->
-        (* If the file disappeared during listing, let's pretend it didn't exist.
-           This is important when the file is [-exclude]d because we don't want to create
-           noise for excluded files, but it's also not too bad if the file is [-include]d
+        (* If the file disappeared during listing, let's pretend it didn't exist. This is
+           important when the file is [-exclude]d because we don't want to create noise
+           for excluded files, but it's also not too bad if the file is [-include]d
         *)
         false
       | stats -> file_filter (x, stats))

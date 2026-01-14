@@ -168,8 +168,7 @@ type partial_range_indexes =
 (* [recover_ranges a xs ys] does the traceback step of Needleman-Wunsch to find the
    lowest-scoring [Range.t list] that transforms [xs] into [ys]. *)
 let recover_ranges xs ys a =
-  (* index of smallest element in triple, with ties going to the element with higher
-     index *)
+  (* index of smallest element in triple, with ties going to the element with higher index *)
   let smallest a b c = if a < b then if a < c then 0 else 2 else if b < c then 1 else 2 in
   let cons_minus_one car cdr ~if_unequal_to =
     if car = if_unequal_to then cdr else (car - 1) :: cdr

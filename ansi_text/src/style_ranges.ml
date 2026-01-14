@@ -18,6 +18,8 @@ let identify text_with_styles =
         match element with
         | `Text txt -> open_ranges, closed_ranges, control_codes, width + Text.width txt
         | `Control _ as ctl -> open_ranges, closed_ranges, ctl :: control_codes, width
+        | `Hyperlink _ as link -> open_ranges, closed_ranges, link :: control_codes, width
+        | `Unknown _ as unk -> open_ranges, closed_ranges, unk :: control_codes, width
         | `Style new_style ->
           (match
              List.find_mapi open_ranges ~f:(fun i (start, old_style) ->

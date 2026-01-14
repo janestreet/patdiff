@@ -40,19 +40,26 @@ let%expect_test "a list with only ansi is empty" =
   return ()
 ;;
 
-let%expect_test "map over styles, controlss, and texts" =
+let%expect_test "map over styles, controls, and texts" =
   let t =
     parse "\027[0;1;mfoo\027[2;3m  bar  \027[5;6mbaz\027[38;2;1;1;1;7m\027[3B\027[T\027[B"
   in
   let t =
-    map
-      t
-      ~f_style:(fun sty -> if Style.includes_reset sty then sty else Attr.Reset :: sty)
-      ~f_control:(fun ctl ->
-        match ctl with
-        | CursorDown (Some n) -> CursorDown (Some (n + 1))
-        | _ -> ctl)
-      ~f_text:(fun txt -> Text.of_string (String.strip (Text.to_string txt)))
+    map t ~f:(function
+      | `Style sty ->
+        Some (`Style (if Style.includes_reset sty then sty else Attr.Reset :: sty))
+      | _ -> None)
+    |> map ~f:(function
+      | `Control ctl ->
+        Some
+          (`Control
+            (match ctl with
+             | CursorDown (Some n) -> CursorDown (Some (n + 1))
+             | _ -> ctl))
+      | _ -> None)
+    |> map ~f:(function
+      | `Text txt -> Some (`Text (Text.of_string (String.strip (Text.to_string txt))))
+      | _ -> None)
   in
   print_endline (to_string_hum t);
   [%expect

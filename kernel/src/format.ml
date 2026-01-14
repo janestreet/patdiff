@@ -186,8 +186,8 @@ module Location_style = struct
            hunk.prev_size
            hunk.next_start
            hunk.next_size)
-    (* omake locations must be parseable, so we can't let the user config insert
-       arbitrary prefixes and suffixes and ANSI color rubbish. *)
+    (* omake locations must be parseable, so we can't let the user config insert arbitrary
+       prefixes and suffixes and ANSI color rubbish. *)
     | Omake ->
       (* Print line number of first difference, skipping past context lines. *)
       let prev_start =

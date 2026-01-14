@@ -3,7 +3,7 @@ open! Import
 open Patdiff_kernel
 
 let test ~include_colors ~terminal_width ~prev ~next =
-  (* Side-by-side diffs no longer support column sizes < 60*)
+  (* Side-by-side diffs no longer support column sizes < 60 *)
   let terminal_width = max terminal_width 121 in
   let module Patdiff_core =
     Patdiff_core.Private.Make (struct

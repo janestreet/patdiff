@@ -12,7 +12,7 @@ module Style = Ansi_text.Attr
 module Rule : sig
   (** An affix is either a prefix or a suffix. *)
   module Affix : sig
-    type t = private
+    type t =
       { text : string
       ; styles : Style.t list
       }
@@ -21,7 +21,7 @@ module Rule : sig
     val blank : t
   end
 
-  type t = private
+  type t =
     { pre : Affix.t
     ; suf : Affix.t
     ; styles : Style.t list
@@ -62,7 +62,7 @@ module Rules : sig
     ; added_in_move : Rule.t
     ; line_unified_in_move : Rule.t
     }
-  [@@deriving compare ~localize, sexp_of]
+  [@@deriving compare ~localize, sexp_of, fields ~iterators:map]
 
   module Color_palette : sig
     type t =

@@ -73,6 +73,16 @@ module Rgb6 = struct
   let to_rgb t = t.r, t.g, t.b
   let to_code t = 16 + (36 * t.r) + (6 * t.g) + t.b
   let to_string_hum t = sprintf "rgb6-%d-%d-%d" t.r t.g t.b
+
+  (* Custom quickcheck generator that only produces valid Rgb6 values (0-5) *)
+  let quickcheck_generator =
+    let open Base_quickcheck.Generator.Let_syntax in
+    let component = Base_quickcheck.Generator.int_inclusive 0 5 in
+    let%map r = component
+    and g = component
+    and b = component in
+    { r; g; b }
+  ;;
 end
 
 module Gray24 = struct
@@ -94,6 +104,13 @@ module Gray24 = struct
   let to_level t = t.level
   let to_code t = 232 + t.level
   let to_string_hum t = sprintf "gray-%d" t.level
+
+  (* Custom quickcheck generator that only produces valid Gray24 values (0-23) *)
+  let quickcheck_generator =
+    Base_quickcheck.Generator.map
+      (Base_quickcheck.Generator.int_inclusive 0 23)
+      ~f:(fun level -> { level })
+  ;;
 end
 
 module Rgb256 = struct
@@ -113,6 +130,16 @@ module Rgb256 = struct
 
   let to_rgb t = t.r, t.g, t.b
   let to_string_hum t = sprintf "rgb256-%d-%d-%d" t.r t.g t.b
+
+  (* Custom quickcheck generator that only produces valid Rgb256 values (0-255) *)
+  let quickcheck_generator =
+    let open Base_quickcheck.Generator.Let_syntax in
+    let component = Base_quickcheck.Generator.int_inclusive 0 255 in
+    let%map r = component
+    and g = component
+    and b = component in
+    { r; g; b }
+  ;;
 end
 
 module T = struct
@@ -183,7 +210,7 @@ let to_ul_code = function
 ;;
 
 (* For compatibility with legacy patdiff configs, which used the much-less-expressive
-     [Patdiff_kernel.Format.Color.t] type. *)
+   [Patdiff_kernel.Format.Color.t] type. *)
 let t_of_sexp sexp =
   match sexp with
   | Sexp.Atom "black" | Atom "Black" -> Standard Black
