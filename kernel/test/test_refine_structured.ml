@@ -583,3 +583,41 @@ Line three
           (((Same "Line three")) ((Same "Line three")))))))))
     |}]
 ;;
+
+let%expect_test "whitespace only lines preserved with [mark_newline_changes]" =
+  (* This test checks that when [mark_newline_changes] is true, whitespace only lines are
+     preserved as actual changes rather than being dropped. *)
+  let prev =
+    {|line1
+line2|}
+  in
+  let next =
+    {|line1
+
+line2|}
+  in
+  test_refined_structured ~produce_unified_lines:false ~prev ~next ();
+  [%expect {| () |}];
+  test_refined_structured
+    ~mark_newline_changes:true
+    ~produce_unified_lines:false
+    ~prev
+    ~next
+    ();
+  [%expect
+    {|
+    ((
+      (prev_start 1)
+      (prev_size  2)
+      (next_start 1)
+      (next_size  3)
+      (ranges (
+        (Same ((
+          ((Same line1))
+          ((Same line1)))))
+        (Next (((Same ""))) ())
+        (Same ((
+          ((Same line2))
+          ((Same line2)))))))))
+    |}]
+;;

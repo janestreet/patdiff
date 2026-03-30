@@ -30,7 +30,7 @@ let%expect_test "colored text" =
     (fg:green)++++++ (fg:default +bold)next/file(-weight)
     (bg:gray fg:black)@|(bg:default fg:default +bold)-1,1 +1,1(-weight) ============================================================
     (bg:red fg:black)-|(off fg:yellow)yellow(fg:gray-12) text(fg:default)
-    (bg:green fg:black)+|(off fg:blue)blue(fg:default) text(off)
+    (bg:green fg:black)+|(off fg:blue)blue(fg:default) text
     ("Unclean exit" (Exit_non_zero 1))
     |}];
   return ()

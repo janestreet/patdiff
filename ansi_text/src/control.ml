@@ -26,7 +26,10 @@ type t =
   | EraseLine of clear_line option
   | ScrollUp of int option
   | ScrollDown of int option
-  | Unknown of string
+  | Unknown of
+      { params : int option list
+      ; terminal : char
+      }
 [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 (* Custom quickcheck generator that only produces valid CSI sequences. ANSI CSI parameters
@@ -36,13 +39,11 @@ let quickcheck_generator =
   let open Base_quickcheck.Generator.Let_syntax in
   let nonneg_int_option = Option.quickcheck_generator (int_inclusive 0 999) in
   let gen_unknown =
-    (* Generate only valid CSI parameter strings: digits, semicolons, and a final byte *)
     let%bind params =
-      List.quickcheck_generator (int_inclusive 0 999)
-      |> map ~f:(fun ints -> String.concat ~sep:";" (List.map ints ~f:Int.to_string))
+      List.quickcheck_generator (Option.quickcheck_generator (int_inclusive 0 999))
     in
-    let%bind final = of_list [ 'p'; 'q'; 'r'; 's'; 't'; 'u' ] in
-    return (params ^ String.make 1 final)
+    let%bind terminal = of_list [ 'p'; 'q'; 'r'; 's'; 't'; 'u' ] in
+    return (Unknown { params; terminal })
   in
   union
     [ map nonneg_int_option ~f:(fun n -> CursorUp n)
@@ -59,14 +60,13 @@ let quickcheck_generator =
     ; map [%quickcheck.generator: clear_line option] ~f:(fun c -> EraseLine c)
     ; map nonneg_int_option ~f:(fun n -> ScrollUp n)
     ; map nonneg_int_option ~f:(fun n -> ScrollDown n)
-    ; map gen_unknown ~f:(fun s -> Unknown s)
+    ; gen_unknown
     ]
 ;;
 
-let of_csi ~params ~terminal =
-  let numbers = String.split params ~on:';' |> List.map ~f:Int.of_string_opt in
-  let n = List.hd numbers |> Option.join in
-  let unknown () = Unknown (params ^ String.make 1 terminal) in
+let of_csi_params params ~terminal =
+  let n = List.hd params |> Option.join in
+  let unknown () = Unknown { params; terminal } in
   match terminal with
   | 'A' -> CursorUp n
   | 'B' -> CursorDown n
@@ -76,7 +76,7 @@ let of_csi ~params ~terminal =
   | 'F' -> CursorPrevLine n
   | 'G' -> CursorToCol n
   | 'H' ->
-    let m = List.nth numbers 1 |> Option.join in
+    let m = List.nth params 1 |> Option.join in
     CursorToPos (n, m)
   | 'J' ->
     (match n with
@@ -130,7 +130,14 @@ let to_string = function
   | ScrollUp (Some n) -> sprintf "\027[%dS" n
   | ScrollDown None -> "\027[T"
   | ScrollDown (Some n) -> sprintf "\027[%dT" n
-  | Unknown str -> "\027[" ^ str
+  | Unknown { params; terminal } ->
+    let params_str =
+      List.map params ~f:(function
+        | None -> ""
+        | Some i -> Int.to_string i)
+      |> String.concat ~sep:";"
+    in
+    sprintf "\027[%s%c" params_str terminal
 ;;
 
 let to_string_hum = function
@@ -163,5 +170,12 @@ let to_string_hum = function
   | ScrollUp (Some n) -> sprintf "(ScrollUp:%d)" n
   | ScrollDown None -> "(ScrollDown)"
   | ScrollDown (Some n) -> sprintf "(ScrollDown:%d)" n
-  | Unknown str -> sprintf "(ANSI-CSI:%s)" str
+  | Unknown { params; terminal } ->
+    let params_str =
+      List.map params ~f:(function
+        | None -> ""
+        | Some i -> Int.to_string i)
+      |> String.concat ~sep:";"
+    in
+    sprintf "(ANSI-CSI:%s%c)" params_str terminal
 ;;

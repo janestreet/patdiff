@@ -40,6 +40,18 @@ module Control : sig
   include module type of Control
 end
 
+module Private_mode : sig
+  include module type of Private_mode
+end
+
+module Osc : sig
+  include module type of Osc
+end
+
+module Dsr : sig
+  include module type of Dsr
+end
+
 module Text : sig
   include module type of Text
 end
@@ -50,6 +62,10 @@ end
 
 module Text_with_style_ranges : sig
   include module type of Text_with_style_ranges
+end
+
+module Ansi : sig
+  include module type of Ansi
 end
 
 include module type of Text_with_ansi

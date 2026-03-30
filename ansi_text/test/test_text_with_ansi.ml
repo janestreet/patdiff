@@ -108,7 +108,7 @@ let%expect_test "split in the middle" =
     [1;41m012345[2;32m6789[49;22;39m
     [41;2;32mab[G[4;64mcdefgh[0m
     (+bold bg:red)012345(+faint fg:green)6789(bg:default -weight fg:default)
-    (bg:red +faint fg:green)ab(CursorToCol:1)(+uline ANSI-SGR:64)cdefgh(off)
+    (bg:red +faint fg:green)ab(CursorToCol:1)(+uline +ideogram:4)cdefgh(off)
     |}];
   return ()
 ;;
@@ -127,13 +127,13 @@ let%expect_test "split at a boundary" =
     [F[1;41m012345[2;32m6789ab[49;22;39m
     [41;2;32;4;64mcdefgh[0m
     (CursorPrevLine)(+bold bg:red)012345(+faint fg:green)6789ab(bg:default -weight fg:default)
-    (bg:red +faint fg:green +uline ANSI-SGR:64)cdefgh(off)
+    (bg:red +faint fg:green +uline +ideogram:4)cdefgh(off)
     |}];
   return ()
 ;;
 
 let%expect_test "split resets others" =
-  let str = "\027[1;41m some \027[2;32m more \027[1K\027[4;64m text \027[0m" in
+  let str = "\027[1;41m some \027[2;32m more \027[1K\027[4;74m text \027[0m" in
   let before, after = parse str |> split ~pos:14 in
   let before = to_string before in
   let after = to_string after in
@@ -143,16 +143,16 @@ let%expect_test "split resets others" =
   print_endline (visualize after);
   [%expect
     {|
-    [1;41m some [2;32m more [1K[4;64m t[49;22;39;24;65m
-    [41;2;32;4;64mext [0m
-    (+bold bg:red) some (+faint fg:green) more (EraseLine:ToStart)(+uline ANSI-SGR:64) t(bg:default -weight fg:default -uline ANSI-SGR:65)
-    (bg:red +faint fg:green +uline ANSI-SGR:64)ext (off)
+    [1;41m some [2;32m more [1K[4;74m t[49;22;39;24;75m
+    [41;2;32;4;74mext [0m
+    (+bold bg:red) some (+faint fg:green) more (EraseLine:ToStart)(+uline +subscript) t(bg:default -weight fg:default -uline -script)
+    (bg:red +faint fg:green +uline +subscript)ext (off)
     |}];
   return ()
 ;;
 
 let%expect_test "split handles unicode" =
-  let str = "\027[1;41m\027[2J0123\027[2;32m4👋👋5\027[4;64m6789\027[0m" in
+  let str = "\027[1;41m\027[2J0123\027[2;32m4👋👋5\027[4;74m6789\027[0m" in
   let before, after = parse str |> split ~pos:7 in
   print_endline (Int.to_string (width before));
   print_endline (Int.to_string (width after));
@@ -167,9 +167,9 @@ let%expect_test "split handles unicode" =
     7
     7
     [1;41m[2J0123[2;32m4👋[49;22;39m
-    [41;2;32m👋5[4;64m6789[0m
+    [41;2;32m👋5[4;74m6789[0m
     (+bold bg:red)(EraseScreen)0123(+faint fg:green)4👋(bg:default -weight fg:default)
-    (bg:red +faint fg:green)👋5(+uline ANSI-SGR:64)6789(off)
+    (bg:red +faint fg:green)👋5(+uline +subscript)6789(off)
     |}];
   return ()
 ;;

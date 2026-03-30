@@ -10,16 +10,19 @@ type range =
 type t = range list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
 let identify text_with_styles =
-  let unmatched_opens, ranges, control_codes, _ =
+  let unmatched_opens, ranges, other_ansi, _ =
     List.fold
       text_with_styles
       ~init:([], [], [], 0)
-      ~f:(fun (open_ranges, closed_ranges, control_codes, width) element ->
+      ~f:(fun (open_ranges, closed_ranges, other_ansi, width) element ->
         match element with
-        | `Text txt -> open_ranges, closed_ranges, control_codes, width + Text.width txt
-        | `Control _ as ctl -> open_ranges, closed_ranges, ctl :: control_codes, width
-        | `Hyperlink _ as link -> open_ranges, closed_ranges, link :: control_codes, width
-        | `Unknown _ as unk -> open_ranges, closed_ranges, unk :: control_codes, width
+        | `Text txt -> open_ranges, closed_ranges, other_ansi, width + Text.width txt
+        | `Control _ as ctl -> open_ranges, closed_ranges, ctl :: other_ansi, width
+        | `Hyperlink _ as link -> open_ranges, closed_ranges, link :: other_ansi, width
+        | `Private_mode _ as pm -> open_ranges, closed_ranges, pm :: other_ansi, width
+        | `Osc _ as osc -> open_ranges, closed_ranges, osc :: other_ansi, width
+        | `Dsr _ as dsr -> open_ranges, closed_ranges, dsr :: other_ansi, width
+        | `Unknown _ as unk -> open_ranges, closed_ranges, unk :: other_ansi, width
         | `Style new_style ->
           (match
              List.find_mapi open_ranges ~f:(fun i (start, old_style) ->
@@ -29,17 +32,16 @@ let identify text_with_styles =
            with
            | None ->
              let open_ranges = (width, new_style) :: open_ranges in
-             open_ranges, closed_ranges, control_codes, width
+             open_ranges, closed_ranges, other_ansi, width
            | Some (i, start, old_style) ->
              let open_ranges = List.take open_ranges i @ List.drop open_ranges (i + 1) in
              let closed_ranges =
                { start; end_ = width; style = old_style } :: closed_ranges
              in
-             open_ranges, closed_ranges, control_codes, width))
+             open_ranges, closed_ranges, other_ansi, width))
   in
   let ansi_codes_not_accounted_for =
-    List.rev_map unmatched_opens ~f:(fun (_, style) -> `Style style)
-    @ List.rev control_codes
+    List.rev_map unmatched_opens ~f:(fun (_, style) -> `Style style) @ List.rev other_ansi
   in
   List.sort ~compare:compare_range ranges, ansi_codes_not_accounted_for
 ;;

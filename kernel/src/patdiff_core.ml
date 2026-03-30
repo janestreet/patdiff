@@ -1532,7 +1532,7 @@ module Make (Output_impls : Output_impls) = struct
   ;;
 
   let refine_structured
-    ?mark_newline_changes
+    ?(mark_newline_changes = false)
     ~produce_unified_lines
     ~keep_ws
     ~split_long_lines
@@ -1541,7 +1541,7 @@ module Make (Output_impls : Output_impls) = struct
     (hunks : string Patience_diff.Hunk.t list)
     =
     refine_internal
-      ?mark_newline_changes
+      ~mark_newline_changes
       ~produce_unified_lines
       ~line_is_ws:(const false)
       ~keep_ws
@@ -1551,9 +1551,15 @@ module Make (Output_impls : Output_impls) = struct
       hunks
       ~map_non_replace:(fun ~keep_ws range ->
         match range with
-        | Next (a, None) when (not keep_ws) && Array.for_all a ~f:is_ws ->
+        (* When [mark_newline_changes] is true, we preserve whitespace only lines as
+           changes rather than dropping them. This is to have accurate line counts for
+           side-by-side diffs. *)
+        | Next (a, None)
+          when (not mark_newline_changes) && (not keep_ws) && Array.for_all a ~f:is_ws ->
           [ Same (Array.map a ~f:(fun line -> [ `Same, line ], [ `Same, line ])) ]
-        | Prev (a, None) when (not keep_ws) && Array.for_all a ~f:is_ws -> []
+        | Prev (a, None)
+          when (not mark_newline_changes) && (not keep_ws) && Array.for_all a ~f:is_ws ->
+          []
         | Next (lines, move_info) ->
           [ Next (Array.map lines ~f:(fun line -> [ `Same, line ]), move_info) ]
         | Prev (lines, move_info) ->
