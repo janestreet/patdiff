@@ -2,7 +2,6 @@ open! Core
 
 type t =
   | Csi of string
-  | Osc of string
   | Fe of char
   | Fp of char
   | Nf of string
@@ -14,13 +13,17 @@ let quickcheck_generator =
   let open Base_quickcheck.Generator in
   let param_char = of_list (List.init 16 ~f:(fun i -> Char.of_int_exn (0x30 + i))) in
   let csi_final_char =
-    (* Exclude 'm' (style) and A-H, J, K, S, T (control) to make these truly "unknown" *)
+    (* Exclude 'm' (style), A-H/J/K/S/T (control), 'n' (DSR), and 'h'/'l' (private mode)
+       to make these truly "unknown" *)
     of_list
       (List.filter
          (List.init 63 ~f:(fun i -> Char.of_int_exn (0x40 + i)))
          ~f:(fun c ->
            not
              (Char.equal c 'm'
+              || Char.equal c 'n'
+              || Char.equal c 'h'
+              || Char.equal c 'l'
               || Char.equal c 'A'
               || Char.equal c 'B'
               || Char.equal c 'C'
@@ -38,19 +41,6 @@ let quickcheck_generator =
     (* Generate valid CSI: parameter bytes (0x30-0x3F)* + final byte (0x40-0x7E) *)
     both (string_of param_char) csi_final_char
     |> map ~f:(fun (params, final) -> Csi (params ^ String.make 1 final))
-  in
-  let osc_gen =
-    (* Generate valid OSC payload - printable chars without ESC, not starting with "8;" *)
-    let safe_char =
-      Char.quickcheck_generator
-      |> filter ~f:(fun c ->
-        let code = Char.to_int c in
-        code >= 0x20 && code <= 0x7E && not (Char.equal c '\027'))
-    in
-    string_of safe_char
-    |> map ~f:(fun payload ->
-      (* Avoid generating OSC 8 hyperlinks *)
-      if String.is_prefix payload ~prefix:"8;" then Osc "0;title" else Osc payload)
   in
   let fe_gen =
     (* Fe bytes: 0x40-0x5F excluding '[' (0x5B) and ']' (0x5D) *)
@@ -74,12 +64,17 @@ let quickcheck_generator =
     both (string_non_empty_of intermediate_char) final_char
     |> map ~f:(fun (intermediates, final) -> Nf (intermediates ^ String.make 1 final))
   in
-  union [ csi_gen; osc_gen; fe_gen; fp_gen; nf_gen; return Incomplete ]
+  union [ csi_gen; fe_gen; fp_gen; nf_gen; return Incomplete ]
+;;
+
+let of_csi ?private_prefix params ~terminal =
+  match private_prefix with
+  | None -> Csi (sprintf "%s%c" params terminal)
+  | Some prefix -> Csi (sprintf "%c%s%c" prefix params terminal)
 ;;
 
 let to_string = function
   | Csi params -> "\027[" ^ params
-  | Osc payload -> "\027]" ^ payload ^ "\027\\"
   | Fe c -> sprintf "\027%c" c
   | Fp c -> sprintf "\027%c" c
   | Nf s -> "\027" ^ s
@@ -88,7 +83,6 @@ let to_string = function
 
 let to_string_hum = function
   | Csi params -> sprintf "(ANSI-CSI:%s)" params
-  | Osc payload -> sprintf "(ANSI-OSC:%s)" payload
   | Fe c -> sprintf "(ANSI-Fe:%s)" (Char.escaped c)
   | Fp c -> sprintf "(ANSI-Fp:%s)" (Char.escaped c)
   | Nf s -> sprintf "(ANSI-nF:%s)" (String.escaped s)

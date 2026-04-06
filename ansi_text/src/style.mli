@@ -6,14 +6,13 @@ type t = Attr.t list [@@deriving compare ~localize, equal ~localize, quickcheck,
 (** Gives a style that turns off all attributes that are turned on by the given style. *)
 val turn_off : t -> t
 
-(** Make a [Style.t] from bytes extracted from a parsed string. For example the parser,
-    when handling:
+(** Make a [Style.t] from parsed CSI parameters. For example the parser, when handling:
     {v "\027[1;38;5;1m" v}
     would invoke:
-    {v of_sgr ~params:"1;38;5;1" v}
+    {v of_sgr_params [Some 1; Some 38; Some 5; Some 1] v}
     yielding:
     {v [Bold; Fg Red] v} *)
-val of_sgr : params:string -> t
+val of_sgr_params : int option list -> t
 
 (** Converts a [Style.t] to a string. For example
     {v [Bold; Fg Standard Red] -> "\027[1;31m" v} *)

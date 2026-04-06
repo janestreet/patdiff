@@ -5,26 +5,37 @@ module T = struct
     | Reset
     | Bold
     | Faint
+    | Normal_weight
     | Italic
+    | Fraktur
+    | Not_emphasis
     | Underline
+    | Double_ul
+    | Not_underline
     | Blink
     | Fast_blink
-    | Double_ul
-    | Invert
-    | Hide
-    | Strike
-    | Overline
-    | Not_bold_or_faint
-    | Not_italic
-    | Not_underline
     | Not_blink
+    | Framed
+    | Encircled
+    | Not_framed
+    | Superscript
+    | Subscript
+    | Not_script
+    | Invert
     | Not_invert
+    | Hide
     | Not_hide
+    | Strike
     | Not_strike
+    | Overline
     | Not_overline
+    | Variable_width
+    | Fixed_width
     | Fg of Color.t
     | Bg of Color.t
     | Ul_color of Color.t
+    | Font of int
+    | Ideogram of int
     | Other of int list [@quickcheck.do_not_generate]
   [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 end
@@ -34,36 +45,35 @@ include Comparable.Make (T)
 
 let turn_off = function
   | Reset -> None
+  | Fg Default | Bg Default | Ul_color Default | Font 0 | Ideogram 5 -> None
   | Fg _ -> Fg Default |> Some
   | Bg _ -> Bg Default |> Some
-  | Bold -> Some Not_bold_or_faint
-  | Faint -> Some Not_bold_or_faint
-  | Italic -> Some Not_italic
-  | Underline -> Some Not_underline
-  | Blink -> Some Not_blink
-  | Fast_blink -> Some Not_blink
-  | Double_ul -> Some Not_underline
+  | Ul_color _ -> Ul_color Default |> Some
+  | Font _ -> Font 0 |> Some
+  | Ideogram _ -> Ideogram 5 |> Some
+  | Bold | Faint -> Some Normal_weight
+  | Italic | Fraktur -> Some Not_emphasis
+  | Underline | Double_ul -> Some Not_underline
+  | Blink | Fast_blink -> Some Not_blink
+  | Framed | Encircled -> Some Not_framed
+  | Superscript | Subscript -> Some Not_script
   | Invert -> Some Not_invert
   | Hide -> Some Not_hide
   | Strike -> Some Not_strike
   | Overline -> Some Not_overline
-  | Not_bold_or_faint -> None
-  | Not_italic -> None
-  | Not_underline -> None
-  | Not_blink -> None
-  | Not_invert -> None
-  | Not_hide -> None
-  | Not_strike -> None
-  | Not_overline -> None
-  | Ul_color _ -> Ul_color Default |> Some
-  | Other codes ->
-    (match codes with
-     | [ c ] when Int.(11 <= c && c <= 20) -> Other [ 10 ] |> Some (* fonts *)
-     | [ c ] when Int.(c = 26) -> Other [ 50 ] |> Some (* proportional spacing *)
-     | [ c ] when Int.(c = 51 || c = 52) -> Other [ 54 ] |> Some (* framed, encircled *)
-     | [ c ] when Int.(60 <= c && c <= 64) -> Other [ 65 ] |> Some (* ideograms *)
-     | [ c ] when Int.(73 <= c && c <= 74) -> Other [ 75 ] |> Some (* sub/superscript *)
-     | _ -> None)
+  | Variable_width -> Some Fixed_width
+  | Normal_weight
+  | Not_emphasis
+  | Not_underline
+  | Not_blink
+  | Not_invert
+  | Not_hide
+  | Not_strike
+  | Not_overline
+  | Not_framed
+  | Not_script
+  | Fixed_width
+  | Other _ -> None
 ;;
 
 (** Whether the new attribute would completely override the effects of the old one. For
@@ -76,8 +86,8 @@ let turn_off = function
 let overrides ~new_attr ~old_attr =
   match new_attr, old_attr with
   | Reset, _ -> true
-  | (Bold | Faint | Not_bold_or_faint), (Bold | Faint | Not_bold_or_faint) -> true
-  | (Italic | Not_italic), (Italic | Not_italic) -> true
+  | (Bold | Faint | Normal_weight), (Bold | Faint | Normal_weight) -> true
+  | (Italic | Not_emphasis | Fraktur), (Italic | Not_emphasis | Fraktur) -> true
   | (Underline | Double_ul | Not_underline), (Underline | Double_ul | Not_underline) ->
     true
   | (Blink | Fast_blink | Not_blink), (Blink | Fast_blink | Not_blink) -> true
@@ -85,19 +95,14 @@ let overrides ~new_attr ~old_attr =
   | (Hide | Not_hide), (Hide | Not_hide) -> true
   | (Strike | Not_strike), (Strike | Not_strike) -> true
   | (Overline | Not_overline), (Overline | Not_overline) -> true
+  | (Framed | Encircled | Not_framed), (Framed | Encircled | Not_framed) -> true
+  | (Superscript | Subscript | Not_script), (Superscript | Subscript | Not_script) -> true
+  | (Variable_width | Fixed_width), (Variable_width | Fixed_width) -> true
   | Fg _, Fg _ -> true
   | Bg _, Bg _ -> true
   | Ul_color _, Ul_color _ -> true
-  | Other [ o1 ], Other [ o2 ] when Int.(10 <= o1 && o1 <= 20 && 10 <= o2 && o2 <= 20) ->
-    true
-  | Other [ o1 ], Other [ o2 ] when Int.((o1 = 26 || o1 = 50) && (o2 = 26 || o2 = 50)) ->
-    true
-  | Other [ o1 ], Other [ o2 ]
-    when Int.((o1 = 51 || o1 = 52 || o1 = 54) && (o2 = 51 || o2 = 52 || o2 = 54)) -> true
-  | Other [ o1 ], Other [ o2 ] when Int.(60 <= o1 && o1 <= 65 && 60 <= o2 && o2 <= 65) ->
-    true
-  | Other [ o1 ], Other [ o2 ] when Int.(73 <= o1 && o1 <= 75 && 73 <= o2 && o2 <= 75) ->
-    true
+  | Font _, Font _ -> true
+  | Ideogram _, Ideogram _ -> true
   | _ -> false
 ;;
 
@@ -126,42 +131,51 @@ let of_codes codes =
   | [ 7 ] -> Invert
   | [ 8 ] -> Hide
   | [ 9 ] -> Strike
+  | [ f ] when between f (10, 19) -> Font (f - 10)
+  | [ 20 ] -> Fraktur
   | [ 21 ] -> Double_ul
-  | [ 53 ] -> Overline
-  | [ 22 ] -> Not_bold_or_faint
-  | [ 23 ] -> Not_italic
+  | [ 22 ] -> Normal_weight
+  | [ 23 ] -> Not_emphasis
   | [ 24 ] -> Not_underline
   | [ 25 ] -> Not_blink
+  | [ 26 ] -> Variable_width
   | [ 27 ] -> Not_invert
   | [ 28 ] -> Not_hide
   | [ 29 ] -> Not_strike
-  | [ 55 ] -> Not_overline
-  | [ 39 ] -> Fg Color.Default
   | [ c ] when between c (30, 37) -> Fg (Color.sgr8_exn (c - 30))
-  | [ c ] when between c (90, 97) -> Fg (Color.sgr8_exn ~bright:true (c - 90))
   | 38 :: rest ->
     (match of_color_code rest with
      | Some color -> Fg color
      | None -> Other codes)
-  | [ 49 ] -> Bg Color.Default
+  | [ 39 ] -> Fg Color.Default
   | [ c ] when between c (40, 47) -> Bg (Color.sgr8_exn (c - 40))
-  | [ c ] when between c (100, 107) -> Bg (Color.sgr8_exn ~bright:true (c - 100))
   | 48 :: rest ->
     (match of_color_code rest with
      | Some color -> Bg color
      | None -> Other codes)
+  | [ 49 ] -> Bg Color.Default
+  | [ 50 ] -> Fixed_width
+  | [ 51 ] -> Framed
+  | [ 52 ] -> Encircled
+  | [ 53 ] -> Overline
+  | [ 54 ] -> Not_framed
+  | [ 55 ] -> Not_overline
   | 58 :: rest ->
     (match of_color_code rest with
      | Some color -> Ul_color color
      | None -> Other codes)
   | [ 59 ] -> Ul_color Color.Default
+  | [ i ] when between i (60, 65) -> Ideogram (i - 60)
+  | [ 73 ] -> Superscript
+  | [ 74 ] -> Subscript
+  | [ 75 ] -> Not_script
+  | [ c ] when between c (90, 97) -> Fg (Color.sgr8_exn ~bright:true (c - 90))
+  | [ c ] when between c (100, 107) -> Bg (Color.sgr8_exn ~bright:true (c - 100))
   | _ -> Other codes
 ;;
 
 let to_code = function
   | Reset -> [ 0 ]
-  | Fg c -> Color.to_fg_code c
-  | Bg c -> Color.to_bg_code c
   | Bold -> [ 1 ]
   | Faint -> [ 2 ]
   | Italic -> [ 3 ]
@@ -171,17 +185,30 @@ let to_code = function
   | Invert -> [ 7 ]
   | Hide -> [ 8 ]
   | Strike -> [ 9 ]
+  | Font i -> [ 10 + i ]
+  | Fraktur -> [ 20 ]
   | Double_ul -> [ 21 ]
-  | Overline -> [ 53 ]
-  | Not_bold_or_faint -> [ 22 ]
-  | Not_italic -> [ 23 ]
+  | Normal_weight -> [ 22 ]
+  | Not_emphasis -> [ 23 ]
   | Not_underline -> [ 24 ]
   | Not_blink -> [ 25 ]
+  | Variable_width -> [ 26 ]
   | Not_invert -> [ 27 ]
   | Not_hide -> [ 28 ]
   | Not_strike -> [ 29 ]
+  | Fg c -> Color.to_fg_code c
+  | Bg c -> Color.to_bg_code c
+  | Fixed_width -> [ 50 ]
+  | Framed -> [ 51 ]
+  | Encircled -> [ 52 ]
+  | Overline -> [ 53 ]
+  | Not_framed -> [ 54 ]
   | Not_overline -> [ 55 ]
   | Ul_color c -> Color.to_ul_code c
+  | Ideogram i -> [ 60 + i ]
+  | Superscript -> [ 73 ]
+  | Subscript -> [ 74 ]
+  | Not_script -> [ 75 ]
   | Other codes -> codes
 ;;
 
@@ -198,8 +225,9 @@ let to_string_hum = function
   | Strike -> "+strike"
   | Double_ul -> "+2uline"
   | Overline -> "+overline"
-  | Not_bold_or_faint -> "-weight"
-  | Not_italic -> "-italic"
+  | Normal_weight -> "-weight"
+  | Not_emphasis ->
+    "-italic" (* Since [Fraktur] isn't widely supported, this is clearer *)
   | Not_underline -> "-uline"
   | Not_blink -> "-blink"
   | Not_invert -> "-invert"
@@ -211,6 +239,19 @@ let to_string_hum = function
   | Ul_color c -> "ul:" ^ Color.to_string_hum c
   | Other codes ->
     "ANSI-SGR:" ^ (List.map codes ~f:Int.to_string |> String.concat ~sep:";")
+  | Framed -> "+framed"
+  | Encircled -> "+encircled"
+  | Superscript -> "+superscript"
+  | Subscript -> "+subscript"
+  | Variable_width -> "+proportional_spacing"
+  | Fraktur -> "+fraktur"
+  | Not_framed -> "-framed"
+  | Not_script -> "-script"
+  | Fixed_width -> "-proportional_spacing"
+  | Font 0 -> "-font"
+  | Font f -> "+font:" ^ Int.to_string f
+  | Ideogram 5 -> "-ideogram"
+  | Ideogram i -> "+ideogram:" ^ Int.to_string i
 ;;
 
 let to_string = function
@@ -230,8 +271,8 @@ let to_string = function
   | Strike -> "9"
   | Double_ul -> "21"
   | Overline -> "53"
-  | Not_bold_or_faint -> "22"
-  | Not_italic -> "23"
+  | Normal_weight -> "22"
+  | Not_emphasis -> "23"
   | Not_underline -> "24"
   | Not_blink -> "25"
   | Not_invert -> "27"
@@ -243,6 +284,17 @@ let to_string = function
   | Ul_color c ->
     Color.to_ul_code c |> List.map ~f:Int.to_string |> String.concat ~sep:";"
   | Other codes -> List.map codes ~f:Int.to_string |> String.concat ~sep:";"
+  | Framed -> "51"
+  | Encircled -> "52"
+  | Superscript -> "73"
+  | Subscript -> "74"
+  | Variable_width -> "26"
+  | Fraktur -> "20"
+  | Not_framed -> "54"
+  | Not_script -> "75"
+  | Fixed_width -> "50"
+  | Font f -> Int.to_string (f + 10)
+  | Ideogram i -> Int.to_string (i + 60)
 ;;
 
 (* For compatibility with legacy patdiff configs, which used the much-less-expressive

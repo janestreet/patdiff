@@ -73,4 +73,4 @@ or
 ## Documentation
 
 More docs, including detailed API docs, are available
-<a href="https://ocaml.janestreet.com/ocaml-core/latest/doc/patdiff/index.html" target="_blank">here</a>.
+<a href="https://ocaml.org/p/patdiff/latest" target="_blank">here</a>.

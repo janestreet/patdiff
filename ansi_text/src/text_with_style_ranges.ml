@@ -41,7 +41,7 @@ let of_text_with_ansi (text_with_ansi : Text_with_ansi.t) =
     let text =
       List.filter_map text_with_ansi ~f:(function
         | `Text txt -> Some txt
-        | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> None)
+        | #Ansi.formatting | `Control _ | #Ansi.emulation | `Unknown _ -> None)
       |> Text.concat
     in
     Some { text; ranges }

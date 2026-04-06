@@ -17,7 +17,7 @@ let%expect_test "ESC[m is equivalent to ESC[0m (reset)" =
 
 let%expect_test "visualize includes unknown codes" =
   print_endline (visualize "\027[6nfoo\027[110m");
-  [%expect {| (ANSI-CSI:6n)foo(ANSI-SGR:110) |}];
+  [%expect {| (DSR:cursor-position)foo(ANSI-SGR:110) |}];
   return ()
 ;;
 
@@ -156,7 +156,9 @@ let%expect_test "all the attributes" =
 
 let%expect_test "apply turns on and off but doesn't simplify" =
   let str = "some \027[2;48;5;1m\027[1K text" in
-  let style = Style.of_sgr ~params:"1;2;3;4;38;5;250" in
+  let style =
+    Style.of_sgr_params [ Some 1; Some 2; Some 3; Some 4; Some 38; Some 5; Some 250 ]
+  in
   let styled = apply style str in
   print_endline styled;
   print_endline (minimize styled);
@@ -250,7 +252,7 @@ let%expect_test "split handles unicode" =
     [1;41m0123[2;32m4👋[49;22;39m
     [41;2;32m👋5[4;64m6789[0m
     (+bold bg:red)0123(+faint fg:green)4👋(bg:default -weight fg:default)
-    (bg:red +faint fg:green)👋5(+uline ANSI-SGR:64)6789(off)
+    (bg:red +faint fg:green)👋5(+uline +ideogram:4)6789(off)
     01234👋
     👋56789
     |}];
@@ -627,5 +629,191 @@ let%expect_test "quickcheck: parsing never puts ESC in text" =
         raise_s [%message "ESC found in text element" (s : string) (parsed : Ansi_text.t)])
     string_with_escapes;
   [%expect {| |}];
+  return ()
+;;
+
+let%expect_test "private mode sequences - show/hide cursor" =
+  (* ESC[?25h = show cursor, ESC[?25l = hide cursor *)
+  let s = "\027[?25hvisible\027[?25l" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (PrivateMode:set:25)visible(PrivateMode:reset:25)
+    \027[?25hvisible\027[?25l
+    |}];
+  return ()
+;;
+
+let%expect_test "private mode sequences - alternate screen" =
+  (* ESC[?1049h = enter alternate screen, ESC[?1049l = exit *)
+  let s = "\027[?1049hALT\027[?1049l" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (PrivateMode:set:1049)ALT(PrivateMode:reset:1049)
+    \027[?1049hALT\027[?1049l
+    |}];
+  return ()
+;;
+
+let%expect_test "private mode sequences - old alternate screen" =
+  (* ESC[?47h / ESC[?47l = old-style alternate screen *)
+  let s = "\027[?47hALT\027[?47l" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (PrivateMode:set:47)ALT(PrivateMode:reset:47)
+    \027[?47hALT\027[?47l
+    |}];
+  return ()
+;;
+
+let%expect_test "private mode sequences - bracketed paste" =
+  (* ESC[?2004h = enable bracketed paste, ESC[?2004l = disable *)
+  let s = "\027[?2004htext\027[?2004l" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (PrivateMode:set:2004)text(PrivateMode:reset:2004)
+    \027[?2004htext\027[?2004l
+    |}];
+  return ()
+;;
+
+let%expect_test "private mode sequences - multiple modes" =
+  (* Multiple modes can be set at once: ESC[?25;47h *)
+  let s = "\027[?25;47htext\027[?25;47l" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (PrivateMode:set:25;47)text(PrivateMode:reset:25;47)
+    \027[?25;47htext\027[?25;47l
+    |}];
+  return ()
+;;
+
+let%expect_test "private mode - is_alternate_screen helper" =
+  let test s =
+    let parsed = parse s in
+    List.iter parsed ~f:(function
+      | `Private_mode pm ->
+        printf
+          "modes=%s is_alt=%b\n"
+          (String.concat ~sep:"," (List.map pm.modes ~f:Int.to_string))
+          (Ansi_text.Private_mode.is_alternate_screen pm)
+      | _ -> ())
+  in
+  test "\027[?25h";
+  test "\027[?47h";
+  test "\027[?1049h";
+  test "\027[?25;1049h";
+  [%expect
+    {|
+    modes=25 is_alt=false
+    modes=47 is_alt=true
+    modes=1049 is_alt=true
+    modes=25,1049 is_alt=true
+    |}];
+  return ()
+;;
+
+let%expect_test "DSR sequences - cursor position query" =
+  let s = "\027[6n" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (DSR:cursor-position)
+    \027[6n
+    |}];
+  return ()
+;;
+
+let%expect_test "DSR sequences - device status query" =
+  let s = "\027[5n" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (DSR:device-status)
+    \027[5n
+    |}];
+  return ()
+;;
+
+let%expect_test "DSR sequences - other numeric query" =
+  let s = "\027[0n" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (DSR:0)
+    \027[0n
+    |}];
+  return ()
+;;
+
+let%expect_test "OSC sequences - window title with BEL" =
+  let s = "\027]0;my window title\007" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (OSC:title:my window title)
+    \027]0;my window title\027\\
+    |}];
+  return ()
+;;
+
+let%expect_test "OSC sequences - window title with ST" =
+  let s = "\027]2;another title\027\\" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (OSC:title:another title)
+    \027]0;another title\027\\
+    |}];
+  return ()
+;;
+
+let%expect_test "OSC sequences - icon name" =
+  let s = "\027]1;my icon\007" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (OSC:icon:my icon)
+    \027]1;my icon\027\\
+    |}];
+  return ()
+;;
+
+let%expect_test "OSC sequences - working directory" =
+  let s = "\027]7;file:///home/user\007" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (OSC:cwd:file:///home/user)
+    \027]7;file:///home/user\027\\
+    |}];
+  return ()
+;;
+
+let%expect_test "OSC sequences - other/unknown" =
+  let s = "\027]99;some payload\007" in
+  print_endline (visualize s);
+  print_endline (parse s |> to_string |> String.escaped);
+  [%expect
+    {|
+    (OSC:99;some payload)
+    \027]99;some payload\027\\
+    |}];
   return ()
 ;;

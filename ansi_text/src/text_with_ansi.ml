@@ -10,13 +10,13 @@ type t = element list [@@deriving compare ~localize, equal ~localize, quickcheck
 
 let width t =
   List.sum (module Int) t ~f:(function
-    | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> 0
+    | #Ansi.formatting | #Ansi.emulation | `Control _ | `Unknown _ -> 0
     | `Text txt -> Text.width txt)
 ;;
 
 let is_empty t =
   List.for_all t ~f:(function
-    | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> true
+    | #Ansi.formatting | #Ansi.emulation | `Control _ | `Unknown _ -> true
     | `Text txt -> Text.is_empty txt)
 ;;
 
@@ -26,6 +26,9 @@ let to_string t =
     | `Style sty -> Style.to_string sty
     | `Control ctl -> Control.to_string ctl
     | `Hyperlink link -> Hyperlink.to_string link
+    | `Private_mode pm -> Private_mode.to_string pm
+    | `Osc osc -> Osc.to_string osc
+    | `Dsr dsr -> Dsr.to_string dsr
     | `Unknown unk -> Unknown_esc.to_string unk
     | `Text txt -> Text.to_string txt)
   |> String.concat
@@ -37,6 +40,9 @@ let to_string_hum t =
     | `Style sty -> Style.to_string_hum sty
     | `Control ctl -> Control.to_string_hum ctl
     | `Hyperlink link -> Hyperlink.to_string_hum link
+    | `Private_mode pm -> Private_mode.to_string_hum pm
+    | `Osc osc -> Osc.to_string_hum osc
+    | `Dsr dsr -> Dsr.to_string_hum dsr
     | `Unknown unk -> Unknown_esc.to_string_hum unk
     | `Text txt -> Text.to_string txt)
   |> String.concat
@@ -44,7 +50,7 @@ let to_string_hum t =
 
 let to_unstyled t =
   List.filter_map t ~f:(function
-    | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> None
+    | #Ansi.formatting | #Ansi.emulation | `Control _ | `Unknown _ -> None
     | `Text txt -> Some (Text.to_string txt))
   |> String.concat
 ;;
@@ -66,7 +72,7 @@ let compress (t : t) : t =
     | text_or_style :: rest -> text_or_style :: scan_to_combine rest
   in
   List.filter t ~f:(function
-    | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> true
+    | #Ansi.formatting | #Ansi.emulation | `Control _ | `Unknown _ -> true
     | `Text txt -> not Text.(is_empty txt))
   |> scan_to_combine
   |> List.filter_map ~f:(fun text_or_ansi ->
@@ -74,7 +80,8 @@ let compress (t : t) : t =
     | `Style sty ->
       let sty = Style.compress sty in
       if List.is_empty sty then None else Some (`Style sty)
-    | `Control _ | `Hyperlink _ | `Unknown _ | `Text _ -> Some text_or_ansi)
+    | `Control _ | `Hyperlink _ | #Ansi.emulation | `Unknown _ | `Text _ ->
+      Some text_or_ansi)
 ;;
 
 let simplify_styles (t : t) =
@@ -84,7 +91,8 @@ let simplify_styles (t : t) =
       | `Style added_style ->
         let delta = Style.delta ~old_style ~added_style in
         Style.update ~old_style ~added_style, `Style delta
-      | `Control _ | `Hyperlink _ | `Unknown _ | `Text _ -> old_style, text_or_ansi)
+      | `Control _ | `Hyperlink _ | #Ansi.emulation | `Unknown _ | `Text _ ->
+        old_style, text_or_ansi)
   in
   compress deltas
 ;;
@@ -93,7 +101,7 @@ let style_at_end t =
   List.fold t ~init:[] ~f:(fun old_style text_or_ansi ->
     match text_or_ansi with
     | `Style added_style -> Style.update ~old_style ~added_style
-    | `Control _ | `Text _ | `Hyperlink _ | `Unknown _ -> old_style)
+    | `Control _ | `Text _ | `Hyperlink _ | #Ansi.emulation | `Unknown _ -> old_style)
 ;;
 
 let split ~pos t =
@@ -103,7 +111,8 @@ let split ~pos t =
       ~init:(0, 0)
       ~f:(fun (idx, len) text_or_ansi ->
         match text_or_ansi with
-        | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ -> Continue (idx + 1, len)
+        | #Ansi.formatting | #Ansi.emulation | `Control _ | `Unknown _ ->
+          Continue (idx + 1, len)
         | `Text txt ->
           let w = Text.width txt in
           if len + w >= pos then Stop (Some (idx, len)) else Continue (idx + 1, len + w))
@@ -113,7 +122,7 @@ let split ~pos t =
   | Some (idx, len) ->
     let at_boundary =
       match List.nth_exn t idx with
-      | `Style _ | `Control _ | `Hyperlink _ | `Unknown _ ->
+      | #Ansi.formatting | #Ansi.emulation | `Control _ | `Unknown _ ->
         Text.of_string "" (* should be impossible *)
       | `Text txt -> txt
     in

@@ -57,16 +57,29 @@ let text_of_trailing str =
    Returns a list to handle malformed sequences: valid CSI returns [element],
    malformed returns [Escape (Some '[')] without consuming params/intermediate. *)
 let csi =
-  let%bind params = char '[' *> take_while is_csi_param_byte
+  let%bind () = char '[' *> return () in
+  let%bind private_prefix =
+    (* DEC private mode sequences use '?' as a prefix to the parameters (e.g., ?25h). *)
+    match%bind peek_char with
+    | Some '?' -> advance 1 >>| fun () -> Some '?'
+    | _ -> return None
+  in
+  let%bind params = take_while is_csi_param_byte
   and intermediate = take_while is_csi_intermediate_byte in
   match%bind peek_char with
   | Some c when is_csi_final_byte c ->
     (* Valid CSI: consume final byte and parse *)
     any_char
-    >>| fun terminal -> [ (Ansi.of_csi ~params ~terminal :> Text_with_ansi.element) ]
+    >>| fun terminal ->
+    [ (Ansi.of_csi ?private_prefix params ~terminal :> Text_with_ansi.element) ]
   | _ ->
     (* Malformed CSI: no valid final byte. Return Fe '[' followed by
-       params and intermediate as text, so nothing is lost. *)
+       prefix, params, and intermediate as text, so nothing is lost. *)
+    let params =
+      match private_prefix with
+      | Some c -> sprintf "%c%s" c params
+      | None -> params
+    in
     return (`Unknown (Unknown_esc.Fe '[') :: text_of_trailing (params ^ intermediate))
 ;;
 
@@ -103,7 +116,7 @@ let osc =
     let%map () = advance 1 in
     (match osc_hyperlink_of_payload payload with
      | Some hyperlink -> [ `Hyperlink hyperlink ]
-     | None -> [ `Unknown (Unknown_esc.Osc payload) ])
+     | None -> [ (Ansi.of_osc_payload payload :> Text_with_ansi.element) ])
   | Some _ ->
     (* Must be ESC - check if it's ESC \ *)
     let%bind available in
@@ -115,7 +128,7 @@ let osc =
         let%map () = advance 2 in
         (match osc_hyperlink_of_payload payload with
          | Some hyperlink -> [ `Hyperlink hyperlink ]
-         | None -> [ `Unknown (Unknown_esc.Osc payload) ])
+         | None -> [ (Ansi.of_osc_payload payload :> Text_with_ansi.element) ])
       | _ ->
         (* ESC followed by something other than backslash - unterminated OSC. Return
            Fe ']' followed by payload as text. Don't consume the ESC. *)

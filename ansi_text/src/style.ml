@@ -2,13 +2,8 @@ open! Core
 
 type t = Attr.t list [@@deriving compare ~localize, equal ~localize, quickcheck, sexp]
 
-let of_sgr ~params =
-  let codes =
-    String.split params ~on:';'
-    |> List.filter_map ~f:(function
-      | "" -> None
-      | i -> Int.of_string_opt i)
-  in
+let of_sgr_params params =
+  let codes = List.filter_opt params in
   (* Per ECMA-48, [{ESC [ m}] (no parameters) is equivalent to [{ESC [ 0 m}] (reset) *)
   let codes = if List.is_empty codes then [ 0 ] else codes in
   let rec parse_several_codes acc codes =
