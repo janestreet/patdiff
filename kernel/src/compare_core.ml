@@ -43,6 +43,7 @@ module Make (Patdiff_core_arg : Patdiff_core.S) = struct
       | Some _ ->
         `Structured_hunks
           (Patdiff_core_arg.refine_structured
+             ~mark_newline_changes:true
              ~keep_ws
              ~produce_unified_lines:false
              ~split_long_lines

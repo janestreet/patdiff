@@ -17,7 +17,7 @@ depends: [
   "core_extended"
   "core_kernel"
   "core_unix"
-  "expect_test_helpers_core"
+  "expect_test_helpers_base"
   "patience_diff"
   "ppx_jane"
   "angstrom"                 {>= "0.15.0"}
@@ -25,7 +25,7 @@ depends: [
   "re"                       {>= "1.8.0"}
   "uucp"
 ]
-available: arch != "arm32" & arch != "x86_32"
+available: arch != "x86_32"
 synopsis: "File Diff using the Patience Diff algorithm"
 description: "
 "
