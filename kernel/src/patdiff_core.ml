@@ -1046,9 +1046,9 @@ module Make (Output_impls : Output_impls) = struct
     (* lines is the return array *)
     let lines = ref [] in
     (*
-       * Finish the current segment by applying the appropriate format
+     * Finish the current segment by applying the appropriate format
      * and popping it on to the end of the current line
-    *)
+     *)
     let finish_segment () =
       let rule =
         match !flag with
@@ -1061,9 +1061,9 @@ module Make (Output_impls : Output_impls) = struct
       segment := []
     in
     (*
-       * Finish the current segment, apply the reset rule to the line,
+     * Finish the current segment, apply the reset rule to the line,
      * and pop the finished line onto the return array
-    *)
+     *)
     let newline i =
       for _ = 1 to i do
         finish_segment ();
@@ -1102,7 +1102,7 @@ module Make (Output_impls : Output_impls) = struct
       in
       (* Iterate through the elements of the range, appending each `Word to
        * segment and calling newline on each `Newline
-      *)
+       *)
       Array.iter ar ~f:(function
         | `Newline (i, None) -> newline i
         | `Newline (i, Some s) ->
@@ -1495,13 +1495,15 @@ module Make (Output_impls : Output_impls) = struct
             match prev_all_same, next_all_same, move_kind with
             (* Don't create a same range inside of a move *)
             | true, true, None ->
-              (* Changes that are purely newlines are ignored when [keep_ws] is [False],
-                 but codemirror needs this info to track line numbers in side by side
-                 diffs. *)
-              if mark_newline_changes
-                 && not (equal (Array.length prev_ar) (Array.length next_ar))
-              then Replace (prev_ar, next_ar, move_kind)
-              else Same (Array.map next_ar ~f:(fun x -> x, x))
+              (match Array.zip prev_ar next_ar with
+               | Some both -> Same both
+               | None ->
+                 (* Changes that are purely newlines are ignored when [keep_ws] is
+                    [False], but codemirror needs this info to track line numbers in side
+                    by side diffs. *)
+                 if mark_newline_changes
+                 then Replace (prev_ar, next_ar, move_kind)
+                 else Same (Array.map next_ar ~f:(fun x -> x, x)))
             | _ ->
               (match prev_ar, next_ar with
                (* Ugly hack that takes care of empty files *)

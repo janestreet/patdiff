@@ -2,7 +2,14 @@ open! Core
 open! Import
 open Patdiff_kernel
 
-let test ~include_colors ~terminal_width ~prev ~next =
+let test'
+  ?(mark_newline_changes = true)
+  ?(include_colors = false)
+  ?(terminal_width = 125)
+  ~prev
+  ~next
+  ()
+  =
   (* Side-by-side diffs no longer support column sizes < 60 *)
   let terminal_width = max terminal_width 121 in
   let module Patdiff_core =
@@ -29,6 +36,7 @@ let test ~include_colors ~terminal_width ~prev ~next =
   in
   let refined =
     Patdiff_core.refine_structured
+      ~mark_newline_changes
       ~produce_unified_lines:false
       ~keep_ws:false
       ~split_long_lines:false
@@ -64,6 +72,10 @@ let test ~include_colors ~terminal_width ~prev ~next =
   in
   print_output Ansi_text.strip;
   if include_colors then print_output Ansi_text.visualize
+;;
+
+let test ~include_colors ~terminal_width ~prev ~next =
+  test' ~include_colors ~terminal_width ~prev ~next ()
 ;;
 
 let%expect_test _ =
@@ -528,82 +540,82 @@ tortor, hendrerit nec eleifend et, dapibus sed dolor.
                                                                   │19 >|Ut venenatis cursus diam, vel dictum augue interdum vitae
                                                                   │     . Ut scelerisque
                                                                   │20 >|condimentum augue, eget bibendum augue lacinia in.
-     9                                                            │21
-    10                                                            │22
-    11   Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ul│23   Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ul
+                                                                  │21 +|
+     9                                                            │22
+    10   Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ul│23   Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ul
          tricies eu, pretium et                                   │     tricies eu, pretium et
-    12   elit. Duis bibendum aliquet quam et tempor. Donec quis da│24   elit. Duis bibendum aliquet quam et tempor. Donec quis da
+    11   elit. Duis bibendum aliquet quam et tempor. Donec quis da│24   elit. Duis bibendum aliquet quam et tempor. Donec quis da
          pibus justo. Praesent                                    │     pibus justo. Praesent
-    13   eget pellentesque nisi. Nulla vestibulum orci quis dui la│25   eget pellentesque nisi. Nulla vestibulum orci quis dui la
+    12   eget pellentesque nisi. Nulla vestibulum orci quis dui la│25   eget pellentesque nisi. Nulla vestibulum orci quis dui la
          oreet, eget posuere sem                                  │     oreet, eget posuere sem
-    14   interdum. Morbi ac sodales ligula. Proin arcu ipsum, vene│26   interdum. Morbi ac sodales ligula. Proin arcu ipsum, vene
+    13   interdum. Morbi ac sodales ligula. Proin arcu ipsum, vene│26   interdum. Morbi ac sodales ligula. Proin arcu ipsum, vene
          natis id cursus et,                                      │     natis id cursus et,
-    15   blandit eu mi. Sed iaculis egestas ligula, lacinia condim│27   blandit eu mi. Sed iaculis egestas ligula, lacinia condim
+    14   blandit eu mi. Sed iaculis egestas ligula, lacinia condim│27   blandit eu mi. Sed iaculis egestas ligula, lacinia condim
          entum velit commodo                                      │     entum velit commodo
-    16   non. In eu elit convallis, tempus sapien sed, maximus pur│28   non. In eu elit convallis, tempus sapien sed, maximus pur
+    15   non. In eu elit convallis, tempus sapien sed, maximus pur│28   non. In eu elit convallis, tempus sapien sed, maximus pur
          us. Sed vitae enim et                                    │     us. Sed vitae enim et
-    17   tellus accumsan bibendum eu vel turpis. Phasellus massa l│29   tellus accumsan bibendum eu vel turpis. Phasellus massa l
+    16   tellus accumsan bibendum eu vel turpis. Phasellus massa l│29   tellus accumsan bibendum eu vel turpis. Phasellus massa l
          eo, eleifend vel                                         │     eo, eleifend vel
-    18   tincidunt ut, consequat et est. Duis quis condimentum ex.│30   tincidunt ut, consequat et est. Duis quis condimentum ex.
+    17   tincidunt ut, consequat et est. Duis quis condimentum ex.│30   tincidunt ut, consequat et est. Duis quis condimentum ex.
           Etiam nec faucibus                                      │      Etiam nec faucibus
-    19   lorem. Aliquam vehicula porta sapien, ut aliquam purus cu│31   lorem. Aliquam vehicula porta sapien, ut aliquam purus cu
+    18   lorem. Aliquam vehicula porta sapien, ut aliquam purus cu│31   lorem. Aliquam vehicula porta sapien, ut aliquam purus cu
          rsus vitae. Nullam at                                    │     rsus vitae. Nullam at
-    20   ex vehicula, egestas sapien vitae, molestie ipsum.       │32   ex vehicula, egestas sapien vitae, molestie ipsum.
-    21                                                            │33
-    22   Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifen│34   Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifen
+    19   ex vehicula, egestas sapien vitae, molestie ipsum.       │32   ex vehicula, egestas sapien vitae, molestie ipsum.
+    20                                                            │33
+    21   Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifen│34   Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifen
          d fermentum iaculis.                                     │     d fermentum iaculis.
-    23   Duis dignissim, mi sit amet vehicula auctor, odio mauris │35   Duis dignissim, mi sit amet vehicula auctor, odio mauris
+    22   Duis dignissim, mi sit amet vehicula auctor, odio mauris │35   Duis dignissim, mi sit amet vehicula auctor, odio mauris
          consectetur lectus, ac                                   │     consectetur lectus, ac
-    24   tincidunt lorem diam a nisi. Duis vehicula ex ac tortor s│36   tincidunt lorem diam a nisi. Duis vehicula ex ac tortor s
+    23   tincidunt lorem diam a nisi. Duis vehicula ex ac tortor s│36   tincidunt lorem diam a nisi. Duis vehicula ex ac tortor s
          agittis, ac commodo                                      │     agittis, ac commodo
-    25   lectus venenatis. Nam efficitur justo eros, et ornare neq│37   lectus venenatis. Nam efficitur justo eros, et ornare neq
+    24   lectus venenatis. Nam efficitur justo eros, et ornare neq│37   lectus venenatis. Nam efficitur justo eros, et ornare neq
          ue aliquet ut. Duis                                      │     ue aliquet ut. Duis
-    26   vulputate nulla nunc, eget pellentesque diam aliquam at. │38   vulputate nulla nunc, eget pellentesque diam aliquam at.
+    25   vulputate nulla nunc, eget pellentesque diam aliquam at. │38   vulputate nulla nunc, eget pellentesque diam aliquam at.
          Cras rhoncus orci at                                     │     Cras rhoncus orci at
-    27   tortor posuere convallis sed sed risus. Quisque sed ipsum│39   tortor posuere convallis sed sed risus. Quisque sed ipsum
+    26   tortor posuere convallis sed sed risus. Quisque sed ipsum│39   tortor posuere convallis sed sed risus. Quisque sed ipsum
           ex.                                                     │      ex.
-    28 <|                                                         │
-    29 <|Cras non semper ante. Vivamus non nulla scelerisque, ferm│
+    27 <|                                                         │
+    28 <|Cras non semper ante. Vivamus non nulla scelerisque, ferm│
          entum sem at, laoreet                                    │
-    30 <|est. Sed convallis, magna sit amet maximus sollicitudin, │
+    29 <|est. Sed convallis, magna sit amet maximus sollicitudin, │
          nulla metus sodales                                      │
-    31 <|eros, eu molestie arcu urna ut nunc. Pellentesque habitan│
+    30 <|eros, eu molestie arcu urna ut nunc. Pellentesque habitan│
          t morbi tristique                                        │
-    32 <|senectus et netus et malesuada fames ac turpis egestas. M│
+    31 <|senectus et netus et malesuada fames ac turpis egestas. M│
          orbi sollicitudin,                                       │
-    33 <|turpis sit amet ultricies interdum, urna nisl rhoncus tel│
+    32 <|turpis sit amet ultricies interdum, urna nisl rhoncus tel│
          lus, id consectetur                                      │
-    34 <|urna risus ut arcu. Aliquam hendrerit eros id ex tempor v│
+    33 <|urna risus ut arcu. Aliquam hendrerit eros id ex tempor v│
          ehicula. Nunc a pretium                                  │
-    35 <|risus. Nulla tincidunt, mauris eu pellentesque hendrerit,│
+    34 <|risus. Nulla tincidunt, mauris eu pellentesque hendrerit,│
           nisi nibh volutpat                                      │
-    36 <|sapien, vitae vehicula lacus tellus dictum augue. Pellent│
+    35 <|sapien, vitae vehicula lacus tellus dictum augue. Pellent│
          esque malesuada vitae                                    │
-    37 <|tellus lobortis laoreet. Donec fringilla lacinia nulla si│
+    36 <|tellus lobortis laoreet. Donec fringilla lacinia nulla si│
          t amet eleifend.                                         │
-    38 <|Suspendisse iaculis metus sed massa bibendum, quis conseq│
+    37 <|Suspendisse iaculis metus sed massa bibendum, quis conseq│
          uat metus lacinia.                                       │
-    39 <|Etiam scelerisque odio nec pulvinar dapibus. Duis interdu│
+    38 <|Etiam scelerisque odio nec pulvinar dapibus. Duis interdu│
          m interdum quam vel                                      │
-    40 <|dapibus. Quisque dapibus nisl quis magna accumsan, et lob│
+    39 <|dapibus. Quisque dapibus nisl quis magna accumsan, et lob│
          ortis magna eleifend.                                    │
-    41 <|Ut venenatis cursus diam, vel dictum augue interdum vitae│
+    40 <|Ut venenatis cursus diam, vel dictum augue interdum vitae│
          . Ut scelerisque                                         │
-    42 <|condimentum augue, eget bibendum augue lacinia in.       │
-    43                                                            │40
-    44   Aenean porta elit vitae pharetra dapibus. Duis a odio neq│41   Aenean porta elit vitae pharetra dapibus. Duis a odio neq
+    41 <|condimentum augue, eget bibendum augue lacinia in.       │
+    42                                                            │40
+    43   Aenean porta elit vitae pharetra dapibus. Duis a odio neq│41   Aenean porta elit vitae pharetra dapibus. Duis a odio neq
          ue. Curabitur                                            │     ue. Curabitur
-    45   ullamcorper enim ut metus luctus, eu blandit augue consec│42   ullamcorper enim ut metus luctus, eu blandit augue consec
+    44   ullamcorper enim ut metus luctus, eu blandit augue consec│42   ullamcorper enim ut metus luctus, eu blandit augue consec
          tetur. Vestibulum                                        │     tetur. Vestibulum
-    46   blandit lorem eget blandit fringilla. In et libero non la│43   blandit lorem eget blandit fringilla. In et libero non la
+    45   blandit lorem eget blandit fringilla. In et libero non la│43   blandit lorem eget blandit fringilla. In et libero non la
          cus elementum pulvinar                                   │     cus elementum pulvinar
-    47   id a orci. Maecenas porta urna mollis, egestas lacus id, │44   id a orci. Maecenas porta urna mollis, egestas lacus id,
+    46   id a orci. Maecenas porta urna mollis, egestas lacus id, │44   id a orci. Maecenas porta urna mollis, egestas lacus id,
          feugiat nisi. Vivamus                                    │     feugiat nisi. Vivamus
-    48   imperdiet ornare dui eleifend semper. Integer erat ipsum,│45   imperdiet ornare dui eleifend semper. Integer erat ipsum,
+    47   imperdiet ornare dui eleifend semper. Integer erat ipsum,│45   imperdiet ornare dui eleifend semper. Integer erat ipsum,
           vestibulum a lobortis                                   │      vestibulum a lobortis
-    49   eu, posuere in orci. Pellentesque gravida in purus eu ull│46   eu, posuere in orci. Pellentesque gravida in purus eu ull
+    48   eu, posuere in orci. Pellentesque gravida in purus eu ull│46   eu, posuere in orci. Pellentesque gravida in purus eu ull
          amcorper. Nunc urna                                      │     amcorper. Nunc urna
-    50   tortor, hendrerit nec eleifend et, dapibus sed dolor.    │47   tortor, hendrerit nec eleifend et, dapibus sed dolor.
+    49   tortor, hendrerit nec eleifend et, dapibus sed dolor.    │47   tortor, hendrerit nec eleifend et, dapibus sed dolor.
     Truncated
     --------------------------------------------------------------│--------------------------------------------------------------
        -|before                                                   │   +|after
@@ -627,48 +639,48 @@ tortor, hendrerit nec eleifend et, dapibus sed dolor.
                                                                   │18 >|dapibus. Quisque dapibus nisl quis magna accumsan, et lob
                                                                   │19 >|Ut venenatis cursus diam, vel dictum augue interdum vitae
                                                                   │20 >|condimentum augue, eget bibendum augue lacinia in.
-     9                                                            │21
-    10                                                            │22
-    11   Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ul│23   Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ul
-    12   elit. Duis bibendum aliquet quam et tempor. Donec quis da│24   elit. Duis bibendum aliquet quam et tempor. Donec quis da
-    13   eget pellentesque nisi. Nulla vestibulum orci quis dui la│25   eget pellentesque nisi. Nulla vestibulum orci quis dui la
-    14   interdum. Morbi ac sodales ligula. Proin arcu ipsum, vene│26   interdum. Morbi ac sodales ligula. Proin arcu ipsum, vene
-    15   blandit eu mi. Sed iaculis egestas ligula, lacinia condim│27   blandit eu mi. Sed iaculis egestas ligula, lacinia condim
-    16   non. In eu elit convallis, tempus sapien sed, maximus pur│28   non. In eu elit convallis, tempus sapien sed, maximus pur
-    17   tellus accumsan bibendum eu vel turpis. Phasellus massa l│29   tellus accumsan bibendum eu vel turpis. Phasellus massa l
-    18   tincidunt ut, consequat et est. Duis quis condimentum ex.│30   tincidunt ut, consequat et est. Duis quis condimentum ex.
-    19   lorem. Aliquam vehicula porta sapien, ut aliquam purus cu│31   lorem. Aliquam vehicula porta sapien, ut aliquam purus cu
-    20   ex vehicula, egestas sapien vitae, molestie ipsum.       │32   ex vehicula, egestas sapien vitae, molestie ipsum.
-    21                                                            │33
-    22   Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifen│34   Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifen
-    23   Duis dignissim, mi sit amet vehicula auctor, odio mauris │35   Duis dignissim, mi sit amet vehicula auctor, odio mauris
-    24   tincidunt lorem diam a nisi. Duis vehicula ex ac tortor s│36   tincidunt lorem diam a nisi. Duis vehicula ex ac tortor s
-    25   lectus venenatis. Nam efficitur justo eros, et ornare neq│37   lectus venenatis. Nam efficitur justo eros, et ornare neq
-    26   vulputate nulla nunc, eget pellentesque diam aliquam at. │38   vulputate nulla nunc, eget pellentesque diam aliquam at.
-    27   tortor posuere convallis sed sed risus. Quisque sed ipsum│39   tortor posuere convallis sed sed risus. Quisque sed ipsum
-    28 <|                                                         │
-    29 <|Cras non semper ante. Vivamus non nulla scelerisque, ferm│
-    30 <|est. Sed convallis, magna sit amet maximus sollicitudin, │
-    31 <|eros, eu molestie arcu urna ut nunc. Pellentesque habitan│
-    32 <|senectus et netus et malesuada fames ac turpis egestas. M│
-    33 <|turpis sit amet ultricies interdum, urna nisl rhoncus tel│
-    34 <|urna risus ut arcu. Aliquam hendrerit eros id ex tempor v│
-    35 <|risus. Nulla tincidunt, mauris eu pellentesque hendrerit,│
-    36 <|sapien, vitae vehicula lacus tellus dictum augue. Pellent│
-    37 <|tellus lobortis laoreet. Donec fringilla lacinia nulla si│
-    38 <|Suspendisse iaculis metus sed massa bibendum, quis conseq│
-    39 <|Etiam scelerisque odio nec pulvinar dapibus. Duis interdu│
-    40 <|dapibus. Quisque dapibus nisl quis magna accumsan, et lob│
-    41 <|Ut venenatis cursus diam, vel dictum augue interdum vitae│
-    42 <|condimentum augue, eget bibendum augue lacinia in.       │
-    43                                                            │40
-    44   Aenean porta elit vitae pharetra dapibus. Duis a odio neq│41   Aenean porta elit vitae pharetra dapibus. Duis a odio neq
-    45   ullamcorper enim ut metus luctus, eu blandit augue consec│42   ullamcorper enim ut metus luctus, eu blandit augue consec
-    46   blandit lorem eget blandit fringilla. In et libero non la│43   blandit lorem eget blandit fringilla. In et libero non la
-    47   id a orci. Maecenas porta urna mollis, egestas lacus id, │44   id a orci. Maecenas porta urna mollis, egestas lacus id,
-    48   imperdiet ornare dui eleifend semper. Integer erat ipsum,│45   imperdiet ornare dui eleifend semper. Integer erat ipsum,
-    49   eu, posuere in orci. Pellentesque gravida in purus eu ull│46   eu, posuere in orci. Pellentesque gravida in purus eu ull
-    50   tortor, hendrerit nec eleifend et, dapibus sed dolor.    │47   tortor, hendrerit nec eleifend et, dapibus sed dolor.
+                                                                  │21 +|
+     9                                                            │22
+    10   Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ul│23   Maecenas ac elit turpis. Nam ex turpis, ullamcorper et ul
+    11   elit. Duis bibendum aliquet quam et tempor. Donec quis da│24   elit. Duis bibendum aliquet quam et tempor. Donec quis da
+    12   eget pellentesque nisi. Nulla vestibulum orci quis dui la│25   eget pellentesque nisi. Nulla vestibulum orci quis dui la
+    13   interdum. Morbi ac sodales ligula. Proin arcu ipsum, vene│26   interdum. Morbi ac sodales ligula. Proin arcu ipsum, vene
+    14   blandit eu mi. Sed iaculis egestas ligula, lacinia condim│27   blandit eu mi. Sed iaculis egestas ligula, lacinia condim
+    15   non. In eu elit convallis, tempus sapien sed, maximus pur│28   non. In eu elit convallis, tempus sapien sed, maximus pur
+    16   tellus accumsan bibendum eu vel turpis. Phasellus massa l│29   tellus accumsan bibendum eu vel turpis. Phasellus massa l
+    17   tincidunt ut, consequat et est. Duis quis condimentum ex.│30   tincidunt ut, consequat et est. Duis quis condimentum ex.
+    18   lorem. Aliquam vehicula porta sapien, ut aliquam purus cu│31   lorem. Aliquam vehicula porta sapien, ut aliquam purus cu
+    19   ex vehicula, egestas sapien vitae, molestie ipsum.       │32   ex vehicula, egestas sapien vitae, molestie ipsum.
+    20                                                            │33
+    21   Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifen│34   Suspendisse iaculis lacinia arcu a vehicula. Nunc eleifen
+    22   Duis dignissim, mi sit amet vehicula auctor, odio mauris │35   Duis dignissim, mi sit amet vehicula auctor, odio mauris
+    23   tincidunt lorem diam a nisi. Duis vehicula ex ac tortor s│36   tincidunt lorem diam a nisi. Duis vehicula ex ac tortor s
+    24   lectus venenatis. Nam efficitur justo eros, et ornare neq│37   lectus venenatis. Nam efficitur justo eros, et ornare neq
+    25   vulputate nulla nunc, eget pellentesque diam aliquam at. │38   vulputate nulla nunc, eget pellentesque diam aliquam at.
+    26   tortor posuere convallis sed sed risus. Quisque sed ipsum│39   tortor posuere convallis sed sed risus. Quisque sed ipsum
+    27 <|                                                         │
+    28 <|Cras non semper ante. Vivamus non nulla scelerisque, ferm│
+    29 <|est. Sed convallis, magna sit amet maximus sollicitudin, │
+    30 <|eros, eu molestie arcu urna ut nunc. Pellentesque habitan│
+    31 <|senectus et netus et malesuada fames ac turpis egestas. M│
+    32 <|turpis sit amet ultricies interdum, urna nisl rhoncus tel│
+    33 <|urna risus ut arcu. Aliquam hendrerit eros id ex tempor v│
+    34 <|risus. Nulla tincidunt, mauris eu pellentesque hendrerit,│
+    35 <|sapien, vitae vehicula lacus tellus dictum augue. Pellent│
+    36 <|tellus lobortis laoreet. Donec fringilla lacinia nulla si│
+    37 <|Suspendisse iaculis metus sed massa bibendum, quis conseq│
+    38 <|Etiam scelerisque odio nec pulvinar dapibus. Duis interdu│
+    39 <|dapibus. Quisque dapibus nisl quis magna accumsan, et lob│
+    40 <|Ut venenatis cursus diam, vel dictum augue interdum vitae│
+    41 <|condimentum augue, eget bibendum augue lacinia in.       │
+    42                                                            │40
+    43   Aenean porta elit vitae pharetra dapibus. Duis a odio neq│41   Aenean porta elit vitae pharetra dapibus. Duis a odio neq
+    44   ullamcorper enim ut metus luctus, eu blandit augue consec│42   ullamcorper enim ut metus luctus, eu blandit augue consec
+    45   blandit lorem eget blandit fringilla. In et libero non la│43   blandit lorem eget blandit fringilla. In et libero non la
+    46   id a orci. Maecenas porta urna mollis, egestas lacus id, │44   id a orci. Maecenas porta urna mollis, egestas lacus id,
+    47   imperdiet ornare dui eleifend semper. Integer erat ipsum,│45   imperdiet ornare dui eleifend semper. Integer erat ipsum,
+    48   eu, posuere in orci. Pellentesque gravida in purus eu ull│46   eu, posuere in orci. Pellentesque gravida in purus eu ull
+    49   tortor, hendrerit nec eleifend et, dapibus sed dolor.    │47   tortor, hendrerit nec eleifend et, dapibus sed dolor.
     |}]
 ;;
 
@@ -1509,4 +1521,141 @@ let next i =
     22       i + 1                                                │22       i + 1
     23   ;;                                                       │23   ;;
     |xxx}]
+;;
+
+let%expect_test "Same ranges with whitespace-only differences render 'next' content on \
+                 both sides (different number of lines)"
+  =
+  let prev =
+    {|let () =
+  baz
+    foo
+      (* long comment that wraps here *)
+      bar|}
+  in
+  let next =
+    {|let () =
+  foo
+                (* long comment that
+                    wraps here *)
+    bar|}
+  in
+  test' ~mark_newline_changes:false ~prev ~next ();
+  [%expect
+    {|
+    Wrapped
+    --------------------------------------------------------------│--------------------------------------------------------------
+      -|before                                                    │  +|after
+    1   let () =                                                  │1   let () =
+    2 -|  baz                                                     │
+    3       foo                                                   │2     foo
+    4 !|                (* long comment that                      │3 !|                (* long comment that
+    5 !|                    wraps here *)                         │4 !|                    wraps here *)
+    6         bar                                                 │5       bar
+    Truncated
+    --------------------------------------------------------------│--------------------------------------------------------------
+      -|before                                                    │  +|after
+    1   let () =                                                  │1   let () =
+    2 -|  baz                                                     │
+    3       foo                                                   │2     foo
+    4 !|                (* long comment that                      │3 !|                (* long comment that
+    5 !|                    wraps here *)                         │4 !|                    wraps here *)
+    6         bar                                                 │5       bar
+    |}];
+  (* by setting [mark_newline_changes:true], we get the correct prev output and the
+     correct line numbering *)
+  test' ~mark_newline_changes:true ~prev ~next ();
+  [%expect
+    {|
+    Wrapped
+    --------------------------------------------------------------│--------------------------------------------------------------
+      -|before                                                    │  +|after
+    1   let () =                                                  │1   let () =
+    2 -|  baz                                                     │
+    3       foo                                                   │2     foo
+    4 !|      (* long comment that wraps here *)                  │3 !|                (* long comment that
+                                                                  │4 +|                    wraps here *)
+    5         bar                                                 │5       bar
+    Truncated
+    --------------------------------------------------------------│--------------------------------------------------------------
+      -|before                                                    │  +|after
+    1   let () =                                                  │1   let () =
+    2 -|  baz                                                     │
+    3       foo                                                   │2     foo
+    4 !|      (* long comment that wraps here *)                  │3 !|                (* long comment that
+                                                                  │4 +|                    wraps here *)
+    5         bar                                                 │5       bar
+    |}]
+;;
+
+let%expect_test "Same ranges with whitespace-only differences render 'next' content on \
+                 both sides (same number of lines)"
+  =
+  let prev =
+    {|let () =
+  baz
+    foo
+      (* long comment that wraps
+         here *)
+      bar|}
+  in
+  let next =
+    {|let () =
+  foo
+                (* long comment that
+                    wraps here *)
+    bar|}
+  in
+  test' ~mark_newline_changes:false ~prev ~next ();
+  [%expect
+    {|
+    Wrapped
+    --------------------------------------------------------------│--------------------------------------------------------------
+      -|before                                                    │  +|after
+    1   let () =                                                  │1   let () =
+    2 -|  baz                                                     │
+    3       foo                                                   │2     foo
+    4 !|      (* long comment that wraps                          │3 !|                (* long comment that
+    5 !|         here *)                                          │4 !|                    wraps here *)
+    6         bar                                                 │5       bar
+    Truncated
+    --------------------------------------------------------------│--------------------------------------------------------------
+      -|before                                                    │  +|after
+    1   let () =                                                  │1   let () =
+    2 -|  baz                                                     │
+    3       foo                                                   │2     foo
+    4 !|      (* long comment that wraps                          │3 !|                (* long comment that
+    5 !|         here *)                                          │4 !|                    wraps here *)
+    6         bar                                                 │5       bar
+    |}];
+  (* when there are the same number of [prev] and [next] lines in the range,
+     [~mark_newline_changes:true] does nothing *)
+  test'
+    ~mark_newline_changes:true
+    ~include_colors:false
+    ~terminal_width:125
+    ~prev
+    ~next
+    ();
+  [%expect
+    {|
+    Wrapped
+    --------------------------------------------------------------│--------------------------------------------------------------
+      -|before                                                    │  +|after
+    1   let () =                                                  │1   let () =
+    2 -|  baz                                                     │
+    3       foo                                                   │2     foo
+    4 !|      (* long comment that wraps                          │3 !|                (* long comment that
+    5 !|         here *)                                          │4 !|                    wraps here *)
+    6         bar                                                 │5       bar
+    Truncated
+    --------------------------------------------------------------│--------------------------------------------------------------
+      -|before                                                    │  +|after
+    1   let () =                                                  │1   let () =
+    2 -|  baz                                                     │
+    3       foo                                                   │2     foo
+    4 !|      (* long comment that wraps                          │3 !|                (* long comment that
+    5 !|         here *)                                          │4 !|                    wraps here *)
+    6         bar                                                 │5       bar
+    |}]
 ;;
