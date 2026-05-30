@@ -22,6 +22,7 @@ depends: [
   "ppx_jane"
   "angstrom"                 {>= "0.15.0"}
   "dune"                     {>= "3.17.0"}
+  "dune-build-info"
   "re"                       {>= "1.8.0"}
   "uucp"
 ]
