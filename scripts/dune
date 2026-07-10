@@ -2,20 +2,3 @@
  (section man)
  (files
   (patdiff.man as man1/patdiff.1)))
-
-(rule
- (targets patdiff.rpm.tar)
- (deps
-  (:first_dep ./build-rpm.sh)
-  ../bin/main.exe
-  ./patdiff.pkg.sexp
-  ../doc/changelog)
- (action
-  (bash "%{first_dep} patdiff")))
-
-(rule
- (alias default)
- (deps
-  (glob_files *.sh))
- (action
-  (bash "%{bin:shellcheck} -x *.sh")))

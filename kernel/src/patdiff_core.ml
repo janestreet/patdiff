@@ -189,16 +189,22 @@ module Make (Output_impls : Output_impls) = struct
           { hunk with ranges = List.map hunk.ranges ~f:(to_string rules output) })
       ;;
 
-      let build_unified ~rules ~output (hunks : _ Patience_diff.Hunk.t list) =
+      let build_unified
+        ?(annotation_gutter = Format.Annotation_gutter.empty)
+        ~rules
+        ~output
+        (hunks : _ Patience_diff.Hunk.t list)
+        =
         let formatted_hunks = ranges_to_strings ~rules ~output hunks in
         let blocks_rev = ref [] in
-        let f_line line =
+        let f_line side line =
+          let rendered = annotation_gutter.render side ^ line in
           match !blocks_rev with
-          | hd :: tl -> blocks_rev := (line :: hd) :: tl
-          | _ -> blocks_rev := [ line ] :: !blocks_rev
+          | hd :: tl -> blocks_rev := (rendered :: hd) :: tl
+          | [] -> blocks_rev := [ rendered ] :: !blocks_rev
         in
-        let f_hunk_break _ _ = blocks_rev := [] :: !blocks_rev in
-        Hunks.iter ~f_hunk_break ~f_line formatted_hunks;
+        let f_hunk_break _ = blocks_rev := [] :: !blocks_rev in
+        Hunks.iter_with_line_info ~f_hunk_break ~f_line formatted_hunks;
         List.rev_map !blocks_rev ~f:List.rev
       ;;
 
@@ -298,17 +304,20 @@ module Make (Output_impls : Output_impls) = struct
 
       let render_side_by_side_line
         ?(line_num_width = 0)
+        ?(annotation_gutter = Format.Annotation_gutter.empty)
         ~(rules : Format.Rules.t)
         ~output
         ~wrap_or_truncate
         ~pane_cols
         (line : Side_by_side.Line_info.t)
         =
+        let annotation_width = annotation_gutter.width in
+        let render_annotation = annotation_gutter.render in
         let prefix_column_width = String.length rules.line_same.pre.text in
         let width =
           if line_num_width <= 0
-          then pane_cols - prefix_column_width
-          else pane_cols - prefix_column_width - line_num_width - 1
+          then pane_cols - prefix_column_width - annotation_width
+          else pane_cols - prefix_column_width - line_num_width - 1 - annotation_width
         in
         let lines =
           match wrap_or_truncate with
@@ -324,8 +333,35 @@ module Make (Output_impls : Output_impls) = struct
             let left, right = Side_by_side.Line_info.lines line in
             [ left, right ]
         in
+        let prev_line_num, next_line_num = Side_by_side.Line_info.numbers line in
+        let blank_annotation = create_padding annotation_width in
+        (* A [Same] line-info with non-[`Same] segments is a [Replace] pair collapsed by
+           [align_replace_lines]; render it as [Prev] left / [Next] right. *)
+        let pane_annotations =
+          match line with
+          | Prev _ ->
+            (match prev_line_num with
+             | Some line -> render_annotation (Prev { line }), blank_annotation
+             | None -> blank_annotation, blank_annotation)
+          | Next _ ->
+            (match next_line_num with
+             | Some line -> blank_annotation, render_annotation (Next { line })
+             | None -> blank_annotation, blank_annotation)
+          | Same (prev_segs, next_segs) ->
+            (match prev_line_num, next_line_num with
+             | Some prev, Some next
+               when Side_by_side.Line.any_non_same prev_segs
+                    || Side_by_side.Line.any_non_same next_segs ->
+               ( render_annotation (Prev { line = prev })
+               , render_annotation (Next { line = next }) )
+             | Some prev, Some next ->
+               let s = render_annotation (Same { prev; next }) in
+               s, s
+             | _ -> blank_annotation, blank_annotation)
+        in
         let style = get_diff_style line ~rules ~output in
         List.mapi lines ~f:(fun i (left, right) ->
+          let wrapped = i > 0 in
           let lnum, rnum =
             if line_num_width <= 0
             then "", ""
@@ -333,16 +369,20 @@ module Make (Output_impls : Output_impls) = struct
               ( line_num_text (Side_by_side.Line.line_number left) ~len:line_num_width
               , line_num_text (Side_by_side.Line.line_number right) ~len:line_num_width )
           in
-          let lgut, rgut = get_gutters ~wrapped:(i > 0) ~rules ~output line in
+          let lannot, rannot =
+            if wrapped then blank_annotation, blank_annotation else pane_annotations
+          in
+          let lgut, rgut = get_gutters ~wrapped ~rules ~output line in
           let lpad = create_padding (Int.max 0 (width - Side_by_side.Line.width left)) in
           let ltext = Side_by_side.Line.styled_string ~output ~style left in
           let rtext = Side_by_side.Line.styled_string ~output ~style right in
-          let left = lnum ^ lgut ^ ltext ^ lpad in
-          let right = rnum ^ rgut ^ rtext |> String.rstrip in
+          let left = lannot ^ lnum ^ lgut ^ ltext ^ lpad in
+          let right = rannot ^ rnum ^ rgut ^ rtext |> String.rstrip in
           left, right)
       ;;
 
       let build_side_by_side
+        ?annotation_gutter
         ?width_override
         ?(include_line_numbers = true)
         ~(rules : Format.Rules.t)
@@ -362,10 +402,10 @@ module Make (Output_impls : Output_impls) = struct
         Array.iter (Side_by_side.hunks_to_lines hunks) ~f:(fun hunk ->
           let hunk_lines_rev = ref [] in
           Array.iter hunk ~f:(fun line ->
-            (* We may get back multiple lines if we are wrapping long lines. *)
             let new_lines =
               render_side_by_side_line
                 line
+                ?annotation_gutter
                 ~rules
                 ~output
                 ~pane_cols
@@ -383,15 +423,18 @@ module Make (Output_impls : Output_impls) = struct
       ;;
 
       let render_filenames
+        ?(annotation_gutter = Format.Annotation_gutter.empty)
         ~prev_file
         ~next_file
         ~pane_cols
         ~output
         ~(rules : Format.Rules.t)
         ~line_num_width
+        ()
         =
-        let cols_available = pane_cols - line_num_width in
-        let line_num_space = String.make line_num_width ' ' in
+        let annotation_width = annotation_gutter.width in
+        let cols_available = pane_cols - line_num_width - annotation_width in
+        let prefix = create_padding (annotation_width + line_num_width) in
         let middle_divider = make_divider output in
         let render_file_name ~rule file =
           let filename = File_name.display_name file in
@@ -405,19 +448,17 @@ module Make (Output_impls : Output_impls) = struct
           List.map
             (Ansi_text.to_double_column ~width:cols_available ~left:prev ~right:next)
             ~f:(fun (left, right) ->
-              String.concat
-                [ line_num_space; left; middle_divider; line_num_space; right ])
+              String.concat [ prefix; left; middle_divider; prefix; right ])
         | Output.Html ->
           let buff =
             String.make (pane_cols - String.length (File_name.display_name prev_file)) ' '
           in
           (* Don't try to use ansi_text to wrap HTML! *)
-          [ String.concat
-              [ line_num_space; prev; buff; middle_divider; line_num_space; next ]
-          ]
+          [ String.concat [ prefix; prev; buff; middle_divider; prefix; next ] ]
       ;;
 
       let print_side_by_side
+        ?annotation_gutter
         ?width_override
         ?file_names
         ~(rules : Format.Rules.t)
@@ -436,17 +477,20 @@ module Make (Output_impls : Output_impls) = struct
             let pane_cols = (output_width ?width_override () - 1) / 2 in
             let filename_lines =
               render_filenames
+                ?annotation_gutter
                 ~prev_file
                 ~next_file
                 ~pane_cols
                 ~output
                 ~rules
                 ~line_num_width
+                ()
             in
             List.iter filename_lines ~f:print
         in
         let lines =
           build_side_by_side
+            ?annotation_gutter
             ?width_override
             ~rules
             ~wrap_or_truncate
@@ -1714,6 +1758,7 @@ module Make (Output_impls : Output_impls) = struct
   let build_side_by_side = Output_ops.Double_column.build_side_by_side
 
   let print_side_by_side
+    ?annotation_gutter
     ?width_override
     ~file_names
     ~rules
@@ -1722,6 +1767,7 @@ module Make (Output_impls : Output_impls) = struct
     hunks
     =
     Output_ops.Double_column.print_side_by_side
+      ?annotation_gutter
       ?width_override
       ~file_names
       ~rules
@@ -1754,6 +1800,7 @@ module Make (Output_impls : Output_impls) = struct
   let output_width = Output_ops.output_width
 
   let output_to_string_side_by_side
+    ?annotation_gutter
     ?width_override
     ~file_names
     ~rules
@@ -1768,15 +1815,18 @@ module Make (Output_impls : Output_impls) = struct
     let pane_cols = (output_width ?width_override () - 1) / 2 in
     let filename_lines =
       Output_ops.Double_column.render_filenames
+        ?annotation_gutter
         ~prev_file
         ~next_file
         ~pane_cols
         ~output
         ~rules
         ~line_num_width
+        ()
     in
     let lines =
       Output_ops.Double_column.build_side_by_side
+        ?annotation_gutter
         ?width_override
         hunks
         ~rules

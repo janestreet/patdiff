@@ -149,6 +149,39 @@ module Rules = struct
   ;;
 end
 
+module Annotation_gutter = struct
+  type side =
+    | Prev of { line : int }
+    | Next of { line : int }
+    | Same of
+        { prev : int
+        ; next : int
+        }
+    | Unified of
+        { prev : int
+        ; next : int
+        }
+  [@@deriving sexp_of]
+
+  type t =
+    { width : int
+    ; render : side -> string
+    }
+
+  let empty = { width = 0; render = (fun _ -> "") }
+
+  let create ~width ~render =
+    let render side =
+      render side
+      |> Ansi_text.parse
+      |> Ansi_text.truncate ~width
+      |> Ansi_text.pad ~width
+      |> Ansi_text.to_string
+    in
+    { width; render }
+  ;;
+end
+
 module Location_style = struct
   type t =
     | Diff
