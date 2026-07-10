@@ -1,4 +1,5 @@
 module Import = Import
+module Test_annotation_gutter = Test_annotation_gutter
 module Test_file_helpers = Test_file_helpers
 module Test_html_output = Test_html_output
 module Test_patdiff_core = Test_patdiff_core

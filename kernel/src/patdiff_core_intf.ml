@@ -51,17 +51,25 @@ module type S = sig
     -> [ `Newline of int * string option | `Word of string ] array
 
   (** Renders each line for a single-column diff, preserving the structure of the hunk
-      list (which usually comes from [diff] or [refine]). *)
+      list (which usually comes from [diff] or [refine]).
+
+      If [annotation_gutter] is provided, it is called per visible line; the returned
+      string is rendered in a column before the +/- diff gutter. *)
   val build_unified
-    :  rules:Format.Rules.t
+    :  ?annotation_gutter:Format.Annotation_gutter.t
+    -> rules:Format.Rules.t
     -> output:Output.t
     -> Hunks.t
     -> string list list
 
   (** Renders both sides of each line for a double-column diff, preserving the structure
-      of the hunk list (which usually comes from [refine_structured]). *)
+      of the hunk list (which usually comes from [refine_structured]).
+
+      If [annotation_gutter] is provided, it is called per visible line; the returned
+      string is rendered in a column before the +/- diff gutter. *)
   val build_side_by_side
-    :  ?width_override:int
+    :  ?annotation_gutter:Format.Annotation_gutter.t
+    -> ?width_override:int
     -> ?include_line_numbers:bool
     -> rules:Format.Rules.t
     -> wrap_or_truncate:[ `wrap | `truncate | `neither ]
@@ -80,7 +88,8 @@ module type S = sig
 
   (** Print a hunk list, usually from [refine], as a double-column diff. *)
   val print_side_by_side
-    :  ?width_override:int
+    :  ?annotation_gutter:Format.Annotation_gutter.t
+    -> ?width_override:int
     -> file_names:File_name.t * File_name.t
     -> rules:Format.Rules.t
     -> wrap_or_truncate:[ `wrap | `truncate ]
@@ -99,7 +108,8 @@ module type S = sig
     -> string
 
   val output_to_string_side_by_side
-    :  ?width_override:int
+    :  ?annotation_gutter:Format.Annotation_gutter.t
+    -> ?width_override:int
     -> file_names:File_name.t * File_name.t
     -> rules:Format.Rules.t
     -> wrap_or_truncate:[ `truncate | `wrap ]

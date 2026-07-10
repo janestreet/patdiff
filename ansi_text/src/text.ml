@@ -32,7 +32,7 @@ let split t ~pos =
         else Continue (new_width_so_far, idx + 1))
       ~finish:Fn.id
   in
-  let prefix_char_widths, suffix_char_widths = List.split_n t.char_widths n in
+  let #(prefix_char_widths, suffix_char_widths) = List.split_n t.char_widths n in
   let prefix_byte_length =
     List.sum (module Int) prefix_char_widths ~f:(fun (char, _) ->
       Uchar.Utf8.byte_length char)

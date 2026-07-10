@@ -80,6 +80,39 @@ module Rules : sig
   val strip_styles : t -> t
 end
 
+(** A column rendered to the left of the line-number / +/- gutter.
+
+    [render] is meant to be called once per emitted source line that has a line number
+    (e.g. not for continuation rows from line wrapping or padding lines in side-by-side
+    views). [create] wraps the [render] function with logic to pad and/or truncate the
+    returned string so the gutter column is always exactly [width] display columns (with
+    [Ansi_text]-aware width, so styled output works).
+
+    [Unified] is emitted only by [build_unified] for refined-replace "!" lines.
+    Side-by-side renders aligned-replace pairs as separate [Prev] / [Next] emits per pane. *)
+module Annotation_gutter : sig
+  type side =
+    | Prev of { line : int }
+    | Next of { line : int }
+    | Same of
+        { prev : int
+        ; next : int
+        }
+    | Unified of
+        { prev : int
+        ; next : int
+        }
+  [@@deriving sexp_of]
+
+  type t = private
+    { width : int
+    ; render : side -> string
+    }
+
+  val empty : t
+  val create : width:int -> render:(side -> string) -> t
+end
+
 module Location_style : sig
   type t =
     | Diff
